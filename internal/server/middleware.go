@@ -1,0 +1,131 @@
+package server
+
+import (
+	"strings"
+
+	"github.com/fdddf/xcstrings-translator/internal/auth"
+	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/gofiber/fiber/v2"
+)
+
+// AuthMiddleware authenticates requests using JWT
+func AuthMiddleware(c *fiber.Ctx) error {
+	// Extract token from Authorization header
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return c.Status(401).JSON(fiber.Map{
+			"error": "Authorization header is required",
+		})
+	}
+
+	// Check if it's a Bearer token
+	tokenString := ""
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+	} else {
+		return c.Status(401).JSON(fiber.Map{
+			"error": "Invalid authorization header format",
+		})
+	}
+
+	// Parse and validate the token
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		return c.Status(401).JSON(fiber.Map{
+			"error": "Invalid or expired token",
+		})
+	}
+
+	// Fetch user from database
+	user, err := auth.GetUserByID(claims.UserID)
+	if err != nil {
+		return c.Status(401).JSON(fiber.Map{
+			"error": "User not found",
+		})
+	}
+
+	// Add user info to context
+	c.Locals("user", user)
+	c.Locals("userID", claims.UserID)
+	c.Locals("username", claims.Username)
+
+	return c.Next()
+}
+
+// OptionalAuthMiddleware allows requests to proceed even if not authenticated
+func OptionalAuthMiddleware(c *fiber.Ctx) error {
+	// Extract token from Authorization header
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		// No token provided, continue without authentication
+		c.Locals("user", nil)
+		c.Locals("userID", uint(0))
+		c.Locals("username", "")
+		return c.Next()
+	}
+
+	// Check if it's a Bearer token
+	tokenString := ""
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+	} else {
+		// Invalid format, continue without authentication
+		c.Locals("user", nil)
+		c.Locals("userID", uint(0))
+		c.Locals("username", "")
+		return c.Next()
+	}
+
+	// Parse and validate the token
+	claims, err := auth.ParseJWT(tokenString)
+	if err != nil {
+		// Invalid token, continue without authentication
+		c.Locals("user", nil)
+		c.Locals("userID", uint(0))
+		c.Locals("username", "")
+		return c.Next()
+	}
+
+	// Fetch user from database
+	user, err := auth.GetUserByID(claims.UserID)
+	if err != nil {
+		// User not found, continue without authentication
+		c.Locals("user", nil)
+		c.Locals("userID", uint(0))
+		c.Locals("username", "")
+		return c.Next()
+	}
+
+	// Add user info to context
+	c.Locals("user", user)
+	c.Locals("userID", claims.UserID)
+	c.Locals("username", claims.Username)
+
+	return c.Next()
+}
+
+// GetUserFromContext retrieves the authenticated user from the context
+func GetUserFromContext(c *fiber.Ctx) (*database.User, bool) {
+	user, ok := c.Locals("user").(*database.User)
+	return user, ok
+}
+
+// GetUserIDFromContext retrieves the authenticated user ID from the context
+func GetUserIDFromContext(c *fiber.Ctx) (uint, bool) {
+	userID, ok := c.Locals("userID").(uint)
+	return userID, ok
+}
+
+// RequireAuthIfNotDemo returns auth middleware if not in demo mode, otherwise returns optional auth
+func RequireAuthIfNotDemo(c *fiber.Ctx) error {
+	// Check if demo mode is enabled
+	demoMode := c.App().Config().EnablePrintRoutes // We can use a custom config value here
+
+	if demoMode {
+		// In demo mode, use optional auth to allow limited functionality
+		return OptionalAuthMiddleware(c)
+	}
+
+	// In regular mode, require authentication
+	return AuthMiddleware(c)
+}

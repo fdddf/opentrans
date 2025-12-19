@@ -13,19 +13,73 @@
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
+          <!-- Auth buttons -->
+          <div v-if="!isAuthenticated" class="flex items-center gap-2">
+            <button
+              class="rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-mint/60 hover:text-mint"
+              @click="showLogin = true"
+            >
+              Login
+            </button>
+            <button
+              class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-midnight shadow-glow transition hover:shadow-neon"
+              @click="showRegister = true"
+            >
+              Register
+            </button>
+          </div>
+          <div v-else class="flex items-center gap-2">
+            <span class="text-sm text-slate-300">Hi, {{ user?.username }}!</span>
+            <button
+              class="rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-mint/60 hover:text-mint"
+              @click="logout"
+            >
+              Logout
+            </button>
+          </div>
+          
           <button
             class="rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-mint/60 hover:text-mint"
             @click="refreshState"
           >
             Refresh
           </button>
+          
+          <!-- Upload button with dropdown for new vs project upload -->
+          <div class="relative" v-if="isAuthenticated">
+            <button
+              class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-midnight shadow-glow transition hover:shadow-neon"
+              @click="showUploadMenu = !showUploadMenu"
+            >
+              Upload xcstrings
+            </button>
+            
+            <div v-if="showUploadMenu" class="absolute right-0 mt-2 w-56 rounded-xl bg-midnight/90 border border-white/20 shadow-lg z-10">
+              <button
+                class="w-full text-left px-4 py-2 text-sm hover:bg-mint/10 hover:text-white rounded-t-xl"
+                @click="triggerNewUpload"
+              >
+                New Project
+              </button>
+              <button
+                class="w-full text-left px-4 py-2 text-sm hover:bg-mint/10 hover:text-white rounded-b-xl"
+                @click="triggerProjectUpload"
+              >
+                To Project
+              </button>
+            </div>
+          </div>
           <button
+            v-else
             class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-midnight shadow-glow transition hover:shadow-neon"
             @click="triggerUpload"
           >
             Upload xcstrings
           </button>
+          
           <input ref="fileInput" type="file" accept=".xcstrings,application/json" class="hidden" @change="onFileChange" />
+          <input ref="projectFileInput" type="file" accept=".xcstrings,application/json" class="hidden" @change="onProjectFileChange" />
+          
           <button
             class="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-mint/60 hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500"
             :disabled="!hasFile"
@@ -35,6 +89,120 @@
           </button>
         </div>
       </header>
+      
+      <!-- Auth Modals -->
+      <div v-if="showLogin" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div class="bg-midnight rounded-2xl p-6 w-full max-w-md border border-white/20">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Login</h2>
+            <button @click="showLogin = false" class="text-slate-400 hover:text-white">×</button>
+          </div>
+          
+          <form @submit.prevent="performLogin">
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Username</label>
+              <input v-model="loginForm.username" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="Username" required />
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Password</label>
+              <input v-model="loginForm.password" type="password" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="Password" required />
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-mint px-4 py-3 text-center text-sm font-semibold text-midnight shadow-lg shadow-mint/20 transition hover:shadow-mint/40">
+              Login
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <div v-if="showRegister" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div class="bg-midnight rounded-2xl p-6 w-full max-w-md border border-white/20">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Register</h2>
+            <button @click="showRegister = false" class="text-slate-400 hover:text-white">×</button>
+          </div>
+          
+          <form @submit.prevent="performRegister">
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Username</label>
+              <input v-model="registerForm.username" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="Username" required />
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Email</label>
+              <input v-model="registerForm.email" type="email" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="Email" required />
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Password</label>
+              <input v-model="registerForm.password" type="password" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="Password" required />
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-mint px-4 py-3 text-center text-sm font-semibold text-midnight shadow-lg shadow-mint/20 transition hover:shadow-mint/40">
+              Register
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Project Selection Modal -->
+      <div v-if="showProjectSelection" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div class="bg-midnight rounded-2xl p-6 w-full max-w-2xl border border-white/20 max-h-[80vh] overflow-auto">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Select Project</h2>
+            <button @click="closeProjectSelection" class="text-slate-400 hover:text-white">×</button>
+          </div>
+          
+          <div class="mb-4">
+            <button 
+              @click="createNewProject" 
+              class="w-full rounded-xl border border-white/20 px-4 py-3 text-left text-sm font-medium text-slate-100 transition hover:border-mint/60 hover:text-mint mb-2"
+            >
+              + Create New Project
+            </button>
+          </div>
+          
+          <div v-if="projects.length === 0" class="text-center py-8 text-slate-400">
+            No projects found. Create one first.
+          </div>
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div 
+              v-for="project in projects" 
+              :key="project.id"
+              class="rounded-xl border border-white/20 bg-white/5 p-4 cursor-pointer hover:border-mint/60 transition"
+              @click="selectProject(project.id)"
+            >
+              <h3 class="font-semibold">{{ project.name || 'Untitled Project' }}</h3>
+              <p class="text-sm text-slate-400 mt-1">{{ project.description || 'No description' }}</p>
+              <p class="text-xs text-slate-500 mt-2">{{ formatDate(project.createdAt) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Project Creation Modal -->
+      <div v-if="showProjectCreation" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div class="bg-midnight rounded-2xl p-6 w-full max-w-md border border-white/20">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Create New Project</h2>
+            <button @click="showProjectCreation = false" class="text-slate-400 hover:text-white">×</button>
+          </div>
+          
+          <form @submit.prevent="createProject">
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Project Name</label>
+              <input v-model="newProject.name" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="My Localization Project" required />
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Description</label>
+              <textarea v-model="newProject.description" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="Project description"></textarea>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm text-slate-400 mb-2">Source Language</label>
+              <input v-model="newProject.sourceLanguage" class="w-full rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="e.g. en" />
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-mint px-4 py-3 text-center text-sm font-semibold text-midnight shadow-lg shadow-mint/20 transition hover:shadow-mint/40">
+              Create Project
+            </button>
+          </form>
+        </div>
+      </div>
 
       <div class="grid gap-4 lg:grid-cols-3">
         <section class="glass rounded-2xl p-6 lg:col-span-2">
@@ -333,6 +501,29 @@ type Payload = {
 type ProviderId = 'openai' | 'google' | 'deepl' | 'baidu'
 type JobState = { id: string; status: string; done: number; total: number; message?: string }
 
+type User = {
+  id: number;
+  username: string;
+  email: string;
+  isActive: boolean;
+}
+
+type Project = {
+  id: number;
+  name: string;
+  description: string;
+  fileName: string;
+  sourceLanguage: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type ProjectForm = {
+  name: string;
+  description: string;
+  sourceLanguage: string;
+}
+
 const presets = ['zh-Hans', 'ja', 'ko', 'de', 'fr', 'es', 'ar']
 const languages = [
   { code: 'zh-Hans', name: 'Chinese (Simplified)' },
@@ -384,6 +575,33 @@ const state = reactive({
   timeoutSeconds: 300
 })
 
+// Authentication state
+const isAuthenticated = ref(false)
+const user = ref<User | null>(null)
+const showLogin = ref(false)
+const showRegister = ref(false)
+const loginForm = reactive({
+  username: '',
+  password: ''
+})
+const registerForm = reactive({
+  username: '',
+  email: '',
+  password: ''
+})
+
+// Project management state
+const projects = ref<Project[]>([])
+const showProjectSelection = ref(false)
+const showProjectCreation = ref(false)
+const showUploadMenu = ref(false)
+const newProject = reactive<ProjectForm>({
+  name: '',
+  description: '',
+  sourceLanguage: ''
+})
+const projectFileInput = ref<HTMLInputElement | null>(null)
+
 const isTranslating = ref(false)
 const progress = reactive<JobState>({ id: '', status: 'idle', done: 0, total: 0 })
 let progressTimer: number | null = null
@@ -417,6 +635,7 @@ const statusClass = computed(() =>
 
 const languageOptions = computed(() => (showAllLanguages.value ? languages : languages.slice(0, 20)))
 
+// Helper functions
 function showStatus(message: string, tone: 'info' | 'error' = 'info') {
   statusMessage.value = message
   statusTone.value = tone
@@ -424,6 +643,17 @@ function showStatus(message: string, tone: 'info' | 'error' = 'info') {
 
 function triggerUpload() {
   fileInput.value?.click()
+}
+
+function triggerNewUpload() {
+  triggerUpload()
+  showUploadMenu.value = false
+}
+
+function triggerProjectUpload() {
+  loadProjects()
+  showProjectSelection.value = true
+  showUploadMenu.value = false
 }
 
 function addTarget() {
@@ -456,6 +686,194 @@ function autoDetectSource() {
   }
 }
 
+// Authentication functions
+async function performLogin() {
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(loginForm)
+    })
+
+    if (!res.ok) {
+      const error = await res.json()
+      showStatus(`Login failed: ${error.error || 'Unknown error'}`, 'error')
+      return
+    }
+
+    const data = await res.json()
+    localStorage.setItem('token', data.token)
+    user.value = data.user
+    isAuthenticated.value = true
+    showLogin.value = false
+    
+    // Reset form
+    loginForm.username = ''
+    loginForm.password = ''
+    
+    showStatus('Login successful.', 'info')
+  } catch (err) {
+    showStatus('Login failed: ' + (err as Error).message, 'error')
+  }
+}
+
+async function performRegister() {
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(registerForm)
+    })
+
+    if (!res.ok) {
+      const error = await res.json()
+      showStatus(`Registration failed: ${error.error || 'Unknown error'}`, 'error')
+      return
+    }
+
+    const data = await res.json()
+    showStatus('Registration successful. Please login.', 'info')
+    showRegister.value = false
+    
+    // Reset form
+    registerForm.username = ''
+    registerForm.email = ''
+    registerForm.password = ''
+  } catch (err) {
+    showStatus('Registration failed: ' + (err as Error).message, 'error')
+  }
+}
+
+async function logout() {
+  localStorage.removeItem('token')
+  isAuthenticated.value = false
+  user.value = null
+  showStatus('Logged out successfully.', 'info')
+}
+
+// Project-related functions
+async function loadProjects() {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    showStatus('Please log in to access projects.', 'error')
+    return
+  }
+
+  try {
+    const res = await fetch('/api/protected/projects', {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to load projects: ${await res.text()}`)
+    }
+
+    const data = await res.json()
+    projects.value = data.projects
+  } catch (err) {
+    showStatus('Failed to load projects: ' + (err as Error).message, 'error')
+  }
+}
+
+function createNewProject() {
+  showProjectCreation.value = true
+  showProjectSelection.value = false
+}
+
+function closeProjectSelection() {
+  showProjectSelection.value = false
+}
+
+async function createProject() {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    showStatus('Please log in to create projects.', 'error')
+    return
+  }
+
+  try {
+    const res = await fetch('/api/protected/projects', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: newProject.name,
+        description: newProject.description,
+        fileName: '',
+        fileContent: '',
+        sourceLanguage: newProject.sourceLanguage
+      })
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to create project: ${await res.text()}`)
+    }
+
+    const data = await res.json()
+    projects.value.unshift(data.project)
+    showProjectCreation.value = false
+    
+    // Reset form
+    newProject.name = ''
+    newProject.description = ''
+    newProject.sourceLanguage = ''
+    
+    showStatus('Project created successfully.', 'info')
+  } catch (err) {
+    showStatus('Failed to create project: ' + (err as Error).message, 'error')
+  }
+}
+
+async function selectProject(projectId: number) {
+  // Load project data
+  const token = localStorage.getItem('token')
+  if (!token) {
+    showStatus('Please log in to access projects.', 'error')
+    return
+  }
+
+  try {
+    const res = await fetch(`/api/protected/projects/${projectId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    if (!res.ok) {
+      throw new Error(`Failed to load project: ${await res.text()}`)
+    }
+
+    const data = await res.json()
+    showProjectSelection.value = false
+    
+    // Since we can't directly load the project into local state,
+    // we will just close the modal and show a message
+    showStatus(`Project selected. File: ${data.project.fileName}`, 'info')
+  } catch (err) {
+    showStatus('Failed to load project: ' + (err as Error).message, 'error')
+  }
+}
+
+async function onProjectFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  // Show project selection to upload to
+  loadProjects()
+  showProjectSelection.value = true
+  input.value = ''
+}
+
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString()
+}
+
+// Existing functions remain the same
 async function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -592,7 +1010,29 @@ async function refreshState() {
   }
 }
 
-onMounted(() => {
+// Check authentication on mount
+onMounted(async () => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    try {
+      // Verify token by making a request to protected endpoint
+      const res = await fetch('/api/protected/projects', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (res.ok) {
+        isAuthenticated.value = true
+        // Get user info - in a real implementation we'd have a /me endpoint
+        // For now, we'll just assume the user is valid
+      } else {
+        localStorage.removeItem('token')
+      }
+    } catch (err) {
+      console.error('Token verification failed:', err)
+      localStorage.removeItem('token')
+    }
+  }
+
   refreshState().catch(() => null)
 
   const saved = loadLocalState()

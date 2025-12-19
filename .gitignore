@@ -5,3 +5,4 @@ dist/
 !webui/dist/**
 *.zip
 node_modules/
+.env
