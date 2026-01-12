@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/fdddf/xcstrings-translator/internal/auth"
 	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/xcstrings-translator/internal/email"
 	"github.com/fdddf/xcstrings-translator/internal/model"
 	"github.com/fdddf/xcstrings-translator/internal/services"
 	"github.com/fdddf/xcstrings-translator/internal/translator"
@@ -142,6 +144,7 @@ func NewApp() (*fiber.App, error) {
 	api.Post("/auth/register", handleRegister)
 	api.Post("/auth/login", handleLogin)
 	api.Post("/auth/logout", handleLogout)
+	api.Post("/auth/activate/:code", handleActivateUser) // Add activation endpoint
 
 	// Protected routes (require authentication)
 	protected := api.Group("/protected")
@@ -164,6 +167,9 @@ func NewApp() (*fiber.App, error) {
 	protected.Put("/providers/:id", handleUpdateProviderConfig)
 	protected.Delete("/providers/:id", handleDeleteProviderConfig)
 	protected.Get("/providers/:type/default", handleGetDefaultProviderConfig)
+
+	// Activity logging routes
+	protected.Get("/activities", handleGetUserActivities)
 
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root:         http.FS(distFS),
@@ -539,22 +545,77 @@ func handleRegister(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&req); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+		// Return a consistent error response format
+		errorResponse := struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: "Invalid request body",
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse)
 	}
 
 	if req.Username == "" || req.Email == "" || req.Password == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "Username, email, and password are required")
+		// Return a consistent error response format
+		errorResponse := struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: "Username, email, and password are required",
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse)
 	}
 
 	user, err := auth.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		// Return a consistent error response format
+		errorResponse := struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: err.Error(),
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse)
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"user":    user,
-	})
+	// Log registration activity
+	logActivity(c, user.ID, "user_registered", fmt.Sprintf("User %s registered", user.Username), "")
+
+	// Send activation email
+	go func() {
+		baseURL := os.Getenv("BASE_URL")
+		if baseURL == "" {
+			// Default to localhost if not set
+			baseURL = "http://localhost:3000"
+		}
+
+		err := email.SendActivationEmail(
+			user.Email,
+			user.Username,
+			user.ActivationCode,
+			baseURL,
+		)
+		if err != nil {
+			// Log the error but don't fail the registration
+			fmt.Printf("Failed to send activation email: %v\n", err)
+		}
+	}()
+
+	// Return a consistent success response format
+	response := struct {
+		Success bool           `json:"success"`
+		Message string         `json:"message"`
+		User    *database.User `json:"user"`
+	}{
+		Success: true,
+		Message: "Registration successful. Please check your email for activation.",
+		User:    user,
+	}
+
+	return c.JSON(response)
 }
 
 func handleLogin(c *fiber.Ctx) error {
@@ -564,28 +625,61 @@ func handleLogin(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&req); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+		// Return a consistent error response format
+		errorResponse := struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: "Invalid request body",
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse)
 	}
 
 	user, token, err := auth.LoginUser(req.Username, req.Password)
 	if err != nil {
-		return fiber.NewError(fiber.StatusUnauthorized, err.Error())
+		// Return a consistent error response format
+		errorResponse := struct {
+			Success bool   `json:"success"`
+			Message string `json:"message"`
+		}{
+			Success: false,
+			Message: err.Error(),
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(errorResponse)
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"user":    user,
-		"token":   token,
-	})
+	// Log login activity
+	logActivity(c, user.ID, "user_logged_in", fmt.Sprintf("User %s logged in", user.Username), "")
+
+	// Return a consistent success response format
+	response := struct {
+		Success bool           `json:"success"`
+		Message string         `json:"message"`
+		User    *database.User `json:"user"`
+		Token   string         `json:"token"`
+	}{
+		Success: true,
+		Message: "Login successful",
+		User:    user,
+		Token:   token,
+	}
+
+	return c.JSON(response)
 }
 
 func handleLogout(c *fiber.Ctx) error {
 	// In a real application, you might implement token blacklisting
 	// For now, just return success
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "Logged out successfully",
-	})
+	response := struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}{
+		Success: true,
+		Message: "Logged out successfully",
+	}
+
+	return c.JSON(response)
 }
 
 // Project handlers
@@ -1277,4 +1371,51 @@ func handleGetDefaultProviderConfig(c *fiber.Ctx) error {
 		"success": true,
 		"config":  services.SanitizeProviderConfig(config),
 	})
+}
+
+// User activation handler
+func handleActivateUser(c *fiber.Ctx) error {
+	activationCode := c.Params("code")
+
+	err := auth.ActivateUser(activationCode)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Account activated successfully. You can now log in.",
+	})
+}
+
+// Get user activities handler
+func handleGetUserActivities(c *fiber.Ctx) error {
+	userID, ok := GetUserIDFromContext(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
+	}
+
+	var activities []database.UserActivity
+	result := database.DB.Where("user_id = ?", userID).Order("created_at DESC").Limit(50).Find(&activities)
+	if result.Error != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, result.Error.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success":    true,
+		"activities": activities,
+	})
+}
+
+// logActivity logs a user activity
+func logActivity(c *fiber.Ctx, userID uint, action, details, useragent string) {
+	activity := &database.UserActivity{
+		UserID:    userID,
+		Action:    action,
+		Details:   details,
+		IPAddress: c.IP(),
+		UserAgent: c.Get("User-Agent"),
+	}
+
+	database.DB.Create(activity)
 }

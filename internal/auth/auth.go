@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/fdddf/xcstrings-translator/internal/database"
@@ -67,19 +68,35 @@ func ParseJWT(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// ValidateEmail validates an email address format
+func ValidateEmail(email string) bool {
+	re := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return re.MatchString(email)
+}
+
 // RegisterUser creates a new user with the provided details
 func RegisterUser(username, email, password string) (*database.User, error) {
+	// Validate email format
+	if !ValidateEmail(email) {
+		return nil, errors.New("invalid email format")
+	}
+
 	// Hash the password
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %v", err)
 	}
 
+	// Generate activation code
+	activationCode := generateActivationCode()
+
 	user := &database.User{
-		Username: username,
-		Email:    email,
-		Password: hashedPassword,
-		IsActive: true,
+		Username:       username,
+		Email:          email,
+		Password:       hashedPassword,
+		IsActive:       false, // User is not active until activation
+		IsActivated:    false,
+		ActivationCode: activationCode,
 	}
 
 	result := database.DB.Create(user)
@@ -92,12 +109,36 @@ func RegisterUser(username, email, password string) (*database.User, error) {
 	return user, nil
 }
 
+// ActivateUser activates a user account using an activation code
+func ActivateUser(activationCode string) error {
+	user := &database.User{}
+	result := database.DB.Where("activation_code = ? AND is_activated = ?", activationCode, false).First(user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return errors.New("invalid activation code or account already activated")
+	}
+
+	if result.Error != nil {
+		return fmt.Errorf("database error: %v", result.Error)
+	}
+
+	user.IsActive = true
+	user.IsActivated = true
+	user.ActivationCode = "" // Clear activation code after use
+
+	result = database.DB.Save(user)
+	if result.Error != nil {
+		return fmt.Errorf("failed to activate user: %v", result.Error)
+	}
+
+	return nil
+}
+
 // LoginUser authenticates a user and returns the user and JWT token
 func LoginUser(username, password string) (*database.User, string, error) {
 	var user database.User
 
-	// Find user by username
-	result := database.DB.Where("username = ? AND is_active = ?", username, true).First(&user)
+	// Find user by username (only activated users can log in)
+	result := database.DB.Where("username = ? AND is_activated = ? AND is_active = ?", username, true, true).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, "", errors.New("invalid username or password")
 	}
@@ -142,7 +183,7 @@ func GetUserByID(userID uint) (*database.User, error) {
 // GetUserByUsername retrieves a user by username
 func GetUserByUsername(username string) (*database.User, error) {
 	var user database.User
-	result := database.DB.Where("username = ? AND is_active = ?", username, true).First(&user)
+	result := database.DB.Where("username = ? AND is_activated = ? AND is_active = ?", username, true, true).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, errors.New("user not found")
 	}
@@ -154,4 +195,10 @@ func GetUserByUsername(username string) (*database.User, error) {
 	// Clear password for security
 	user.Password = ""
 	return &user, nil
+}
+
+// generateActivationCode generates a random activation code
+func generateActivationCode() string {
+	// Generate a 32-character random string as activation code
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }

@@ -13,10 +13,12 @@ type User struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
-	Username string `gorm:"uniqueIndex;not null" json:"username"`
-	Email    string `gorm:"uniqueIndex;not null" json:"email"`
-	Password string `gorm:"not null" json:"password"` // hashed password
-	IsActive bool   `gorm:"default:true" json:"is_active"`
+	Username       string `gorm:"uniqueIndex;not null" json:"username"`
+	Email          string `gorm:"uniqueIndex;not null" json:"email"`
+	Password       string `gorm:"not null" json:"password"` // hashed password
+	IsActive       bool   `gorm:"default:true" json:"is_active"`
+	IsActivated    bool   `gorm:"default:false" json:"is_activated"`
+	ActivationCode string `json:"activation_code,omitempty"`
 }
 
 // Project represents an xcstrings project
@@ -73,6 +75,21 @@ type Translation struct {
 
 	// Optional: translation provider used
 	TranslationProvider string `json:"translation_provider"`
+}
+
+// UserActivity represents user activity logs
+type UserActivity struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+
+	UserID    uint   `gorm:"not null" json:"user_id"` // Foreign key to User
+	User      User   `json:"user"`
+	Action    string `gorm:"not null" json:"action"`
+	Details   string `json:"details"`
+	IPAddress string `json:"ip_address"`
+	UserAgent string `json:"user_agent"`
 }
 
 // ProviderConfig represents user-specific translation provider configurations
