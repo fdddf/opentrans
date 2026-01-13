@@ -49,6 +49,7 @@ type LlamaOptions struct {
 	TopK             int
 	Tfs              float64
 	TopP             float64
+	MinP             float64
 	TypicalP         float64
 	RepeatLastN      int
 	RepeatPenalty    float64
@@ -79,10 +80,9 @@ func NewLlamaTranslator(options LlamaOptions) (*LlamaTranslator, error) {
 
 	// Create context parameters
 	ctxParams := llama.ContextDefaultParams()
-	if options.Threads > 0 {
-		ctxParams.NThreads = int32(options.Threads)
-		ctxParams.NThreadsBatch = int32(options.Threads)
-	}
+	ctxParams.NCtx = uint32(options.Tokens)
+	ctxParams.NBatch = uint32(options.Tokens)
+	ctxParams.NUbatch = uint32(options.Tokens)
 
 	// Initialize sampler with the specified parameters
 	samplers := []llama.SamplerType{
@@ -105,11 +105,7 @@ func NewLlamaTranslator(options LlamaOptions) (*LlamaTranslator, error) {
 	samplerParams.Temp = float32(options.Temperature)
 	samplerParams.TopK = int32(options.TopK)
 	samplerParams.TopP = float32(options.TopP)
-	samplerParams.TypP = float32(options.TypicalP)
-	samplerParams.PenaltyLastN = int32(options.RepeatLastN)
-	samplerParams.PenaltyRepeat = float32(options.RepeatPenalty)
-	samplerParams.PenaltyFreq = float32(options.FrequencyPenalty)
-	samplerParams.PenaltyPresent = float32(options.PresencePenalty)
+	samplerParams.MinP = float32(options.MinP)
 
 	// Create the translator instance
 	translator := &LlamaTranslator{
@@ -162,6 +158,7 @@ func (l *LlamaTranslator) Translate(ctx context.Context, req model.TranslationRe
 			Error:          fmt.Errorf("llama generation failed: %v", err),
 		}, nil
 	}
+	log.Infof("translate result: %s", response)
 
 	return model.TranslationResponse{
 		Key:            req.Key,
@@ -216,11 +213,6 @@ func (l *LlamaTranslator) generateText(ctx context.Context, prompt string) (stri
 		}
 
 		batch = llama.BatchGetOne([]llama.Token{start})
-	} else {
-		_, err := llama.Decode(llamaContext, batch)
-		if err != nil {
-			return "", fmt.Errorf("failed to decode batch: %v", err)
-		}
 	}
 
 	// Generate tokens
@@ -250,11 +242,10 @@ func (l *LlamaTranslator) generateText(ctx context.Context, prompt string) (stri
 		l := llama.TokenToPiece(vocab, nextToken, buf, 0, false)
 		nextPiece := string(buf[:l])
 
+		batch = llama.BatchGetOne([]llama.Token{nextToken})
+
 		// Add to result
 		result.WriteString(nextPiece)
-
-		// Create new batch with the next token
-		batch = llama.BatchGetOne([]llama.Token{nextToken})
 	}
 
 	return result.String(), nil

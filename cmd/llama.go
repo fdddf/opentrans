@@ -37,6 +37,7 @@ func init() {
 	llamaCmd.Flags().Int("top-k", 20, "Top-K sampling parameter")
 	llamaCmd.Flags().Float64("tfs", 1.0, "Tail free sampling parameter")
 	llamaCmd.Flags().Float64("top-p", 0.6, "Top-P sampling parameter")
+	llamaCmd.Flags().Float64("min-p", 0.1, "Minimum P sampling parameter")
 	llamaCmd.Flags().Float64("typical-p", 1.0, "Typical P sampling parameter")
 	llamaCmd.Flags().Int("repeat-last-n", 64, "Last n tokens to consider for repetition penalty")
 	llamaCmd.Flags().Float64("repeat-penalty", 1.05, "Repetition penalty")
@@ -55,6 +56,7 @@ func init() {
 	viper.BindPFlag("llama.top_k", llamaCmd.Flags().Lookup("top-k"))
 	viper.BindPFlag("llama.tfs", llamaCmd.Flags().Lookup("tfs"))
 	viper.BindPFlag("llama.top_p", llamaCmd.Flags().Lookup("top-p"))
+	viper.BindPFlag("llama.minp", llamaCmd.Flags().Lookup("min-p"))
 	viper.BindPFlag("llama.typical_p", llamaCmd.Flags().Lookup("typical-p"))
 	viper.BindPFlag("llama.repeat_last_n", llamaCmd.Flags().Lookup("repeat-last-n"))
 	viper.BindPFlag("llama.repeat_penalty", llamaCmd.Flags().Lookup("repeat-penalty"))
@@ -202,6 +204,13 @@ func runLlamaTranslate(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	minP := viper.GetFloat64("llama.min_p")
+	if cmd.Flags().Changed("min-p") {
+		if val, err := cmd.Flags().GetFloat64("min-p"); err == nil {
+			minP = val
+		}
+	}
+
 	typicalP := viper.GetFloat64("llama.typical_p")
 	if cmd.Flags().Changed("typical-p") {
 		if val, err := cmd.Flags().GetFloat64("typical-p"); err == nil {
@@ -290,6 +299,7 @@ func runLlamaTranslate(cmd *cobra.Command, args []string) {
 		TopK:             topK,
 		Tfs:              tfs,
 		TopP:             topP,
+		MinP:             minP,
 		TypicalP:         typicalP,
 		RepeatLastN:      repeatLastN,
 		RepeatPenalty:    repeatPenalty,
@@ -437,33 +447,33 @@ func normalizeLanguageCode(language string) string {
 	}
 
 	nameByToken := map[string]string{
-		"arabic":               "ar",
-		"chinese simplified":   "zh-Hans",
-		"chinese traditional":  "zh-Hant",
-		"czech":                "cs",
-		"danish":               "da",
-		"dutch":                "nl",
-		"english":              "en",
-		"finnish":              "fi",
-		"french":               "fr",
-		"german":               "de",
-		"hebrew":               "he",
-		"hindi":                "hi",
-		"indonesian":           "id",
-		"italian":              "it",
-		"japanese":             "ja",
-		"korean":               "ko",
-		"norwegian":            "no",
-		"polish":               "pl",
-		"portuguese":           "pt",
-		"russian":              "ru",
-		"simplified chinese":   "zh-Hans",
-		"spanish":              "es",
-		"swedish":              "sv",
-		"thai":                 "th",
-		"traditional chinese":  "zh-Hant",
-		"turkish":              "tr",
-		"vietnamese":           "vi",
+		"arabic":              "ar",
+		"chinese simplified":  "zh-Hans",
+		"chinese traditional": "zh-Hant",
+		"czech":               "cs",
+		"danish":              "da",
+		"dutch":               "nl",
+		"english":             "en",
+		"finnish":             "fi",
+		"french":              "fr",
+		"german":              "de",
+		"hebrew":              "he",
+		"hindi":               "hi",
+		"indonesian":          "id",
+		"italian":             "it",
+		"japanese":            "ja",
+		"korean":              "ko",
+		"norwegian":           "no",
+		"polish":              "pl",
+		"portuguese":          "pt",
+		"russian":             "ru",
+		"simplified chinese":  "zh-Hans",
+		"spanish":             "es",
+		"swedish":             "sv",
+		"thai":                "th",
+		"traditional chinese": "zh-Hant",
+		"turkish":             "tr",
+		"vietnamese":          "vi",
 	}
 	if code, ok := nameByToken[normalized]; ok {
 		return code
