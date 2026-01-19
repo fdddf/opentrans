@@ -1,6 +1,3 @@
-//go:build !windows || !gui || !cgo
-// +build !windows !gui !cgo
-
 package main
 
 import (

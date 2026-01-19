@@ -3,19 +3,19 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <h2 class="mt-6 text-center text-3xl font-extrabold text-slate-200">
-          Create a new account
+          {{ t('auth.registerTitle') }}
         </h2>
         <p class="mt-2 text-center text-sm text-slate-400">
-          Or 
+          {{ t('auth.haveAccount') }}
           <router-link to="/login" class="font-medium text-mint hover:text-mint/80">
-            sign in to your account
+            {{ t('auth.loginTitle') }}
           </router-link>
         </p>
       </div>
       <div class="mt-8 bg-midnight/50 backdrop-blur-lg rounded-2xl px-6 py-8 shadow-xl border border-white/10">
         <form class="space-y-6" @submit.prevent="performRegister">
           <div>
-            <label for="username" class="block text-sm font-medium text-slate-300">Username</label>
+            <label for="username" class="block text-sm font-medium text-slate-300">{{ t('common.username') }}</label>
             <div class="mt-1">
               <input 
                 id="username" 
@@ -29,7 +29,7 @@
           </div>
 
           <div>
-            <label for="email" class="block text-sm font-medium text-slate-300">Email</label>
+            <label for="email" class="block text-sm font-medium text-slate-300">{{ t('common.email') }}</label>
             <div class="mt-1">
               <input 
                 id="email" 
@@ -43,7 +43,7 @@
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+            <label for="password" class="block text-sm font-medium text-slate-300">{{ t('common.password') }}</label>
             <div class="mt-1">
               <input 
                 id="password" 
@@ -66,7 +66,7 @@
                   <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
                 </svg>
               </span>
-              Sign up
+              {{ t('common.register') }}
             </button>
           </div>
         </form>
@@ -81,8 +81,10 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // Authentication state
 const registerForm = reactive({

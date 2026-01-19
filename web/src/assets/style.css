@@ -52,6 +52,13 @@ body {
   transition: background 0.3s ease;
 }
 
+select,
+option {
+  background-color: var(--color-midnight);
+  color: var(--color-slate-100);
+  border-color: var(--glass-border);
+}
+
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);

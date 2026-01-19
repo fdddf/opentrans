@@ -10,7 +10,11 @@
     "lint": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "vue": "^3.4.21"
+    "@vue/compiler-sfc": "^3.5.26",
+    "@vue/runtime-core": "^3.5.26",
+    "vue": "^3.5.26",
+    "vue-i18n": "^9.14.4",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

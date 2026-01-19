@@ -3,19 +3,19 @@
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <h2 class="mt-6 text-center text-3xl font-extrabold text-slate-200">
-          Sign in to your account
+          {{ t('auth.loginTitle') }}
         </h2>
         <p class="mt-2 text-center text-sm text-slate-400">
-          Or 
+          {{ t('auth.noAccount') }}
           <router-link to="/register" class="font-medium text-mint hover:text-mint/80">
-            create a new account
+            {{ t('auth.registerPrompt') }}
           </router-link>
         </p>
       </div>
       <div class="mt-8 bg-midnight/50 backdrop-blur-lg rounded-2xl px-6 py-8 shadow-xl border border-white/10">
         <form class="space-y-6" @submit.prevent="performLogin">
           <div>
-            <label for="username" class="block text-sm font-medium text-slate-300">Username</label>
+            <label for="username" class="block text-sm font-medium text-slate-300">{{ t('common.username') }}</label>
             <div class="mt-1">
               <input 
                 id="username" 
@@ -29,7 +29,7 @@
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
+            <label for="password" class="block text-sm font-medium text-slate-300">{{ t('common.password') }}</label>
             <div class="mt-1">
               <input 
                 id="password" 
@@ -45,7 +45,7 @@
           <div class="flex items-center justify-between">
             <div class="text-sm">
               <a href="#" class="font-medium text-mint hover:text-mint/80">
-                Forgot your password?
+                {{ t('auth.forgot') }}
               </a>
             </div>
           </div>
@@ -60,7 +60,7 @@
                   <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
                 </svg>
               </span>
-              Sign in
+              {{ t('auth.loginCta') }}
             </button>
           </div>
         </form>
@@ -75,8 +75,10 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // Authentication state
 const loginForm = reactive({

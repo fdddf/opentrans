@@ -1,18 +1,15 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import Home from '../views/Home.vue'
+import AppShell from '../components/AppShell.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
-import Projects from '../views/Projects.vue'
-import ProjectDetail from '../views/ProjectDetail.vue'
-import Translate from '../views/Translate.vue'
+import Apps from '../views/Apps.vue'
+import AppWorkspace from '../views/AppWorkspace.vue'
+import Users from '../views/Users.vue'
+import Subscriptions from '../views/Subscriptions.vue'
+import Languages from '../views/Languages.vue'
 
 const routes: RouteRecordRaw[] = [
-  {
-    path: '/',
-    name: 'Home',
-    component: Home
-  },
   {
     path: '/login',
     name: 'Login',
@@ -24,25 +21,45 @@ const routes: RouteRecordRaw[] = [
     component: Register
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: Dashboard
-  },
-  {
-    path: '/projects',
-    name: 'Projects',
-    component: Projects
-  },
-  {
-    path: '/projects/:id',
-    name: 'ProjectDetail',
-    component: ProjectDetail,
-    props: true
-  },
-  {
-    path: '/translate',
-    name: 'Translate',
-    component: Translate
+    path: '/',
+    component: AppShell,
+    children: [
+      {
+        path: '',
+        redirect: '/dashboard'
+      },
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: Dashboard
+      },
+      {
+        path: 'apps',
+        name: 'Apps',
+        component: Apps
+      },
+      {
+        path: 'apps/:id',
+        name: 'AppWorkspace',
+        component: AppWorkspace,
+        props: true
+      },
+      {
+        path: 'users',
+        name: 'Users',
+        component: Users
+      },
+      {
+        path: 'subscriptions',
+        name: 'Subscriptions',
+        component: Subscriptions
+      },
+      {
+        path: 'languages',
+        name: 'Languages',
+        component: Languages
+      }
+    ]
   }
 ]
 

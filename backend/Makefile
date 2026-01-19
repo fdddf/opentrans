@@ -14,9 +14,6 @@ all: binary
 binary:
 	go build -v -ldflags="$(LDFLAGS)" -o $(BIN) main.go
 
-gui:
-	CGO_ENABLED=1 go build -v -ldflags="$(LDFLAGS)" -tags gui -o $(BIN) main.go
-
 ui:
 	cd web && npm install && npm run build
 
@@ -29,4 +26,4 @@ test:
 install:
 	go install -ldflags="$(LDFLAGS)"
 
-.PHONY: all binary gui ui clean test install
+.PHONY: all binary ui clean test install
