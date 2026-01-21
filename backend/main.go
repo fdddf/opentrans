@@ -1,26 +1,63 @@
 package main
 
 import (
-	"os"
+	"context"
 
-	"github.com/fdddf/xcstrings-translator/cmd"
+	"go.uber.org/fx"
+
 	"github.com/fdddf/xcstrings-translator/internal/auth"
-	"github.com/joho/godotenv"
+	"github.com/fdddf/xcstrings-translator/internal/config"
+	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/xcstrings-translator/internal/server"
+	"github.com/fdddf/xcstrings-translator/internal/services"
+	"github.com/fdddf/xcstrings-translator/internal/translator"
 )
 
 func main() {
-	// Load environment variables from .env file
-	if err := godotenv.Load(); err != nil {
-		// If .env file doesn't exist, that's OK - we'll use defaults or environment variables
-	}
+	app := fx.New(
+		// Configuration module
+		config.Module,
 
-	// Set a default JWT secret if not provided
-	if os.Getenv("JWT_SECRET") == "" {
-		os.Setenv("JWT_SECRET", "default-secret-key-for-development")
-	}
+		// Database module
+		database.Module,
 
-	// Initialize auth package with the JWT secret
-	auth.JWTSecret = []byte(os.Getenv("JWT_SECRET"))
+		// Auth module
+		auth.Module,
 
-	cmd.Execute()
+		// Services module
+		services.Module,
+
+		// Translator module
+		translator.TranslatorModule,
+
+		// Server module
+		server.ServerModule,
+
+		// Application startup
+		fx.Invoke(InitializeAuth),
+	)
+
+	app.Run()
+}
+
+// InitializeAuthParams holds the dependencies for InitializeAuth
+type InitializeAuthParams struct {
+	fx.In
+
+	Config    *config.FXConfig
+	DB        *database.Database
+	Lifecycle fx.Lifecycle
+}
+
+// InitializeAuth initializes the auth package with JWT secret and sets up lifecycle
+func InitializeAuth(p InitializeAuthParams) {
+	auth.SetJWTSecret([]byte(p.Config.JWT.Secret))
+
+	// Add lifecycle hook to properly initialize auth if needed
+	p.Lifecycle.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			// Any auth initialization needed
+			return nil
+		},
+	})
 }

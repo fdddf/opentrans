@@ -3,7 +3,6 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"time"
 
@@ -13,12 +12,30 @@ import (
 	"gorm.io/gorm"
 )
 
-var JWTSecret = []byte(os.Getenv("JWT_SECRET"))
+var JWTSecret []byte
+
+// SetJWTSecret sets the JWT secret for the auth package
+func SetJWTSecret(secret []byte) {
+	JWTSecret = secret
+}
+
+// Auth holds the dependencies for auth operations
+type Auth struct {
+	DB *database.Database
+}
+
+// NewAuth creates a new Auth instance
+func NewAuth(db *database.Database) *Auth {
+	return &Auth{
+		DB: db,
+	}
+}
 
 // Claims represents the JWT claims
 type Claims struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
+	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -34,13 +51,14 @@ func CheckPassword(password, hash string) error {
 }
 
 // GenerateJWT generates a JWT token for a user
-func GenerateJWT(userID uint, username string) (string, error) {
+func GenerateJWT(userID uint, username, role string) (string, error) {
 	// Set token expiration (24 hours)
 	expirationTime := time.Now().Add(24 * time.Hour)
 
 	claims := &Claims{
 		UserID:   userID,
 		Username: username,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -74,8 +92,73 @@ func ValidateEmail(email string) bool {
 	return re.MatchString(email)
 }
 
+// Global functions for backward compatibility - these still use the global DB for
+// backward compatibility with existing code, but these are now deprecated
+var authInstance *Auth
+
+// SetAuthInstance sets the auth instance for backward compatibility
+func SetAuthInstance(auth *Auth) {
+	authInstance = auth
+}
+
 // RegisterUser creates a new user with the provided details
 func RegisterUser(username, email, password string) (*database.User, error) {
+	// This function is deprecated as it relies on the global DB
+	// Use the Auth instance methods instead
+	if authInstance != nil {
+		return authInstance.RegisterUser(username, email, password)
+	} else {
+		// This would only work if global DB was set, but now we expect DI
+		return nil, fmt.Errorf("auth instance not initialized - use dependency injection")
+	}
+}
+
+// ActivateUser activates a user account using an activation code
+func ActivateUser(activationCode string) error {
+	// This function is deprecated as it relies on the global DB
+	// Use the Auth instance methods instead
+	if authInstance != nil {
+		return authInstance.ActivateUser(activationCode)
+	} else {
+		return fmt.Errorf("auth instance not initialized - use dependency injection")
+	}
+}
+
+// LoginUser authenticates a user and returns the user and JWT token
+func LoginUser(username, password string) (*database.User, string, error) {
+	// This function is deprecated as it relies on the global DB
+	// Use the Auth instance methods instead
+	if authInstance != nil {
+		return authInstance.LoginUser(username, password)
+	} else {
+		return nil, "", fmt.Errorf("auth instance not initialized - use dependency injection")
+	}
+}
+
+// GetUserByID retrieves a user by ID
+func GetUserByID(userID uint) (*database.User, error) {
+	// This function is deprecated as it relies on the global DB
+	// Use the Auth instance methods instead
+	if authInstance != nil {
+		return authInstance.GetUserByID(userID)
+	} else {
+		return nil, fmt.Errorf("auth instance not initialized - use dependency injection")
+	}
+}
+
+// GetUserByUsername retrieves a user by username
+func GetUserByUsername(username string) (*database.User, error) {
+	// This function is deprecated as it relies on the global DB
+	// Use the Auth instance methods instead
+	if authInstance != nil {
+		return authInstance.GetUserByUsername(username)
+	} else {
+		return nil, fmt.Errorf("auth instance not initialized - use dependency injection")
+	}
+}
+
+// RegisterUserWithAuth registers a user using the Auth instance
+func (a *Auth) RegisterUser(username, email, password string) (*database.User, error) {
 	// Validate email format
 	if !ValidateEmail(email) {
 		return nil, errors.New("invalid email format")
@@ -99,7 +182,7 @@ func RegisterUser(username, email, password string) (*database.User, error) {
 		ActivationCode: activationCode,
 	}
 
-	result := database.DB.Create(user)
+	result := a.DB.Create(user)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to create user: %v", result.Error)
 	}
@@ -109,10 +192,10 @@ func RegisterUser(username, email, password string) (*database.User, error) {
 	return user, nil
 }
 
-// ActivateUser activates a user account using an activation code
-func ActivateUser(activationCode string) error {
+// ActivateUserWithAuth activates a user account using an activation code
+func (a *Auth) ActivateUser(activationCode string) error {
 	user := &database.User{}
-	result := database.DB.Where("activation_code = ? AND is_activated = ?", activationCode, false).First(user)
+	result := a.DB.Where("activation_code = ? AND is_activated = ?", activationCode, false).First(user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return errors.New("invalid activation code or account already activated")
 	}
@@ -125,7 +208,7 @@ func ActivateUser(activationCode string) error {
 	user.IsActivated = true
 	user.ActivationCode = "" // Clear activation code after use
 
-	result = database.DB.Save(user)
+	result = a.DB.Save(user)
 	if result.Error != nil {
 		return fmt.Errorf("failed to activate user: %v", result.Error)
 	}
@@ -133,12 +216,12 @@ func ActivateUser(activationCode string) error {
 	return nil
 }
 
-// LoginUser authenticates a user and returns the user and JWT token
-func LoginUser(username, password string) (*database.User, string, error) {
+// LoginUserWithAuth authenticates a user and returns the user and JWT token
+func (a *Auth) LoginUser(username, password string) (*database.User, string, error) {
 	var user database.User
 
 	// Find user by username (only activated users can log in)
-	result := database.DB.Where("username = ? AND is_activated = ? AND is_active = ?", username, true, true).First(&user)
+	result := a.DB.Where("username = ? AND is_activated = ? AND is_active = ?", username, true, true).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, "", errors.New("invalid username or password")
 	}
@@ -153,7 +236,7 @@ func LoginUser(username, password string) (*database.User, string, error) {
 	}
 
 	// Generate JWT token
-	token, err := GenerateJWT(user.ID, user.Username)
+	token, err := GenerateJWT(user.ID, user.Username, user.Role)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to generate token: %v", err)
 	}
@@ -163,10 +246,10 @@ func LoginUser(username, password string) (*database.User, string, error) {
 	return &user, token, nil
 }
 
-// GetUserByID retrieves a user by ID
-func GetUserByID(userID uint) (*database.User, error) {
+// GetUserByIDWithAuth retrieves a user by ID
+func (a *Auth) GetUserByID(userID uint) (*database.User, error) {
 	var user database.User
-	result := database.DB.First(&user, userID)
+	result := a.DB.First(&user, userID)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, errors.New("user not found")
 	}
@@ -180,10 +263,10 @@ func GetUserByID(userID uint) (*database.User, error) {
 	return &user, nil
 }
 
-// GetUserByUsername retrieves a user by username
-func GetUserByUsername(username string) (*database.User, error) {
+// GetUserByUsernameWithAuth retrieves a user by username
+func (a *Auth) GetUserByUsername(username string) (*database.User, error) {
 	var user database.User
-	result := database.DB.Where("username = ? AND is_activated = ? AND is_active = ?", username, true, true).First(&user)
+	result := a.DB.Where("username = ? AND is_activated = ? AND is_active = ?", username, true, true).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, errors.New("user not found")
 	}

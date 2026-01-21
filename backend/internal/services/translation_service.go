@@ -9,14 +9,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// TranslationService handles translation-related operations
+type TranslationService struct {
+	DB *database.Database
+}
+
 // CreateTranslations creates multiple translations in batch
-func CreateTranslations(translations []database.Translation) error {
+func (s *TranslationService) CreateTranslations(translations []database.Translation) error {
 	if len(translations) == 0 {
 		return nil
 	}
 
 	// Use a transaction to ensure all translations are created together
-	tx := database.DB.Begin()
+	tx := s.DB.Begin()
 	defer tx.Rollback()
 
 	for _, translation := range translations {
@@ -58,9 +63,9 @@ func CreateTranslations(translations []database.Translation) error {
 }
 
 // GetTranslationsByProject retrieves all translations for a project
-func GetTranslationsByProject(projectID uint) ([]database.Translation, error) {
+func (s *TranslationService) GetTranslationsByProject(projectID uint) ([]database.Translation, error) {
 	var translations []database.Translation
-	result := database.DB.Where("project_id = ?", projectID).Find(&translations)
+	result := s.DB.Where("project_id = ?", projectID).Find(&translations)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve translations: %v", result.Error)
 	}
@@ -69,9 +74,9 @@ func GetTranslationsByProject(projectID uint) ([]database.Translation, error) {
 }
 
 // GetTranslationsByProjectAndLanguage retrieves translations for a project filtered by target language
-func GetTranslationsByProjectAndLanguage(projectID uint, language string) ([]database.Translation, error) {
+func (s *TranslationService) GetTranslationsByProjectAndLanguage(projectID uint, language string) ([]database.Translation, error) {
 	var translations []database.Translation
-	result := database.DB.Where("project_id = ? AND target_language = ?", projectID, language).Find(&translations)
+	result := s.DB.Where("project_id = ? AND target_language = ?", projectID, language).Find(&translations)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve translations: %v", result.Error)
 	}
@@ -80,9 +85,9 @@ func GetTranslationsByProjectAndLanguage(projectID uint, language string) ([]dat
 }
 
 // GetTranslationsByProjectAndKeys retrieves translations for specific keys in a project
-func GetTranslationsByProjectAndKeys(projectID uint, keys []string) ([]database.Translation, error) {
+func (s *TranslationService) GetTranslationsByProjectAndKeys(projectID uint, keys []string) ([]database.Translation, error) {
 	var translations []database.Translation
-	result := database.DB.Where("project_id = ? AND key IN ?", projectID, keys).Find(&translations)
+	result := s.DB.Where("project_id = ? AND key IN ?", projectID, keys).Find(&translations)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve translations: %v", result.Error)
 	}
@@ -90,41 +95,9 @@ func GetTranslationsByProjectAndKeys(projectID uint, keys []string) ([]database.
 	return translations, nil
 }
 
-// UpdateTranslationsFromXCStrings updates translations in the database based on XCStrings content
-func UpdateTranslationsFromXCStrings(projectID uint, xcstrings *model.XCStrings, translationProvider string) error {
-	var translations []database.Translation
-
-	for key, entry := range xcstrings.Strings {
-		for lang, localization := range entry.Localizations {
-			if lang != xcstrings.SourceLanguage { // Only create translations for target languages
-				translation := database.Translation{
-					ProjectID:           projectID,
-					Key:                 key,
-					SourceText:          getSourceText(key, entry, xcstrings.SourceLanguage),
-					TargetText:          localization.StringUnit.Value,
-					TargetLanguage:      lang,
-					State:               localization.StringUnit.State,
-					TranslationProvider: translationProvider,
-				}
-				translations = append(translations, translation)
-			}
-		}
-	}
-
-	return CreateTranslations(translations)
-}
-
-// getSourceText helper function to extract source text from an entry
-func getSourceText(key string, entry model.StringEntry, sourceLanguage string) string {
-	if sourceLoc, exists := entry.Localizations[sourceLanguage]; exists {
-		return sourceLoc.StringUnit.Value
-	}
-	return key // fallback to key if source text is not available
-}
-
 // ApplyTranslationsToXCStrings applies stored translations to XCStrings model
-func ApplyTranslationsToXCStrings(projectID uint, xcstrings *model.XCStrings) error {
-	translations, err := GetTranslationsByProject(projectID)
+func (s *TranslationService) ApplyTranslationsToXCStrings(projectID uint, xcstrings *model.XCStrings) error {
+	translations, err := s.GetTranslationsByProject(projectID)
 	if err != nil {
 		return err
 	}
@@ -169,66 +142,16 @@ func ApplyTranslationsToXCStrings(projectID uint, xcstrings *model.XCStrings) er
 	return nil
 }
 
-// GetMissingTranslations retrieves keys that are missing translations for specified target languages
-func GetMissingTranslations(projectID uint, targetLanguages []string) ([]string, error) {
-	// Get all unique keys from the project's content
-	project, err := GetProject(projectID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %v", err)
+// getSourceText helper function to extract source text from an entry
+func getSourceText(key string, entry model.StringEntry, sourceLanguage string) string {
+	if sourceLoc, exists := entry.Localizations[sourceLanguage]; exists {
+		return sourceLoc.StringUnit.Value
 	}
-
-	xcstrings, err := ParseProjectContent(project)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse project content: %v", err)
-	}
-
-	var allKeys []string
-	for key := range xcstrings.Strings {
-		allKeys = append(allKeys, key)
-	}
-
-	var missingKeys []string
-
-	for _, key := range allKeys {
-		for _, lang := range targetLanguages {
-			// Check if translation exists for this key and language
-			var count int64
-			database.DB.Model(&database.Translation{}).
-				Where("project_id = ? AND key = ? AND target_language = ?", projectID, key, lang).
-				Count(&count)
-
-			if count == 0 {
-				// Check if the key doesn't have a translation for this language in the content structure too
-				if entry, exists := xcstrings.Strings[key]; exists {
-					if _, hasTranslation := entry.Localizations[lang]; !hasTranslation {
-						if !containsString(missingKeys, key) {
-							missingKeys = append(missingKeys, key)
-						}
-					}
-				} else {
-					if !containsString(missingKeys, key) {
-						missingKeys = append(missingKeys, key)
-					}
-				}
-			}
-		}
-	}
-
-	return missingKeys, nil
-}
-
-// containsString helper function
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
+	return key // fallback to key if source text is not available
 }
 
 // BulkCreateTranslationsFromEntries creates translations from XCStrings entries
-func BulkCreateTranslationsFromEntries(projectID uint, entries map[string]model.StringEntry, sourceLanguage string, translationProvider string) error {
+func (s *TranslationService) BulkCreateTranslationsFromEntries(projectID uint, entries map[string]model.StringEntry, sourceLanguage string, translationProvider string) error {
 	var translations []database.Translation
 
 	for key, entry := range entries {
@@ -249,12 +172,13 @@ func BulkCreateTranslationsFromEntries(projectID uint, entries map[string]model.
 		}
 	}
 
-	return CreateTranslations(translations)
+	return s.CreateTranslations(translations)
 }
 
 // UpdateProjectSourceLanguage updates the source language for a project and associated translations
-func UpdateProjectSourceLanguage(projectID uint, newSourceLanguage string) error {
-	// Update the project
+func (s *TranslationService) UpdateProjectSourceLanguage(projectID uint, newSourceLanguage string) error {
+	// Update the project - this would need to use project service
+	// For now using global function that will work with legacy compatibility
 	if err := UpdateProject(projectID, map[string]interface{}{
 		"SourceLanguage": newSourceLanguage,
 	}); err != nil {
@@ -262,4 +186,39 @@ func UpdateProjectSourceLanguage(projectID uint, newSourceLanguage string) error
 	}
 
 	return nil
+}
+
+// Global functions for backward compatibility
+var translationServiceInstance *TranslationService
+
+func SetTranslationService(db *database.Database) {
+	translationServiceInstance = &TranslationService{DB: db}
+}
+
+func CreateTranslations(translations []database.Translation) error {
+	return translationServiceInstance.CreateTranslations(translations)
+}
+
+func GetTranslationsByProject(projectID uint) ([]database.Translation, error) {
+	return translationServiceInstance.GetTranslationsByProject(projectID)
+}
+
+func GetTranslationsByProjectAndLanguage(projectID uint, language string) ([]database.Translation, error) {
+	return translationServiceInstance.GetTranslationsByProjectAndLanguage(projectID, language)
+}
+
+func GetTranslationsByProjectAndKeys(projectID uint, keys []string) ([]database.Translation, error) {
+	return translationServiceInstance.GetTranslationsByProjectAndKeys(projectID, keys)
+}
+
+func ApplyTranslationsToXCStrings(projectID uint, xcstrings *model.XCStrings) error {
+	return translationServiceInstance.ApplyTranslationsToXCStrings(projectID, xcstrings)
+}
+
+func BulkCreateTranslationsFromEntries(projectID uint, entries map[string]model.StringEntry, sourceLanguage string, translationProvider string) error {
+	return translationServiceInstance.BulkCreateTranslationsFromEntries(projectID, entries, sourceLanguage, translationProvider)
+}
+
+func UpdateProjectSourceLanguage(projectID uint, newSourceLanguage string) error {
+	return translationServiceInstance.UpdateProjectSourceLanguage(projectID, newSourceLanguage)
 }

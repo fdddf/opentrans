@@ -33,12 +33,16 @@
             </select>
           </div>
           <div>
+            <label class="text-sm text-slate-400">Bundle ID</label>
+            <input v-model="form.bundleId" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="com.example.app" required />
+          </div>
+          <div>
             <label class="text-sm text-slate-400">{{ t('workspace.addLang') }}</label>
             <input v-model="form.sourceLanguage" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="en" />
           </div>
           <div>
-            <label class="text-sm text-slate-400">Languages (comma separated)</label>
-            <input v-model="form.languages" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="en, zh-CN" />
+            <label class="text-sm text-slate-400">Apple ID (optional)</label>
+            <input v-model="form.appleId" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" placeholder="123456789" />
           </div>
 
           <div class="flex justify-end gap-2 pt-2">
@@ -54,13 +58,13 @@
         <div class="flex items-center justify-between">
           <div>
             <h3 class="font-semibold">{{ app.name }}</h3>
-            <p class="text-xs text-slate-500">{{ app.platform }}</p>
+            <p class="text-xs text-slate-500">{{ app.platform || 'iOS' }}</p>
           </div>
           <span class="rounded-full bg-emerald-900/40 px-3 py-1 text-xs text-emerald-200" v-if="app.synced">同步</span>
           <span class="rounded-full bg-amber-900/40 px-3 py-1 text-xs text-amber-200" v-else>手动</span>
         </div>
-        <p class="mt-2 text-sm text-slate-400">来源语言：{{ app.sourceLanguage }}</p>
-        <p class="text-sm text-slate-400">可用语种：{{ app.languages.join(', ') || '暂无' }}</p>
+        <p class="mt-2 text-sm text-slate-400">Bundle ID：{{ app.bundleId }}</p>
+        <p class="text-sm text-slate-400">来源语言：{{ app.sourceLanguage }}</p>
         <div class="mt-3 flex gap-2 text-xs">
           <RouterLink :to="`/apps/${app.id}`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">进入工作区</RouterLink>
           <button class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint" :disabled="app.synced">删除</button>
@@ -71,22 +75,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useApi } from '../composables/useApi'
+import type { App } from '../composables/useApi'
 
 const { t } = useI18n()
+const { api } = useApi()
 
-const apps = ref([
-  { id: 1, name: '移动 App', platform: 'iOS', synced: true, sourceLanguage: 'en', languages: ['en', 'zh-CN', 'ja'] },
-  { id: 2, name: '手动录入项目', platform: 'iOS', synced: false, sourceLanguage: 'en', languages: ['en'] }
-])
-
+const apps = ref<App[]>([])
 const showModal = ref(false)
 const form = reactive({
   name: '',
   platform: 'iOS',
+  bundleId: '',
   sourceLanguage: 'en',
-  languages: ''
+  appleId: ''
 })
 
 const nextId = computed(() => (apps.value.length ? Math.max(...apps.value.map((a) => a.id)) + 1 : 1))
@@ -94,8 +98,9 @@ const nextId = computed(() => (apps.value.length ? Math.max(...apps.value.map((a
 function resetForm() {
   form.name = ''
   form.platform = 'iOS'
+  form.bundleId = ''
   form.sourceLanguage = 'en'
-  form.languages = ''
+  form.appleId = ''
 }
 
 function closeModal() {
@@ -103,20 +108,60 @@ function closeModal() {
   resetForm()
 }
 
-function createApp() {
-  if (!form.name.trim()) return
-  const languageList = form.languages
-    .split(',')
-    .map((l) => l.trim())
-    .filter(Boolean)
-  apps.value.unshift({
-    id: nextId.value,
-    name: form.name.trim(),
-    platform: form.platform,
-    synced: false,
-    sourceLanguage: form.sourceLanguage || 'en',
-    languages: languageList.length ? languageList : [form.sourceLanguage || 'en']
-  })
-  closeModal()
+async function createApp() {
+  if (!form.name.trim() || !form.bundleId.trim()) return
+  
+  try {
+    const response = await api.createApp({
+      name: form.name.trim(),
+      bundleId: form.bundleId.trim(),
+      appleId: form.appleId,
+      primaryLocale: form.sourceLanguage || 'en'
+    })
+    
+    if (response.success) {
+      apps.value.unshift({
+        id: response.app.id,
+        name: form.name.trim(),
+        platform: form.platform,
+        synced: false,
+        bundleId: form.bundleId.trim(),
+        sourceLanguage: form.sourceLanguage || 'en',
+        appleId: form.appleId,
+        userId: response.app.userId,
+        createdAt: response.app.createdAt,
+        updatedAt: response.app.updatedAt,
+        description: response.app.description || '',
+        isReadyForReview: response.app.isReadyForReview || false,
+        primaryLocale: form.sourceLanguage || 'en',
+        shortDescription: response.app.shortDescription || '',
+        longDescription: response.app.longDescription || '',
+        keywords: response.app.keywords || '',
+        supportUrl: response.app.supportUrl || '',
+        marketingUrl: response.app.marketingUrl || '',
+        privacyUrl: response.app.privacyUrl || '',
+        version: response.app.version || '',
+        appCategory: response.app.appCategory || ''
+      })
+      closeModal()
+    }
+  } catch (error) {
+    console.error('Failed to create app:', error)
+  }
 }
+
+async function fetchApps() {
+  try {
+    const response = await api.getApps()
+    if (response.success) {
+      apps.value = response.apps
+    }
+  } catch (error) {
+    console.error('Failed to fetch apps:', error)
+  }
+}
+
+onMounted(() => {
+  fetchApps()
+})
 </script>

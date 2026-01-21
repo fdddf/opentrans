@@ -26,4 +26,5 @@ test:
 install:
 	go install -ldflags="$(LDFLAGS)"
 
+
 .PHONY: all binary ui clean test install

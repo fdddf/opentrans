@@ -8,11 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// ProviderService handles provider configuration operations
+type ProviderService struct {
+	DB *database.Database
+}
+
 // CreateProviderConfig creates a new provider configuration for a user
-func CreateProviderConfig(userID uint, providerType string, configData map[string]interface{}, isDefault bool) (*database.ProviderConfig, error) {
+func (s *ProviderService) CreateProviderConfig(userID uint, providerType string, configData map[string]interface{}, isDefault bool) (*database.ProviderConfig, error) {
 	// If setting this as default, unset any existing default for this provider type
 	if isDefault {
-		err := UnsetDefaultProviderConfig(userID, providerType)
+		err := s.UnsetDefaultProviderConfig(userID, providerType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unset existing default: %v", err)
 		}
@@ -25,7 +30,7 @@ func CreateProviderConfig(userID uint, providerType string, configData map[strin
 		IsDefault:    isDefault,
 	}
 
-	result := database.DB.Create(config)
+	result := s.DB.Create(config)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to create provider config: %v", result.Error)
 	}
@@ -34,9 +39,9 @@ func CreateProviderConfig(userID uint, providerType string, configData map[strin
 }
 
 // GetProviderConfig retrieves a specific provider configuration by ID
-func GetProviderConfig(configID uint) (*database.ProviderConfig, error) {
+func (s *ProviderService) GetProviderConfig(configID uint) (*database.ProviderConfig, error) {
 	var config database.ProviderConfig
-	result := database.DB.First(&config, configID)
+	result := s.DB.First(&config, configID)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, errors.New("provider configuration not found")
 	}
@@ -49,9 +54,9 @@ func GetProviderConfig(configID uint) (*database.ProviderConfig, error) {
 }
 
 // GetProviderConfigsByUser retrieves all provider configurations for a user
-func GetProviderConfigsByUser(userID uint) ([]database.ProviderConfig, error) {
+func (s *ProviderService) GetProviderConfigsByUser(userID uint) ([]database.ProviderConfig, error) {
 	var configs []database.ProviderConfig
-	result := database.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&configs)
+	result := s.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&configs)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve provider configs: %v", result.Error)
 	}
@@ -60,9 +65,9 @@ func GetProviderConfigsByUser(userID uint) ([]database.ProviderConfig, error) {
 }
 
 // GetProviderConfigsByUserAndType retrieves provider configurations for a user filtered by provider type
-func GetProviderConfigsByUserAndType(userID uint, providerType string) ([]database.ProviderConfig, error) {
+func (s *ProviderService) GetProviderConfigsByUserAndType(userID uint, providerType string) ([]database.ProviderConfig, error) {
 	var configs []database.ProviderConfig
-	result := database.DB.Where("user_id = ? AND provider_type = ?", userID, providerType).Order("created_at DESC").Find(&configs)
+	result := s.DB.Where("user_id = ? AND provider_type = ?", userID, providerType).Order("created_at DESC").Find(&configs)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve provider configs: %v", result.Error)
 	}
@@ -71,9 +76,9 @@ func GetProviderConfigsByUserAndType(userID uint, providerType string) ([]databa
 }
 
 // GetDefaultProviderConfig retrieves the default provider configuration for a user and provider type
-func GetDefaultProviderConfig(userID uint, providerType string) (*database.ProviderConfig, error) {
+func (s *ProviderService) GetDefaultProviderConfig(userID uint, providerType string) (*database.ProviderConfig, error) {
 	var config database.ProviderConfig
-	result := database.DB.Where("user_id = ? AND provider_type = ? AND is_default = ?", userID, providerType, true).First(&config)
+	result := s.DB.Where("user_id = ? AND provider_type = ? AND is_default = ?", userID, providerType, true).First(&config)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, errors.New("no default provider configuration found")
 	}
@@ -86,10 +91,10 @@ func GetDefaultProviderConfig(userID uint, providerType string) (*database.Provi
 }
 
 // UpdateProviderConfig updates an existing provider configuration
-func UpdateProviderConfig(configID uint, updates map[string]interface{}) error {
+func (s *ProviderService) UpdateProviderConfig(configID uint, updates map[string]interface{}) error {
 	// Check if the config ID exists
 	var existing database.ProviderConfig
-	result := database.DB.First(&existing, configID)
+	result := s.DB.First(&existing, configID)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return errors.New("provider configuration not found")
 	}
@@ -100,13 +105,13 @@ func UpdateProviderConfig(configID uint, updates map[string]interface{}) error {
 
 	// If updating IsDefault to true, unset any existing default for this provider type
 	if isDefault, ok := updates["IsDefault"].(bool); ok && isDefault {
-		err := UnsetDefaultProviderConfig(existing.UserID, existing.ProviderType)
+		err := s.UnsetDefaultProviderConfig(existing.UserID, existing.ProviderType)
 		if err != nil {
 			return fmt.Errorf("failed to unset existing default: %v", err)
 		}
 	}
 
-	result = database.DB.Model(&database.ProviderConfig{}).Where("id = ?", configID).Updates(updates)
+	result = s.DB.Model(&database.ProviderConfig{}).Where("id = ?", configID).Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update provider config: %v", result.Error)
 	}
@@ -115,8 +120,8 @@ func UpdateProviderConfig(configID uint, updates map[string]interface{}) error {
 }
 
 // DeleteProviderConfig deletes a provider configuration
-func DeleteProviderConfig(configID uint) error {
-	result := database.DB.Delete(&database.ProviderConfig{}, configID)
+func (s *ProviderService) DeleteProviderConfig(configID uint) error {
+	result := s.DB.Delete(&database.ProviderConfig{}, configID)
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete provider config: %v", result.Error)
 	}
@@ -129,8 +134,8 @@ func DeleteProviderConfig(configID uint) error {
 }
 
 // UnsetDefaultProviderConfig sets all configurations of a specific type for a user to not be default
-func UnsetDefaultProviderConfig(userID uint, providerType string) error {
-	result := database.DB.Model(&database.ProviderConfig{}).
+func (s *ProviderService) UnsetDefaultProviderConfig(userID uint, providerType string) error {
+	result := s.DB.Model(&database.ProviderConfig{}).
 		Where("user_id = ? AND provider_type = ? AND is_default = ?", userID, providerType, true).
 		Updates(map[string]interface{}{"is_default": false})
 
@@ -142,7 +147,7 @@ func UnsetDefaultProviderConfig(userID uint, providerType string) error {
 }
 
 // ValidateProviderConfigData validates the structure of provider configuration data
-func ValidateProviderConfigData(providerType string, configData map[string]interface{}) error {
+func (s *ProviderService) ValidateProviderConfigData(providerType string, configData map[string]interface{}) error {
 	switch providerType {
 	case "openai":
 		// Required fields: apiKey
@@ -175,7 +180,7 @@ func ValidateProviderConfigData(providerType string, configData map[string]inter
 }
 
 // SanitizeProviderConfig removes sensitive fields from config data before returning to client
-func SanitizeProviderConfig(config *database.ProviderConfig) *database.ProviderConfig {
+func (s *ProviderService) SanitizeProviderConfig(config *database.ProviderConfig) *database.ProviderConfig {
 	sanitized := *config
 
 	// Create a copy of ConfigData to avoid modifying the original
@@ -210,8 +215,59 @@ func isSensitiveField(field string) bool {
 }
 
 // GetProviderConfigForTranslation prepares configuration data specifically for translation services
-func GetProviderConfigForTranslation(config *database.ProviderConfig) map[string]interface{} {
+func (s *ProviderService) GetProviderConfigForTranslation(config *database.ProviderConfig) map[string]interface{} {
 	// Return the config data without sanitization for use in translation services
 	// This is safe since it's only used internally in the translation process
 	return config.ConfigData
+}
+
+// Global functions for backward compatibility
+var providerServiceInstance *ProviderService
+
+func SetProviderService(db *database.Database) {
+	providerServiceInstance = &ProviderService{DB: db}
+}
+
+func CreateProviderConfig(userID uint, providerType string, configData map[string]interface{}, isDefault bool) (*database.ProviderConfig, error) {
+	return providerServiceInstance.CreateProviderConfig(userID, providerType, configData, isDefault)
+}
+
+func GetProviderConfig(configID uint) (*database.ProviderConfig, error) {
+	return providerServiceInstance.GetProviderConfig(configID)
+}
+
+func GetProviderConfigsByUser(userID uint) ([]database.ProviderConfig, error) {
+	return providerServiceInstance.GetProviderConfigsByUser(userID)
+}
+
+func GetProviderConfigsByUserAndType(userID uint, providerType string) ([]database.ProviderConfig, error) {
+	return providerServiceInstance.GetProviderConfigsByUserAndType(userID, providerType)
+}
+
+func GetDefaultProviderConfig(userID uint, providerType string) (*database.ProviderConfig, error) {
+	return providerServiceInstance.GetDefaultProviderConfig(userID, providerType)
+}
+
+func UpdateProviderConfig(configID uint, updates map[string]interface{}) error {
+	return providerServiceInstance.UpdateProviderConfig(configID, updates)
+}
+
+func DeleteProviderConfig(configID uint) error {
+	return providerServiceInstance.DeleteProviderConfig(configID)
+}
+
+func UnsetDefaultProviderConfig(userID uint, providerType string) error {
+	return providerServiceInstance.UnsetDefaultProviderConfig(userID, providerType)
+}
+
+func ValidateProviderConfigData(providerType string, configData map[string]interface{}) error {
+	return providerServiceInstance.ValidateProviderConfigData(providerType, configData)
+}
+
+func SanitizeProviderConfig(config *database.ProviderConfig) *database.ProviderConfig {
+	return providerServiceInstance.SanitizeProviderConfig(config)
+}
+
+func GetProviderConfigForTranslation(config *database.ProviderConfig) map[string]interface{} {
+	return providerServiceInstance.GetProviderConfigForTranslation(config)
 }

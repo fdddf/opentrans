@@ -5,6 +5,7 @@ import Register from '../views/Register.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Apps from '../views/Apps.vue'
 import AppWorkspace from '../views/AppWorkspace.vue'
+import AppLocalizations from '../views/AppLocalizations.vue'
 import Users from '../views/Users.vue'
 import Subscriptions from '../views/Subscriptions.vue'
 import Languages from '../views/Languages.vue'
@@ -43,6 +44,11 @@ const routes: RouteRecordRaw[] = [
         name: 'AppWorkspace',
         component: AppWorkspace,
         props: true
+      },
+      {
+        path: 'app-localizations',
+        name: 'AppLocalizations',
+        component: AppLocalizations
       },
       {
         path: 'users',

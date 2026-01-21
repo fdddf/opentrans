@@ -5,6 +5,7 @@ const messages = {
     nav: {
       dashboard: 'Dashboard',
       apps: 'Apps',
+      applocalizations: 'App Localizations',
       languages: 'Languages',
       users: 'Users',
       subscriptions: 'Subscriptions'
