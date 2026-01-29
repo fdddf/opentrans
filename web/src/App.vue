@@ -1,7 +1,7 @@
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <AppShell>
+    <RouterView />
+  </AppShell>
 </template>
 
 <script setup lang="ts">

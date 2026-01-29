@@ -9,6 +9,7 @@ import AppLocalizations from '../views/AppLocalizations.vue'
 import Users from '../views/Users.vue'
 import Subscriptions from '../views/Subscriptions.vue'
 import Languages from '../views/Languages.vue'
+import AppleConnectConfig from '../views/AppleConnectConfig.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -64,6 +65,11 @@ const routes: RouteRecordRaw[] = [
         path: 'languages',
         name: 'Languages',
         component: Languages
+      },
+      {
+        path: 'apple-connect-config',
+        name: 'AppleConnectConfig',
+        component: AppleConnectConfig
       }
     ]
   }

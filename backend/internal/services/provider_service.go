@@ -172,6 +172,17 @@ func (s *ProviderService) ValidateProviderConfigData(providerType string, config
 		if appSecret, exists := configData["appSecret"]; !exists || appSecret == "" {
 			return errors.New("appSecret is required for Baidu provider")
 		}
+	case "appleconnect":
+		// Required fields: issuerID, keyID, privateKey
+		if issuerID, exists := configData["issuerID"]; !exists || issuerID == "" {
+			return errors.New("issuerID is required for Apple Connect provider")
+		}
+		if keyID, exists := configData["keyID"]; !exists || keyID == "" {
+			return errors.New("keyID is required for Apple Connect provider")
+		}
+		if privateKey, exists := configData["privateKey"]; !exists || privateKey == "" {
+			return errors.New("privateKey is required for Apple Connect provider")
+		}
 	default:
 		return fmt.Errorf("unknown provider type: %s", providerType)
 	}

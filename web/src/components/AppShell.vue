@@ -65,7 +65,8 @@ const navItems = [
   { to: '/apps', label: () => t('nav.apps'), icon: '📱' },
   { to: '/languages', label: () => t('nav.languages'), icon: '🌐' },
   { to: '/users', label: () => t('nav.users'), icon: '👥' },
-  { to: '/subscriptions', label: () => t('nav.subscriptions'), icon: '💳' }
+  { to: '/subscriptions', label: () => t('nav.subscriptions'), icon: '💳' },
+  { to: '/apple-connect-config', label: () => t('nav.appleConnectConfig'), icon: '🍎' }
 ]
 
 const isActive = (path: string) => route.path.startsWith(path)

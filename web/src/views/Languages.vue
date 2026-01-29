@@ -11,19 +11,19 @@
 
     <section class="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div class="flex items-center justify-between mb-3">
-        <div class="text-sm text-slate-400">语言列表</div>
-        <input class="rounded-lg bg-midnight/40 px-3 py-2 text-xs ring-1 ring-white/10" placeholder="搜索语言或代码" />
+        <div class="text-sm text-slate-400">{{ t('languages.languageList') }}</div>
+        <input class="rounded-lg bg-midnight/40 px-3 py-2 text-xs ring-1 ring-white/10" :placeholder="t('languages.searchPlaceholder')" />
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead class="text-left text-slate-500">
             <tr>
-              <th class="py-2">名称</th>
-              <th class="py-2">代码</th>
-              <th class="py-2">别名</th>
-              <th class="py-2">方向</th>
-              <th class="py-2">可用</th>
-              <th class="py-2">操作</th>
+              <th class="py-2">{{ t('languages.name') }}</th>
+              <th class="py-2">{{ t('languages.code') }}</th>
+              <th class="py-2">{{ t('languages.alias') }}</th>
+              <th class="py-2">{{ t('languages.direction') }}</th>
+              <th class="py-2">{{ t('languages.available') }}</th>
+              <th class="py-2">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
@@ -31,15 +31,15 @@
               <td class="py-2">{{ lang.name }}</td>
               <td class="py-2">{{ lang.code }}</td>
               <td class="py-2">{{ lang.alias || '-' }}</td>
-              <td class="py-2">{{ lang.rtl ? 'RTL' : 'LTR' }}</td>
+              <td class="py-2">{{ lang.rtl ? t('languages.rtl') : t('languages.ltr') }}</td>
               <td class="py-2">
                 <span class="rounded-full px-2 py-1 text-xs" :class="lang.enabled ? 'bg-emerald-900/40 text-emerald-200' : 'bg-rose-900/40 text-rose-200'">
-                  {{ lang.enabled ? '可用' : '禁用' }}
+                  {{ lang.enabled ? t('languages.available') : t('languages.disabled') }}
                 </span>
               </td>
               <td class="py-2 space-x-2 text-xs">
-                <button class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">编辑</button>
-                <button class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">禁用</button>
+                <button class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('common.edit') }}</button>
+                <button class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('languages.disable') }}</button>
               </td>
             </tr>
           </tbody>

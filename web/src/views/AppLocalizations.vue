@@ -7,10 +7,68 @@
         <p class="text-sm text-slate-400">{{ t('applocalizations.subtitle') }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <button class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint">{{ t('applocalizations.sync') }}</button>
+        <button 
+          class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint" 
+          @click="showSyncModal = true"
+        >
+          {{ t('applocalizations.sync') }}
+        </button>
         <button class="rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-midnight shadow" @click="showAddLocalizationModal = true">{{ t('applocalizations.add') }}</button>
       </div>
     </header>
+
+    <!-- Sync Localizations Modal -->
+    <div v-if="showSyncModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-midnight p-6 shadow-xl">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">{{ t('applocalizations.sync') }}</h2>
+          <button class="text-slate-400 hover:text-white" @click="closeSyncModal">×</button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div>
+            <p class="text-sm text-slate-400 mb-3">{{ t('applocalizations.selectProviderConfig') }}</p>
+            <select 
+              v-model="selectedConfigId" 
+              class="w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" 
+              required
+            >
+              <option value="">{{ t('applocalizations.chooseConfig') }}</option>
+              <option v-for="config in appleConnectConfigs" :key="config.id" :value="config.id">
+                {{ config.providerType }} ({{ getProviderDisplayName(config.providerType) }})
+              </option>
+            </select>
+          </div>
+          
+          <div v-if="syncResult" class="p-3 rounded-lg bg-white/5 border border-white/10">
+            <p class="text-sm">{{ syncResult.message }}</p>
+            <p v-if="syncResult.count" class="text-sm text-mint">{{ t('applocalizations.syncedCount', { count: syncResult.count }) }}</p>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4">
+            <button 
+              type="button" 
+              class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint" 
+              @click="closeSyncModal"
+            >
+              {{ t('common.cancel') || 'Cancel' }}
+            </button>
+            <button 
+              type="button" 
+              class="rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-midnight shadow" 
+              @click="syncLocalizations"
+              :disabled="!selectedConfigId || syncing"
+            >
+              <span v-if="!syncing">{{ t('applocalizations.syncNow') }}</span>
+              <span v-else class="flex items-center gap-1">
+                <span class="h-3 w-3 rounded-full bg-midnight animate-pulse"></span>
+                {{ t('applocalizations.syncing') }}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Add Localization Modal -->
     <div v-if="showAddLocalizationModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -114,13 +172,19 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
-import type { AppLocalization } from '../composables/useApi'
+import type { AppLocalization, ProviderConfig } from '../composables/useApi'
 
 const { t } = useI18n()
 const { api } = useApi()
 
 const localizations = ref<AppLocalization[]>([])
 const showAddLocalizationModal = ref(false)
+const showSyncModal = ref(false)
+const syncing = ref(false)
+const syncResult = ref<{ message: string; count?: number } | null>(null)
+const selectedConfigId = ref<number | null>(null)
+const appleConnectConfigs = ref<ProviderConfig[]>([])
+
 const newLocalization = reactive({
   languageCode: '',
   name: '',
@@ -192,6 +256,77 @@ function closeAddLocalizationModal() {
   resetLocalizationForm()
 }
 
+function closeSyncModal() {
+  showSyncModal.value = false
+  selectedConfigId.value = null
+  syncResult.value = null
+}
+
+function getProviderDisplayName(providerType: string): string {
+  const names: Record<string, string> = {
+    'openai': 'OpenAI',
+    'google': 'Google',
+    'deepl': 'DeepL',
+    'baidu': 'Baidu',
+    'appleconnect': 'Apple Connect'
+  }
+  return names[providerType] || providerType
+}
+
+async function fetchProviderConfigs() {
+  try {
+    const response = await api.getProviderConfigs()
+    if (response.success) {
+      appleConnectConfigs.value = response.configs.filter(config => config.providerType === 'appleconnect')
+    }
+  } catch (error) {
+    console.error('Failed to fetch provider configs:', error)
+  }
+}
+
+async function syncLocalizations() {
+  if (!selectedConfigId.value) return
+
+  syncing.value = true
+  syncResult.value = null
+
+  try {
+    // Get the selected config to extract credentials
+    const selectedConfig = appleConnectConfigs.value.find(config => config.id === selectedConfigId.value);
+    if (!selectedConfig) {
+      throw new Error('Selected configuration not found');
+    }
+
+    // In a real implementation, we would have the appId from the route parameters
+    // For now, we'll use a placeholder value
+    const appId = 1 // This should be retrieved from the route
+
+    // First, we need to update the provider config with the selected credentials
+    // For now, we'll just call the API with the appId only, as per the useApi.ts definition
+    const response = await api.syncAppleAppLocalizations(appId)
+    
+    if (response.success) {
+      syncResult.value = {
+        message: response.message || t('applocalizations.syncSuccess'),
+        count: response.count
+      }
+      // Refresh localizations list
+      fetchLocalizations()
+    } else {
+      syncResult.value = {
+        message: response.message || t('applocalizations.syncFailed')
+      }
+    }
+  } catch (error) {
+    console.error('Failed to sync localizations:', error)
+    syncResult.value = {
+      message: t('applocalizations.syncError')
+    }
+  } finally {
+    syncing.value = false
+  }
+}
+
 async function addLocalization() {
   try {
     // In a real implementation, we would have the appId from the route parameters
@@ -237,7 +372,7 @@ async function fetchLocalizations() {
 }
 
 async function deleteLocalization(id: number) {
-  if (!confirm('Are you sure you want to delete this localization?')) {
+  if (!confirm(t('applocalizations.confirmDelete'))) {
     return
   }
   
@@ -262,5 +397,6 @@ function editLocalization(localization: AppLocalization) {
 
 onMounted(() => {
   fetchLocalizations()
+  fetchProviderConfigs()
 })
 </script>
