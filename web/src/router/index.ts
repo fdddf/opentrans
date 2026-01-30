@@ -47,9 +47,10 @@ const routes: RouteRecordRaw[] = [
         props: true
       },
       {
-        path: 'app-localizations',
+        path: 'apps/:id/localizations',
         name: 'AppLocalizations',
-        component: AppLocalizations
+        component: AppLocalizations,
+        props: true
       },
       {
         path: 'users',

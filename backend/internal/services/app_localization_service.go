@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fdddf/xcstrings-translator/internal/database"
 	"gorm.io/gorm"
@@ -27,6 +28,7 @@ func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode,
 		return nil, fmt.Errorf("failed to check existing localization: %v", result.Error)
 	}
 
+	now := time.Now()
 	localization := &database.AppLocalization{
 		AppID:               appID,
 		LanguageCode:        languageCode,
@@ -40,6 +42,9 @@ func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode,
 		LongDescription:     longDescription,
 		Keywords:            keywords,
 		ReleaseNotes:        releaseNotes,
+		SyncedAt:            &now,
+		Source:              "local",
+		SyncStatus:          "pending",
 	}
 
 	result = s.DB.Create(localization)
@@ -89,6 +94,9 @@ func (s *AppLocalizationService) GetAppLocalizationByLanguageCode(languageCode s
 
 // UpdateAppLocalization updates an existing localization
 func (s *AppLocalizationService) UpdateAppLocalization(appID uint, languageCode string, updates map[string]interface{}) error {
+	if _, ok := updates["SyncStatus"]; !ok {
+		updates["SyncStatus"] = "pending"
+	}
 	result := s.DB.Model(&database.AppLocalization{}).Where("app_id = ? AND language_code = ?", appID, languageCode).Updates(updates)
 	if result.Error != nil {
 		return fmt.Errorf("failed to update app localization: %v", result.Error)

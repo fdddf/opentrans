@@ -13,6 +13,8 @@ import (
 var Module = fx.Module("services",
 	fx.Provide(NewAppService),
 	fx.Provide(NewAppLocalizationService),
+	fx.Provide(NewAppleConnectService),
+	fx.Provide(NewAppProviderConfigService),
 	fx.Provide(NewProjectService),
 	fx.Provide(NewProviderService),
 	fx.Provide(NewQueueService),
@@ -26,6 +28,13 @@ type ServiceParams struct {
 	fx.In
 
 	DB *database.Database
+}
+
+// AppleConnectServiceDeps holds dependencies for AppleConnectService
+type AppleConnectServiceDeps struct {
+	fx.In
+	AppService             *AppService
+	AppLocalizationService *AppLocalizationService
 }
 
 // AppServiceDeps holds dependencies for AppService
@@ -53,6 +62,7 @@ type QueueServiceDeps struct {
 	TranslationService     *TranslationService
 	SubscriptionService    *SubscriptionService
 	ProviderService        *ProviderService
+	AppProviderConfigService *AppProviderConfigService
 }
 
 // NewAppService creates a new AppService with database dependency
@@ -67,6 +77,14 @@ func NewAppService(deps AppServiceDeps) *AppService {
 func NewAppLocalizationService(p ServiceParams) *AppLocalizationService {
 	return &AppLocalizationService{
 		DB: p.DB,
+	}
+}
+
+// NewAppleConnectService creates a new AppleConnectService
+func NewAppleConnectService(deps AppleConnectServiceDeps) *AppleConnectService {
+	return &AppleConnectService{
+		AppService:             deps.AppService,
+		AppLocalizationService: deps.AppLocalizationService,
 	}
 }
 
@@ -96,6 +114,7 @@ func NewQueueService(deps QueueServiceDeps) *QueueService {
 		TranslationService:     deps.TranslationService,
 		SubscriptionService:    deps.SubscriptionService,
 		ProviderService:        deps.ProviderService,
+		AppProviderConfigService: deps.AppProviderConfigService,
 		mu:                     sync.RWMutex{},
 		queue:                  make(map[uint]*database.TranslationQueue),
 	}
@@ -115,12 +134,18 @@ func NewTranslationService(p ServiceParams) *TranslationService {
 	}
 }
 
+// NewAppProviderConfigService creates a new AppProviderConfigService with database dependency
+func NewAppProviderConfigService(p ServiceParams) *AppProviderConfigService {
+	return &AppProviderConfigService{DB: p.DB}
+}
+
 // InitializeServices sets up the global service instances for backward compatibility
 func InitializeServices(
 	db *database.Database,
 	authService *auth.Auth,
 	appService *AppService,
 	appLocalizationService *AppLocalizationService,
+	appProviderConfigService *AppProviderConfigService,
 	projectService *ProjectService,
 	providerService *ProviderService,
 	queueService *QueueService,
@@ -134,6 +159,7 @@ func InitializeServices(
 	SetAppLocalizationService(db)
 	SetTranslationService(db)
 	SetProviderService(db)
+	SetAppProviderConfigService(db)
 	SetSubscriptionService(db)
 	SetProjectService(db, translationService, appLocalizationService)
 	SetAppService(db, appLocalizationService)

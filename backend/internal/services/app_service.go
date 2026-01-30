@@ -3,7 +3,9 @@ package services
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/fdddf/xcstrings-translator/internal/dao/query"
 	"github.com/fdddf/xcstrings-translator/internal/database"
 	"github.com/fdddf/xcstrings-translator/pkg/appleconnect"
 	"gorm.io/gorm"
@@ -12,25 +14,24 @@ import (
 // AppService handles app-related operations
 type AppService struct {
 	DB                     *database.Database
+	Query                  *query.Query
 	AppLocalizationService *AppLocalizationService
 }
 
 // CreateApp creates a new app with the provided details
 func (s *AppService) CreateApp(userID uint, name, description, bundleID, appleID, primaryLocale string) (*database.App, error) {
 	// Check if bundle ID already exists
-	var existingApp database.App
-	result := s.DB.Where("bundle_id = ?", bundleID).First(&existingApp)
-	if result.Error == nil {
+	existingApp, err := s.Query.App.Where(s.Query.App.BundleID.Eq(bundleID)).First()
+	if err == nil && existingApp != nil {
 		return nil, errors.New("bundle ID already exists")
-	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("failed to check bundle ID: %v", result.Error)
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check bundle ID: %v", err)
 	}
 
 	// Check user's subscription limit
-	var user database.User
-	result = s.DB.First(&user, userID)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to get user: %v", result.Error)
+	user, err := s.Query.User.Where(s.Query.User.ID.Eq(userID)).First()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
 	// Check if user has reached the app limit based on subscription
@@ -57,13 +58,16 @@ func (s *AppService) CreateApp(userID uint, name, description, bundleID, appleID
 		Origin:           "manual",
 	}
 
-	result = s.DB.Create(app)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create app: %v", result.Error)
+	err = s.Query.App.Create(app)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create app: %v", err)
 	}
 
 	// Update user's app count
-	s.DB.Model(&database.User{}).Where("id = ?", userID).UpdateColumn("current_app_count", gorm.Expr("current_app_count + 1"))
+	_, err = s.Query.User.Where(s.Query.User.ID.Eq(userID)).Update(s.Query.User.CurrentAppCount, user.CurrentAppCount+1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update user app count: %v", err)
+	}
 
 	return app, nil
 }
@@ -100,13 +104,18 @@ func (s *AppService) GetAppByBundleID(bundleID string) (*database.App, error) {
 
 // GetAppsByUser retrieves all apps for a user
 func (s *AppService) GetAppsByUser(userID uint) ([]database.App, error) {
-	var apps []database.App
-	result := s.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&apps)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve apps: %v", result.Error)
+	apps, err := s.Query.App.Where(s.Query.App.UserID.Eq(userID)).Order(s.Query.App.CreatedAt.Desc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve apps: %v", err)
 	}
 
-	return apps, nil
+	// Convert slice of pointers to slice of values
+	appSlice := make([]database.App, len(apps))
+	for i, app := range apps {
+		appSlice[i] = *app
+	}
+
+	return appSlice, nil
 }
 
 // UpdateApp updates an existing app
@@ -208,13 +217,18 @@ func (s *AppService) RemoveUserFromApp(appID, userID uint) error {
 
 // GetUsersForApp retrieves all users for an app with their roles
 func (s *AppService) GetUsersForApp(appID uint) ([]database.AppUser, error) {
-	var appUsers []database.AppUser
-	result := s.DB.Preload("User").Where("app_id = ?", appID).Find(&appUsers)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve app users: %v", result.Error)
+	appUsers, err := s.Query.AppUser.Where(s.Query.AppUser.AppID.Eq(appID)).Preload(s.Query.AppUser.User).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve app users: %v", err)
 	}
 
-	return appUsers, nil
+	// Convert slice of pointers to slice of values
+	appUserSlice := make([]database.AppUser, len(appUsers))
+	for i, appUser := range appUsers {
+		appUserSlice[i] = *appUser
+	}
+
+	return appUserSlice, nil
 }
 
 // GetUserRoleInApp retrieves a user's role in an app
@@ -480,13 +494,39 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 			if err != nil {
 				return fmt.Errorf("failed to create localization for %s: %v", loc.LanguageCode, err)
 			}
-		} else {
-			// Update existing localization
-			// Note: Apple Connect API doesn't have a direct update endpoint
-			// In a real implementation, we would need to use the patch endpoint
-			// For now, we'll just log that we found an existing localization
-			fmt.Printf("Found existing localization for %s: %s\n", loc.LanguageCode, existing.Attributes.Name)
+
+			updates := map[string]interface{}{
+				"SyncStatus": "synced",
+				"Source":     "local",
+				"SyncedAt":   time.Now(),
+			}
+			_ = s.AppLocalizationService.UpdateAppLocalization(appID, loc.LanguageCode, updates)
+			continue
 		}
+
+		_, err = client.UpdateAppLocalization(
+			existing.ID,
+			loc.Name,
+			loc.Subtitle,
+			loc.PrivacyURL,
+			loc.MarketingURL,
+			loc.SupportURL,
+			loc.DownloadDescription,
+			loc.ShortDescription,
+			loc.LongDescription,
+			loc.Keywords,
+			loc.ReleaseNotes,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update localization for %s: %v", loc.LanguageCode, err)
+		}
+
+		updates := map[string]interface{}{
+			"SyncStatus": "synced",
+			"Source":     "local",
+			"SyncedAt":   time.Now(),
+		}
+		_ = s.AppLocalizationService.UpdateAppLocalization(appID, loc.LanguageCode, updates)
 	}
 
 	return nil
@@ -524,14 +564,15 @@ func (s *AppService) SyncAppsFromAppleConnect(userID uint, issuerID, keyID, priv
 				return nil, fmt.Errorf("failed to update app %s: %v", appData.Attributes.BundleID, err)
 			}
 			syncedApps = append(syncedApps, *existingApp)
-		} else {
-			// Create new app
-			newApp, err := s.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create app %s: %v", appData.Attributes.BundleID, err)
-			}
-			syncedApps = append(syncedApps, *newApp)
+			continue
 		}
+
+		// Create new app
+		newApp, err := s.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create app %s: %v", appData.Attributes.BundleID, err)
+		}
+		syncedApps = append(syncedApps, *newApp)
 	}
 
 	return syncedApps, nil
@@ -581,27 +622,28 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 				return nil, fmt.Errorf("failed to update localization %s: %v", locData.Attributes.Locale, err)
 			}
 			syncedLocalizations = append(syncedLocalizations, *existing)
-		} else {
-			// Create new localization
-			newLoc, err := s.AppLocalizationService.CreateAppLocalization(
-				appID,
-				locData.Attributes.Locale,
-				locData.Attributes.Name,
-				locData.Attributes.Subtitle,
-				locData.Attributes.PrivacyURL,
-				locData.Attributes.MarketingURL,
-				locData.Attributes.SupportURL,
-				locData.Attributes.DownloadDescription,
-				locData.Attributes.ShortDescription,
-				locData.Attributes.LongDescription,
-				locData.Attributes.Keywords,
-				locData.Attributes.ReleaseNotes,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create localization %s: %v", locData.Attributes.Locale, err)
-			}
-			syncedLocalizations = append(syncedLocalizations, *newLoc)
+			continue
 		}
+
+		// Create new localization
+		newLoc, err := s.AppLocalizationService.CreateAppLocalization(
+			appID,
+			locData.Attributes.Locale,
+			locData.Attributes.Name,
+			locData.Attributes.Subtitle,
+			locData.Attributes.PrivacyURL,
+			locData.Attributes.MarketingURL,
+			locData.Attributes.SupportURL,
+			locData.Attributes.DownloadDescription,
+			locData.Attributes.ShortDescription,
+			locData.Attributes.LongDescription,
+			locData.Attributes.Keywords,
+			locData.Attributes.ReleaseNotes,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create localization %s: %v", locData.Attributes.Locale, err)
+		}
+		syncedLocalizations = append(syncedLocalizations, *newLoc)
 	}
 
 	return syncedLocalizations, nil
@@ -613,6 +655,7 @@ var appServiceInstance *AppService
 func SetAppService(db *database.Database, appLocalizationService *AppLocalizationService) {
 	appServiceInstance = &AppService{
 		DB:                     db,
+		Query:                  query.Use(db.DB),
 		AppLocalizationService: appLocalizationService,
 	}
 }

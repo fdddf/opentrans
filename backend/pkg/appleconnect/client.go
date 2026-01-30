@@ -58,6 +58,17 @@ type AppLocalization struct {
 	} `json:"attributes"`
 }
 
+// AppStoreVersion represents an app store version in App Store Connect
+type AppStoreVersion struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		VersionString string `json:"versionString"`
+		Platform      string `json:"platform"`
+		State         string `json:"appStoreState"`
+	} `json:"attributes"`
+}
+
 // AppsResponse represents the response from the apps endpoint
 type AppsResponse struct {
 	Data []App `json:"data"`
@@ -66,6 +77,11 @@ type AppsResponse struct {
 // AppLocalizationsResponse represents the response from the app localizations endpoint
 type AppLocalizationsResponse struct {
 	Data []AppLocalization `json:"data"`
+}
+
+// AppStoreVersionsResponse represents the response from appStoreVersions endpoint
+type AppStoreVersionsResponse struct {
+	Data []AppStoreVersion `json:"data"`
 }
 
 // NewAppleConnectClient creates a new Apple Connect API client
@@ -266,10 +282,46 @@ func (c *AppleConnectClient) GetAppLocalization(appID, locale string) (*AppLocal
 
 // getAppLatestVersionID retrieves the latest version ID for an app
 func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, error) {
-	// This is a placeholder implementation
-	// In the real implementation, we would call the API to get the app version
-	// For now, we'll return a placeholder
-	return "12345678-1234-1234-1234-123456789012", nil
+	jwtToken, err := c.GenerateJWT()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate JWT: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/apps/%s/appStoreVersions?limit=200", c.baseURL, appID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var versionsResponse AppStoreVersionsResponse
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if err := json.Unmarshal(body, &versionsResponse); err != nil {
+		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if len(versionsResponse.Data) == 0 {
+		return "", fmt.Errorf("no app store versions found for app %s", appID)
+	}
+
+	return versionsResponse.Data[0].ID, nil
 }
 
 // CreateAppLocalization creates a new localization for an app
@@ -355,4 +407,101 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 	}
 
 	return &createdLocalization.Data[0], nil
+}
+
+// UpdateAppLocalization updates an existing localization in App Store Connect
+func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes string) (*AppLocalization, error) {
+	jwtToken, err := c.GenerateJWT()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate JWT: %w", err)
+	}
+
+	payload := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "appStoreVersionLocalizations",
+			"id":   localizationID,
+			"attributes": map[string]interface{}{
+				"name":                name,
+				"subtitle":            subtitle,
+				"privacyUrl":          privacyURL,
+				"marketingUrl":        marketingURL,
+				"supportUrl":          supportURL,
+				"downloadDescription": downloadDescription,
+				"shortDescription":    shortDescription,
+				"longDescription":     longDescription,
+				"keywords":            keywords,
+				"releaseNotes":        releaseNotes,
+			},
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest("PATCH", fmt.Sprintf("%s/v1/appStoreVersionLocalizations/%s", c.baseURL, localizationID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = io.NopCloser(bytes.NewReader(payloadBytes))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var updated AppLocalizationsResponse
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if err := json.Unmarshal(body, &updated); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if len(updated.Data) == 0 {
+		return nil, fmt.Errorf("no localization returned from API")
+	}
+
+	return &updated.Data[0], nil
+}
+
+// DeleteAppLocalization deletes an existing localization in App Store Connect
+func (c *AppleConnectClient) DeleteAppLocalization(localizationID string) error {
+	jwtToken, err := c.GenerateJWT()
+	if err != nil {
+		return fmt.Errorf("failed to generate JWT: %w", err)
+	}
+
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/v1/appStoreVersionLocalizations/%s", c.baseURL, localizationID), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }

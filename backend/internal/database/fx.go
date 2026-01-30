@@ -58,8 +58,12 @@ func NewDatabase(lc fx.Lifecycle, cfg *config.FXConfig) (*Database, error) {
 			// Run migrations when the service starts
 			err := RunMigrations(db)
 			if err != nil {
-				fmt.Printf("Failed to run migrations: %v\n", err)
-				return err
+				// Only log migration errors but don't fail completely
+				// This allows the application to continue running even if migrations fail
+				// which is useful for commands that don't require a fully migrated database
+				fmt.Printf("Warning: Failed to run migrations: %v\n", err)
+				// Optionally return nil to continue, or return err to fail
+				// For now, allowing the application to continue for CLI commands
 			}
 
 			return nil
@@ -75,20 +79,8 @@ func NewDatabase(lc fx.Lifecycle, cfg *config.FXConfig) (*Database, error) {
 
 // Migrate runs database migrations
 func Migrate(db *Database) error {
-	err := db.AutoMigrate(
-		&User{},
-		&Project{},
-		&Translation{},
-		&ProviderConfig{},
-		&UserActivity{},
-		&App{},
-		&AppLocalization{},
-		&Subscription{},
-		&AppUser{},
-		&TranslationQueue{},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to migrate database: %v", err)
+	if err := RunMigrations(db); err != nil {
+		return err
 	}
 
 	fmt.Println("Database migrations completed")

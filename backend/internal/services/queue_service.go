@@ -23,6 +23,7 @@ type QueueService struct {
 	TranslationService     *TranslationService
 	SubscriptionService    *SubscriptionService
 	ProviderService        *ProviderService
+	AppProviderConfigService *AppProviderConfigService
 
 	mu    sync.RWMutex
 	queue map[uint]*database.TranslationQueue // In-memory cache of active jobs
@@ -577,7 +578,14 @@ func (qs *QueueService) UpdateUserUsage(userID uint, count int) error {
 // Global functions for backward compatibility
 func SetQueueService(db *database.Database) {
 	queueServiceInstance = &QueueService{
-		DB:    db,
-		queue: make(map[uint]*database.TranslationQueue),
+		DB:                     db,
+		queue:                    make(map[uint]*database.TranslationQueue),
+		AppService:               appServiceInstance,
+		AppLocalizationService:   appLocalizationServiceInstance,
+		ProjectService:           projectServiceInstance,
+		TranslationService:       translationServiceInstance,
+		SubscriptionService:      subscriptionServiceInstance,
+		ProviderService:          providerServiceInstance,
+		AppProviderConfigService: appProviderConfigServiceInstance,
 	}
 }

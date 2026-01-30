@@ -169,13 +169,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useApi } from '../composables/useApi'
 import type { AppLocalization, ProviderConfig } from '../composables/useApi'
 
 const { t } = useI18n()
+const route = useRoute()
 const { api } = useApi()
+
+const appId = computed(() => Number(route.params.id))
+const hasValidAppId = computed(() => Number.isFinite(appId.value) && appId.value > 0)
 
 const localizations = ref<AppLocalization[]>([])
 const showAddLocalizationModal = ref(false)
@@ -285,7 +290,7 @@ async function fetchProviderConfigs() {
 }
 
 async function syncLocalizations() {
-  if (!selectedConfigId.value) return
+  if (!selectedConfigId.value || !hasValidAppId.value) return
 
   syncing.value = true
   syncResult.value = null
@@ -297,13 +302,9 @@ async function syncLocalizations() {
       throw new Error('Selected configuration not found');
     }
 
-    // In a real implementation, we would have the appId from the route parameters
-    // For now, we'll use a placeholder value
-    const appId = 1 // This should be retrieved from the route
-
-    // First, we need to update the provider config with the selected credentials
-    // For now, we'll just call the API with the appId only, as per the useApi.ts definition
-    const response = await api.syncAppleAppLocalizations(appId)
+    const response = await api.syncAppleAppLocalizations(appId.value, {
+      configId: selectedConfigId.value
+    })
     
     if (response.success) {
       syncResult.value = {
@@ -311,7 +312,7 @@ async function syncLocalizations() {
         count: response.count
       }
       // Refresh localizations list
-      fetchLocalizations()
+      await fetchLocalizations()
     } else {
       syncResult.value = {
         message: response.message || t('applocalizations.syncFailed')
@@ -329,11 +330,10 @@ async function syncLocalizations() {
 
 async function addLocalization() {
   try {
-    // In a real implementation, we would have the appId from the route parameters
-    // For now, we'll use a placeholder value
-    const appId = 1 // This should be retrieved from the route
-    
-    const response = await api.createAppLocalization(appId, {
+    if (!hasValidAppId.value) {
+      throw new Error('Invalid app ID')
+    }
+    const response = await api.createAppLocalization(appId.value, {
       languageCode: newLocalization.languageCode,
       name: newLocalization.name,
       subtitle: newLocalization.subtitle,
@@ -357,12 +357,9 @@ async function addLocalization() {
 }
 
 async function fetchLocalizations() {
+  if (!hasValidAppId.value) return
   try {
-    // In a real implementation, we would have the appId from the route parameters
-    // For now, we'll use a placeholder value
-    const appId = 1 // This should be retrieved from the route
-    
-    const response = await api.getAppLocalizations(appId)
+    const response = await api.getAppLocalizations(appId.value)
     if (response.success) {
       localizations.value = response.localizations
     }
@@ -377,12 +374,13 @@ async function deleteLocalization(id: number) {
   }
   
   try {
-    // In a real implementation, we would have the appId from the route parameters
-    const appId = 1 // This should be retrieved from the route
+    if (!hasValidAppId.value) {
+      throw new Error('Invalid app ID')
+    }
     const languageCode = localizations.value.find(loc => loc.id === id)?.languageCode
     
     if (languageCode) {
-      await api.deleteAppLocalization(appId, languageCode)
+      await api.deleteAppLocalization(appId.value, languageCode)
       localizations.value = localizations.value.filter(loc => loc.id !== id)
     }
   } catch (error) {
@@ -394,6 +392,10 @@ function editLocalization(localization: AppLocalization) {
   // This would open an edit modal in a real implementation
   console.log('Edit localization:', localization)
 }
+
+watch(appId, () => {
+  fetchLocalizations()
+})
 
 onMounted(() => {
   fetchLocalizations()

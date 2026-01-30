@@ -153,8 +153,9 @@
         </div>
         
         <div class="mt-3 flex gap-2 text-xs">
-          <RouterLink :to="`/apps/${app.id}`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.manage') }}</RouterLink>
-          <button class="rounded border border-white/20 px-2 py-1 hover:border-rose-600/60 hover:text-rose-500" @click="deleteApp(app.id)" :disabled="app.synced">{{ t('common.delete') }}</button>
+      <RouterLink :to="`/apps/${app.id}`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.manage') }}</RouterLink>
+      <RouterLink :to="`/apps/${app.id}/localizations`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.localizations') }}</RouterLink>
+      <button class="rounded border border-white/20 px-2 py-1 hover:border-rose-600/60 hover:text-rose-500" @click="deleteApp(app.id)" :disabled="app.synced">{{ t('common.delete') }}</button>
         </div>
       </div>
     </section>
@@ -234,9 +235,7 @@ async function syncApps() {
     }
 
     const response = await api.syncAppleApps({
-      issuerId: selectedConfig.configData.issuerID,
-      keyId: selectedConfig.configData.keyID,
-      privateKey: selectedConfig.configData.privateKey
+      configId: selectedConfig.id
     })
     
     if (response.success) {

@@ -216,14 +216,24 @@ async function testConnection() {
   
   try {
     // Create a temporary config to test the connection
-    const testCredentials = {
-      issuerId: form.issuerId,
-      keyId: form.keyId,
+    const testConfigData = {
+      issuerID: form.issuerId,
+      keyID: form.keyId,
       privateKey: form.privateKey
     }
-    
+
+    const created = await api.createProviderConfig({
+      providerType: 'appleconnect',
+      configData: testConfigData,
+      isDefault: false
+    })
+
     // Test by attempting to sync apps (this will validate the credentials)
-    const response = await api.syncAppleApps(testCredentials)
+    const response = await api.syncAppleApps({
+      configId: created.config.id
+    })
+
+    await api.deleteProviderConfig(created.config.id)
     
     if (response.success) {
       connectionStatus.value = {

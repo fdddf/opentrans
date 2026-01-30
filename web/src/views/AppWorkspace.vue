@@ -421,9 +421,7 @@ async function syncToAppleConnect() {
     }
 
     const response = await api.syncAppToApple(appId.value, {
-      issuerId: selectedConfig.configData.issuerID,
-      keyId: selectedConfig.configData.keyID,
-      privateKey: selectedConfig.configData.privateKey
+      configId: selectedConfig.id
     })
 
     if (response.success) {

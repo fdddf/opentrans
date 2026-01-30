@@ -56,21 +56,19 @@ var migrateStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		migrations, err := database.GetMigrationStatus(db)
+		status, err := database.GetMigrationStatus(db)
 		if err != nil {
 			fmt.Printf("Failed to get migration status: %v\n", err)
 			os.Exit(1)
 		}
 
-		if len(migrations) == 0 {
+		if status.Version == 0 {
 			fmt.Println("No migrations have been applied yet.")
 			return
 		}
 
-		fmt.Println("Applied migrations:")
-		for _, m := range migrations {
-			fmt.Printf("  - %s\n", m.Name)
-		}
+		fmt.Printf("Current version: %d\n", status.Version)
+		fmt.Printf("Dirty: %t\n", status.Dirty)
 	},
 }
 

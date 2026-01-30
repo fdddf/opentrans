@@ -180,6 +180,9 @@ type AppLocalization struct {
 	LongDescription     string `json:"long_description"`     // Long description in this language
 	Keywords            string `json:"keywords"`             // Keywords in this language (comma-separated)
 	ReleaseNotes        string `json:"release_notes"`        // Release notes in this language
+	SyncedAt            *time.Time `json:"synced_at"`
+	Source              string     `gorm:"type:varchar(20);default:'local'" json:"source"`
+	SyncStatus          string     `gorm:"type:varchar(20);default:'pending'" json:"sync_status"`
 }
 
 // Subscription represents user subscription information
@@ -218,6 +221,21 @@ type AppUser struct {
 
 	App  App  `json:"app"`
 	User User `json:"user"`
+}
+
+// AppProviderConfig represents the binding between an app and a provider configuration
+type AppProviderConfig struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+
+	AppID           uint          `gorm:"not null" json:"app_id"`
+	ProviderConfigID uint          `gorm:"not null" json:"provider_config_id"`
+	ProviderType    string        `gorm:"not null" json:"provider_type"`
+	IsDefault       bool          `json:"is_default"`
+	App             App           `json:"app"`
+	ProviderConfig  ProviderConfig `json:"provider_config"`
 }
 
 // TranslationQueue represents items in the translation queue for batch processing

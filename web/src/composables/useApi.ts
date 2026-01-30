@@ -39,6 +39,9 @@ export interface AppLocalization {
   longDescription?: string;
   keywords?: string;
   releaseNotes?: string;
+  syncedAt?: string;
+  source?: string;
+  syncStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -637,23 +640,24 @@ class ApiClient {
   }
 
   // Apple Connect methods
-  async syncAppleApps(credentials: { issuerId: string; keyId: string; privateKey: string }): Promise<any> {
+  async syncAppleApps(payload: { configId: number }): Promise<any> {
     return this.request('/protected/apple-connect/sync-apps', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(payload),
     });
   }
 
-  async syncAppleAppLocalizations(appId: number): Promise<any> {
+  async syncAppleAppLocalizations(appId: number, payload: { configId: number }): Promise<any> {
     return this.request(`/protected/apple-connect/${appId}/sync-localizations`, {
       method: 'POST',
+      body: JSON.stringify(payload),
     });
   }
 
-  async syncAppToApple(appId: number, credentials: { issuerId: string; keyId: string; privateKey: string }): Promise<any> {
+  async syncAppToApple(appId: number, payload: { configId: number }): Promise<any> {
     return this.request(`/protected/apps/${appId}/sync-to-apple`, {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(payload),
     });
   }
 

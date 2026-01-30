@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-
-	"github.com/fdddf/xcstrings-translator/internal/database"
 )
 
 func main() {
@@ -15,15 +13,7 @@ func main() {
 	fmt.Println()
 
 	// Check if migrations are defined
-	fmt.Printf("Total migrations: %d\n", len(database.MigrationsList))
-
-	// List all migrations
-	for i, m := range database.MigrationsList {
-		fmt.Printf("%d. %s\n", i+1, m)
-	}
-
-	fmt.Println()
-	fmt.Println("✓ Migration system structure is valid")
+	fmt.Println("Migrations are managed by golang-migrate.")
 	fmt.Println()
 	fmt.Println("To run actual migrations:")
 	fmt.Println("1. Set up PostgreSQL database")

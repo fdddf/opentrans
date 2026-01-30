@@ -20,7 +20,6 @@ import (
 	"github.com/fdddf/xcstrings-translator/internal/model"
 	"github.com/fdddf/xcstrings-translator/internal/services"
 	"github.com/fdddf/xcstrings-translator/internal/translator"
-	"github.com/fdddf/xcstrings-translator/pkg/appleconnect"
 	"github.com/fdddf/xcstrings-translator/webui"
 
 	"github.com/gofiber/fiber/v2"
@@ -2309,6 +2308,11 @@ func handleCreateAppLocalization(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
+	_ = services.UpdateAppLocalization(uint(appID), req.LanguageCode, map[string]interface{}{
+		"SyncStatus": "pending",
+		"Source":     "local",
+	})
+
 	return c.JSON(fiber.Map{
 		"success":      true,
 		"localization": localization,
@@ -2405,6 +2409,8 @@ func handleUpdateAppLocalization(c *fiber.Ctx) error {
 		"LongDescription":     req.LongDescription,
 		"Keywords":            req.Keywords,
 		"ReleaseNotes":        req.ReleaseNotes,
+		"SyncStatus":          "pending",
+		"Source":              "local",
 	}
 
 	err = services.UpdateAppLocalization(uint(appID), languageCode, updates)
@@ -2464,76 +2470,65 @@ func handleSyncAppleApps(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
 	}
 
+	var req struct {
+		ConfigID uint `json:"configId"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+	}
+	if req.ConfigID == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "configId is required")
+	}
+
 	// Get the user's Apple Connect configuration
-	configs, err := services.GetProviderConfigsByUser(userID)
+	config, err := services.GetProviderConfig(req.ConfigID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "Provider configuration not found")
+	}
+	if config.UserID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "Access denied to this configuration")
+	}
+	if config.ProviderType != "appleconnect" {
+		return fiber.NewError(fiber.StatusBadRequest, "Provider configuration is not Apple Connect")
+	}
+	_, ok = config.ConfigData["issuerID"].(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "issuerID is missing from configuration")
+	}
+	_, ok = config.ConfigData["keyID"].(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "keyID is missing from configuration")
+	}
+	_, ok = config.ConfigData["privateKey"].(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "privateKey is missing from configuration")
+	}
+
+	queueService := services.GetQueueService()
+	if queueService.AppService == nil || queueService.AppLocalizationService == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Apple Connect service unavailable")
+	}
+	apps, err := services.NewAppleConnectService(services.AppleConnectServiceDeps{
+		AppService:             queueService.AppService,
+		AppLocalizationService: queueService.AppLocalizationService,
+	}).SyncApps(userID,
+		config.ConfigData["issuerID"].(string),
+		config.ConfigData["keyID"].(string),
+		fmt.Sprintf("%v", config.ConfigData["privateKeyPath"]),
+		fmt.Sprintf("%v", config.ConfigData["privateKey"]),
+	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var appleConnectConfig *database.ProviderConfig
-	for _, config := range configs {
-		if config.ProviderType == "appleconnect" {
-			appleConnectConfig = &config
-			break
-		}
-	}
-
-	if appleConnectConfig == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "No Apple Connect configuration found")
-	}
-
-	// Create Apple Connect client
-	client, err := appleconnect.NewAppleConnectClient(
-		appleConnectConfig.ConfigData["issuerID"].(string),
-		appleConnectConfig.ConfigData["keyID"].(string),
-		appleConnectConfig.ConfigData["privateKeyPath"].(string),
-		appleConnectConfig.ConfigData["privateKey"].(string),
-	)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create Apple Connect client: %v", err))
-	}
-
-	// Get apps from Apple Connect
-	appsResponse, err := client.GetApps()
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to get apps from Apple Connect: %v", err))
-	}
-
-	// Sync apps to the database
-	for _, appleApp := range appsResponse.Data {
-		// Check if app already exists in our DB
-		dbApp, err := services.GetAppByBundleID(appleApp.Attributes.BundleID)
-		if err != nil {
-			// App doesn't exist, create it
-			_, err := services.CreateApp(
-				userID,
-				appleApp.Attributes.Name,
-				fmt.Sprintf("App imported from Apple Connect: %s", appleApp.Attributes.BundleID),
-				appleApp.Attributes.BundleID,
-				appleApp.Attributes.Sku,
-				appleApp.Attributes.PrimaryLocale,
-			)
-			if err != nil {
-				// Log error but continue with other apps
-				fmt.Printf("Failed to create app %s: %v\n", appleApp.Attributes.BundleID, err)
-			}
-		} else if dbApp != nil {
-			// App exists, update it
-			err := services.UpdateApp(dbApp.ID, map[string]interface{}{
-				"Name":          appleApp.Attributes.Name,
-				"Description":   fmt.Sprintf("App imported from Apple Connect: %s", appleApp.Attributes.BundleID),
-				"PrimaryLocale": appleApp.Attributes.PrimaryLocale,
-			})
-			if err != nil {
-				fmt.Printf("Failed to update app %s: %v\n", appleApp.Attributes.BundleID, err)
-			}
-		}
+	for _, syncedApp := range apps {
+		_, _ = services.BindAppProviderConfig(syncedApp.ID, config.ID, "appleconnect", false)
 	}
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": fmt.Sprintf("Synced %d apps from Apple Connect", len(appsResponse.Data)),
-		"count":   len(appsResponse.Data),
+		"message": fmt.Sprintf("Synced %d apps from Apple Connect", len(apps)),
+		"count":   len(apps),
 	})
 }
 
@@ -2548,6 +2543,16 @@ func handleSyncAppleAppLocalizations(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
 	}
 
+	var req struct {
+		ConfigID uint `json:"configId"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+	}
+	if req.ConfigID == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "configId is required")
+	}
+
 	// Check if user has access to this app
 	hasAccess, _, err := services.CheckUserAccessToApp(uint(appID), userID)
 	if err != nil {
@@ -2558,74 +2563,48 @@ func handleSyncAppleAppLocalizations(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "Access denied to this app")
 	}
 
-	// Get the app from our DB
-	app, err := services.GetApp(uint(appID))
+	config, err := services.GetProviderConfig(req.ConfigID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, "App not found")
+		return fiber.NewError(fiber.StatusNotFound, "Provider configuration not found")
+	}
+	if config.UserID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "Access denied to this configuration")
+	}
+	if config.ProviderType != "appleconnect" {
+		return fiber.NewError(fiber.StatusBadRequest, "Provider configuration is not Apple Connect")
 	}
 
-	// Get the user's Apple Connect configuration
-	configs, err := services.GetProviderConfigsByUser(userID)
+	_, err = services.BindAppProviderConfig(uint(appID), config.ID, "appleconnect", true)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	var appleConnectConfig *database.ProviderConfig
-	for _, config := range configs {
-		if config.ProviderType == "appleconnect" {
-			appleConnectConfig = &config
-			break
-		}
+	binding, err := services.GetAppProviderConfig(uint(appID), config.ID)
+	if err != nil || binding.ProviderConfigID != config.ID {
+		return fiber.NewError(fiber.StatusForbidden, "Apple Connect configuration not bound to this app")
 	}
 
-	if appleConnectConfig == nil {
-		return fiber.NewError(fiber.StatusBadRequest, "No Apple Connect configuration found")
+	queueService := services.GetQueueService()
+	if queueService.AppService == nil || queueService.AppLocalizationService == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Apple Connect service unavailable")
 	}
-
-	// Create Apple Connect client
-	client, err := appleconnect.NewAppleConnectClient(
-		appleConnectConfig.ConfigData["issuerID"].(string),
-		appleConnectConfig.ConfigData["keyID"].(string),
-		appleConnectConfig.ConfigData["privateKeyPath"].(string),
-		appleConnectConfig.ConfigData["privateKey"].(string),
+	localizations, err := services.NewAppleConnectService(services.AppleConnectServiceDeps{
+		AppService:             queueService.AppService,
+		AppLocalizationService: queueService.AppLocalizationService,
+	}).SyncLocalizations(uint(appID),
+		config.ConfigData["issuerID"].(string),
+		config.ConfigData["keyID"].(string),
+		fmt.Sprintf("%v", config.ConfigData["privateKeyPath"]),
+		fmt.Sprintf("%v", config.ConfigData["privateKey"]),
 	)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create Apple Connect client: %v", err))
-	}
-
-	// Get localizations from Apple Connect
-	localizationsResponse, err := client.GetAppLocalizations(app.BundleID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to get localizations from Apple Connect: %v", err))
-	}
-
-	// Sync localizations to the database
-	for _, localization := range localizationsResponse.Data {
-		// Update or create each localization
-		_, err := services.GetOrCreateAppLocalization(
-			uint(appID),
-			localization.Attributes.Locale,
-			localization.Attributes.Name,
-			localization.Attributes.Subtitle,
-			localization.Attributes.PrivacyURL,
-			localization.Attributes.MarketingURL,
-			localization.Attributes.SupportURL,
-			localization.Attributes.DownloadDescription,
-			localization.Attributes.ShortDescription,
-			localization.Attributes.LongDescription,
-			localization.Attributes.Keywords,
-			localization.Attributes.ReleaseNotes,
-		)
-		if err != nil {
-			// Log error but continue with other localizations
-			fmt.Printf("Failed to sync localization for %s: %v\n", localization.Attributes.Locale, err)
-		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": fmt.Sprintf("Synced %d localizations from Apple Connect", len(localizationsResponse.Data)),
-		"count":   len(localizationsResponse.Data),
+		"message": fmt.Sprintf("Synced %d localizations from Apple Connect", len(localizations)),
+		"count":   len(localizations),
 	})
 }
 
@@ -3006,20 +2985,45 @@ func handleSyncAppToApple(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		IssuerID   string `json:"issuerId"`
-		KeyID      string `json:"keyId"`
-		PrivateKey string `json:"privateKey"`
+		ConfigID uint `json:"configId"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	if req.IssuerID == "" || req.KeyID == "" || req.PrivateKey == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "issuerId, keyId, and privateKey are required")
+	if req.ConfigID == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "configId is required")
 	}
 
-	err = services.SyncAppToAppleConnect(uint(appID), req.IssuerID, req.KeyID, req.PrivateKey)
+	config, err := services.GetProviderConfig(req.ConfigID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "Provider configuration not found")
+	}
+	if config.UserID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "Access denied to this configuration")
+	}
+	if config.ProviderType != "appleconnect" {
+		return fiber.NewError(fiber.StatusBadRequest, "Provider configuration is not Apple Connect")
+	}
+	_, ok = config.ConfigData["issuerID"].(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "issuerID is missing from configuration")
+	}
+	_, ok = config.ConfigData["keyID"].(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "keyID is missing from configuration")
+	}
+	_, ok = config.ConfigData["privateKey"].(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusBadRequest, "privateKey is missing from configuration")
+	}
+
+	err = services.SyncAppToAppleConnect(uint(appID),
+		config.ConfigData["issuerID"].(string),
+		config.ConfigData["keyID"].(string),
+		config.ConfigData["privateKey"].(string),
+	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
