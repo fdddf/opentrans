@@ -2303,6 +2303,8 @@ func handleCreateAppLocalization(c *fiber.Ctx) error {
 		req.LongDescription,
 		req.Keywords,
 		req.ReleaseNotes,
+		"", // PromotionalText
+		"", // WhatToTest
 	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())

@@ -490,6 +490,7 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 				loc.LongDescription,
 				loc.Keywords,
 				loc.ReleaseNotes,
+				loc.PromotionalText,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create localization for %s: %v", loc.LanguageCode, err)
@@ -639,6 +640,8 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 			locData.Attributes.LongDescription,
 			locData.Attributes.Keywords,
 			locData.Attributes.ReleaseNotes,
+			locData.Attributes.PromotionalText,
+			"", // WhatToTest - not available in Apple Connect API response
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create localization %s: %v", locData.Attributes.Locale, err)

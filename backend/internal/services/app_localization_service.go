@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fdddf/xcstrings-translator/internal/database"
@@ -15,10 +16,21 @@ type AppLocalizationService struct {
 }
 
 // CreateAppLocalization creates a new localization for an app
-func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes string) (*database.AppLocalization, error) {
+func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText, whatToTest string) (*database.AppLocalization, error) {
 	if !IsSupportedLanguage(languageCode) {
 		return nil, fmt.Errorf("unsupported language: %s", languageCode)
 	}
+
+	// Validate localization data
+	validationResult := ValidateAppLocalization(languageCode, name, subtitle, shortDescription, keywords, privacyURL, marketingURL, supportURL, promotionalText, releaseNotes)
+	if !validationResult.IsValid {
+		var errorMsgs []string
+		for _, err := range validationResult.Errors {
+			errorMsgs = append(errorMsgs, fmt.Sprintf("%s: %s", err.Field, err.Message))
+		}
+		return nil, fmt.Errorf("validation failed: %s", strings.Join(errorMsgs, "; "))
+	}
+
 	// Check if localization already exists for this app and language
 	var existingLocalization database.AppLocalization
 	result := s.DB.Where("app_id = ? AND language_code = ?", appID, languageCode).First(&existingLocalization)
@@ -42,6 +54,9 @@ func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode,
 		LongDescription:     longDescription,
 		Keywords:            keywords,
 		ReleaseNotes:        releaseNotes,
+		PromotionalText:     promotionalText,
+		WhatToTest:          whatToTest,
+		Locale:              languageCode, // Default the locale to the language code
 		SyncedAt:            &now,
 		Source:              "local",
 		SyncStatus:          "pending",
@@ -107,6 +122,42 @@ func (s *AppLocalizationService) UpdateAppLocalization(appID uint, languageCode 
 	}
 
 	return nil
+}
+
+// UpdateAppLocalizationWithValidation updates an existing localization with validation
+func (s *AppLocalizationService) UpdateAppLocalizationWithValidation(appID uint, languageCode string, updates map[string]interface{}) error {
+	// Extract fields for validation
+	name := getStringFromMap(updates, "Name")
+	subtitle := getStringFromMap(updates, "Subtitle")
+	shortDescription := getStringFromMap(updates, "ShortDescription")
+	keywords := getStringFromMap(updates, "Keywords")
+	privacyURL := getStringFromMap(updates, "PrivacyURL")
+	marketingURL := getStringFromMap(updates, "MarketingURL")
+	supportURL := getStringFromMap(updates, "SupportURL")
+	promotionalText := getStringFromMap(updates, "PromotionalText")
+	releaseNotes := getStringFromMap(updates, "ReleaseNotes")
+
+	// Validate localization data
+	validationResult := ValidateAppLocalization(languageCode, name, subtitle, shortDescription, keywords, privacyURL, marketingURL, supportURL, promotionalText, releaseNotes)
+	if !validationResult.IsValid {
+		var errorMsgs []string
+		for _, err := range validationResult.Errors {
+			errorMsgs = append(errorMsgs, fmt.Sprintf("%s: %s", err.Field, err.Message))
+		}
+		return fmt.Errorf("validation failed: %s", strings.Join(errorMsgs, "; "))
+	}
+
+	return s.UpdateAppLocalization(appID, languageCode, updates)
+}
+
+// getStringFromMap safely extracts a string from a map
+func getStringFromMap(m map[string]interface{}, key string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
 }
 
 // DeleteAppLocalization soft deletes an app localization
@@ -196,8 +247,8 @@ func (s *AppLocalizationService) GetOrCreateAppLocalization(appID uint, language
 		return localization, nil
 	}
 
-	// Localization doesn't exist, create it
-	return s.CreateAppLocalization(appID, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes)
+	// Localization doesn't exist, create it with empty values for new fields
+	return s.CreateAppLocalization(appID, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, "", "")
 }
 
 // GetAppSupportedLanguages retrieves all languages supported by an app
@@ -238,8 +289,8 @@ func SetAppLocalizationService(db *database.Database) {
 	appLocalizationServiceInstance = &AppLocalizationService{DB: db}
 }
 
-func CreateAppLocalization(appID uint, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes string) (*database.AppLocalization, error) {
-	return appLocalizationServiceInstance.CreateAppLocalization(appID, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes)
+func CreateAppLocalization(appID uint, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText, whatToTest string) (*database.AppLocalization, error) {
+	return appLocalizationServiceInstance.CreateAppLocalization(appID, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText, whatToTest)
 }
 
 func GetAppLocalization(appID uint, languageCode string) (*database.AppLocalization, error) {

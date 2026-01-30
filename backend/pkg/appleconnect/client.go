@@ -54,6 +54,7 @@ type AppLocalization struct {
 		LongDescription     string `json:"longDescription"`
 		Keywords            string `json:"keywords"`
 		ReleaseNotes        string `json:"releaseNotes"`
+		PromotionalText     string `json:"promotionalText"`
 		Locale              string `json:"locale"`
 	} `json:"attributes"`
 }
@@ -325,7 +326,7 @@ func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, error)
 }
 
 // CreateAppLocalization creates a new localization for an app
-func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes string) (*AppLocalization, error) {
+func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText string) (*AppLocalization, error) {
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)

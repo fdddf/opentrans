@@ -180,9 +180,16 @@ type AppLocalization struct {
 	LongDescription     string `json:"long_description"`     // Long description in this language
 	Keywords            string `json:"keywords"`             // Keywords in this language (comma-separated)
 	ReleaseNotes        string `json:"release_notes"`        // Release notes in this language
-	SyncedAt            *time.Time `json:"synced_at"`
-	Source              string     `gorm:"type:varchar(20);default:'local'" json:"source"`
-	SyncStatus          string     `gorm:"type:varchar(20);default:'pending'" json:"sync_status"`
+	PromotionalText     string `json:"promotional_text"`     // Promotional text in this language
+	WhatToTest          string `json:"what_to_test"`         // What to test notes for beta testing
+
+	// Sync metadata
+	SyncedAt   *time.Time `json:"synced_at"`
+	Source     string     `gorm:"type:varchar(20);default:'local'" json:"source"`
+	SyncStatus string     `gorm:"type:varchar(20);default:'pending'" json:"sync_status"`
+
+	// Additional metadata that might be useful
+	Locale string `json:"locale"` // Locale identifier
 }
 
 // Subscription represents user subscription information
@@ -230,12 +237,12 @@ type AppProviderConfig struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
-	AppID           uint          `gorm:"not null" json:"app_id"`
-	ProviderConfigID uint          `gorm:"not null" json:"provider_config_id"`
-	ProviderType    string        `gorm:"not null" json:"provider_type"`
-	IsDefault       bool          `json:"is_default"`
-	App             App           `json:"app"`
-	ProviderConfig  ProviderConfig `json:"provider_config"`
+	AppID            uint           `gorm:"not null" json:"app_id"`
+	ProviderConfigID uint           `gorm:"not null" json:"provider_config_id"`
+	ProviderType     string         `gorm:"not null" json:"provider_type"`
+	IsDefault        bool           `json:"is_default"`
+	App              App            `json:"app"`
+	ProviderConfig   ProviderConfig `json:"provider_config"`
 }
 
 // TranslationQueue represents items in the translation queue for batch processing

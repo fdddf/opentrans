@@ -39,6 +39,7 @@ export interface AppLocalization {
   longDescription?: string;
   keywords?: string;
   releaseNotes?: string;
+  promotionalText?: string;
   syncedAt?: string;
   source?: string;
   syncStatus?: string;

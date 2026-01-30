@@ -8,14 +8,35 @@ import (
 	"github.com/fdddf/xcstrings-translator/pkg/appleconnect"
 )
 
+// SyncDirection represents the direction of synchronization
+type SyncDirection string
+
+const (
+	SyncDirectionPull SyncDirection = "pull" // Apple -> Local
+	SyncDirectionPush SyncDirection = "push" // Local -> Apple
+	SyncDirectionBoth SyncDirection = "both" // Bidirectional
+)
+
+// ConflictResolutionStrategy represents how to handle conflicts
+type ConflictResolutionStrategy string
+
+const (
+	ConflictResolutionAppleFirst ConflictResolutionStrategy = "apple_first" // Always use Apple's version
+	ConflictResolutionLocalFirst  ConflictResolutionStrategy = "local_first"  // Always use local version
+	ConflictResolutionManual      ConflictResolutionStrategy = "manual"       // Require manual resolution
+)
+
 // AppleConnectService wraps Apple Connect sync operations.
 type AppleConnectService struct {
-	AppService            *AppService
+	AppService             *AppService
 	AppLocalizationService *AppLocalizationService
 }
 
 // SyncApps syncs apps from Apple Connect into the DB.
 func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyPath, privateKey string) ([]database.App, error) {
+	// Log the sync start
+	fmt.Printf("Starting Apple Connect app sync for user: %d\n", userID)
+
 	client, err := appleconnect.NewAppleConnectClient(issuerID, keyID, privateKeyPath, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Apple Connect client: %v", err)
@@ -27,6 +48,10 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 	}
 
 	var syncedApps []database.App
+	var failedApps []string
+	var updatedApps []string
+	var createdApps []string
+
 	for _, appData := range appsResponse.Data {
 		existingApp, err := s.AppService.GetAppByBundleID(appData.Attributes.BundleID)
 		if err == nil && existingApp != nil {
@@ -36,17 +61,29 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 				"PrimaryLocale": appData.Attributes.PrimaryLocale,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("failed to update app %s: %v", appData.Attributes.BundleID, err)
+				failedApps = append(failedApps, fmt.Sprintf("%s: %v", appData.Attributes.BundleID, err))
+				continue
 			}
 			syncedApps = append(syncedApps, *existingApp)
+			updatedApps = append(updatedApps, appData.Attributes.BundleID)
 			continue
 		}
 
 		newApp, err := s.AppService.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create app %s: %v", appData.Attributes.BundleID, err)
+			failedApps = append(failedApps, fmt.Sprintf("%s: %v", appData.Attributes.BundleID, err))
+			continue
 		}
 		syncedApps = append(syncedApps, *newApp)
+		createdApps = append(createdApps, appData.Attributes.BundleID)
+	}
+
+	// Log sync results
+	fmt.Printf("Apple Connect app sync completed. Updated: %d, Created: %d, Failed: %d\n",
+		len(updatedApps), len(createdApps), len(failedApps))
+
+	if len(failedApps) > 0 {
+		fmt.Printf("Failed apps: %v\n", failedApps)
 	}
 
 	return syncedApps, nil
@@ -108,6 +145,8 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 			locData.Attributes.LongDescription,
 			locData.Attributes.Keywords,
 			locData.Attributes.ReleaseNotes,
+			locData.Attributes.PromotionalText, // PromotionalText
+			"",                                 // WhatToTest - not available in Apple Connect API response
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create localization %s: %v", locData.Attributes.Locale, err)
@@ -122,4 +161,366 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 	}
 
 	return syncedLocalizations, nil
+}
+
+// CheckLocalizationConflicts compares local and Apple Connect versions to detect conflicts
+func (s *AppleConnectService) CheckLocalizationConflicts(appID uint, issuerID, keyID, privateKeyPath, privateKey string) ([]map[string]interface{}, error) {
+	app, err := s.AppService.GetApp(appID)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := appleconnect.NewAppleConnectClient(issuerID, keyID, privateKeyPath, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Apple Connect client: %v", err)
+	}
+
+	localizationsResponse, err := client.GetAppLocalizations(app.AppleID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get localizations from Apple Connect: %v", err)
+	}
+
+	var conflicts []map[string]interface{}
+
+	for _, appleLoc := range localizationsResponse.Data {
+		localLoc, err := s.AppLocalizationService.GetAppLocalization(appID, appleLoc.Attributes.Locale)
+		if err != nil {
+			// No local localization, so no conflict
+			continue
+		}
+
+		// Compare fields to detect conflicts
+		hasConflict := s.isLocalizationDifferent(localLoc, &appleLoc)
+
+		if hasConflict {
+			conflict := map[string]interface{}{
+				"appId":        appID,
+				"languageCode": appleLoc.Attributes.Locale,
+				"localVersion": localLoc,
+				"appleVersion": appleLoc,
+				"hasConflict":  true,
+				"checkedAt":    time.Now(),
+			}
+			conflicts = append(conflicts, conflict)
+		}
+	}
+
+	return conflicts, nil
+}
+
+// isLocalizationDifferent compares a local localization with an Apple Connect localization to determine if they are different
+func (s *AppleConnectService) isLocalizationDifferent(localLoc *database.AppLocalization, appleLoc *appleconnect.AppLocalization) bool {
+	// Compare each field to see if there are differences
+	return localLoc.Name != appleLoc.Attributes.Name ||
+		localLoc.Subtitle != appleLoc.Attributes.Subtitle ||
+		localLoc.PrivacyURL != appleLoc.Attributes.PrivacyURL ||
+		localLoc.MarketingURL != appleLoc.Attributes.MarketingURL ||
+		localLoc.SupportURL != appleLoc.Attributes.SupportURL ||
+		localLoc.DownloadDescription != appleLoc.Attributes.DownloadDescription ||
+		localLoc.ShortDescription != appleLoc.Attributes.ShortDescription ||
+		localLoc.LongDescription != appleLoc.Attributes.LongDescription ||
+		localLoc.Keywords != appleLoc.Attributes.Keywords ||
+		localLoc.ReleaseNotes != appleLoc.Attributes.ReleaseNotes
+}
+
+// GetChangedLocalizations returns localizations that have been changed since the last sync with Apple
+func (s *AppleConnectService) GetChangedLocalizations(appID uint) ([]database.AppLocalization, error) {
+	localizations, err := s.AppLocalizationService.GetAppLocalizations(appID)
+	if err != nil {
+		return nil, err
+	}
+
+	var changedLocalizations []database.AppLocalization
+	for _, loc := range localizations {
+		if loc.Source == "local" && loc.SyncStatus == "pending" {
+			// This localization was changed locally and hasn't been synced to Apple yet
+			changedLocalizations = append(changedLocalizations, loc)
+		}
+	}
+
+	return changedLocalizations, nil
+}
+
+// ResolveConflict allows choosing between local or Apple version for a specific localization
+func (s *AppleConnectService) ResolveConflict(appID uint, languageCode string, useLocalVersion bool, issuerID, keyID, privateKeyPath, privateKey string) error {
+	if useLocalVersion {
+		// Push local version to Apple
+		return s.pushLocalizationToApple(appID, languageCode, issuerID, keyID, privateKeyPath, privateKey)
+	} else {
+		// Pull Apple version to local
+		return s.pullLocalizationFromApple(appID, languageCode, issuerID, keyID, privateKeyPath, privateKey)
+	}
+}
+
+// pullLocalizationFromApple syncs a single localization from Apple to local
+func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode, issuerID, keyID, privateKeyPath, privateKey string) error {
+	app, err := s.AppService.GetApp(appID)
+	if err != nil {
+		return err
+	}
+
+	client, err := appleconnect.NewAppleConnectClient(issuerID, keyID, privateKeyPath, privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to create Apple Connect client: %v", err)
+	}
+
+	appleLocalization, err := client.GetAppLocalization(app.AppleID, languageCode)
+	if err != nil {
+		return fmt.Errorf("failed to get localization from Apple Connect: %v", err)
+	}
+
+	updates := map[string]interface{}{
+		"Name":                appleLocalization.Attributes.Name,
+		"Subtitle":            appleLocalization.Attributes.Subtitle,
+		"PrivacyURL":          appleLocalization.Attributes.PrivacyURL,
+		"MarketingURL":        appleLocalization.Attributes.MarketingURL,
+		"SupportURL":          appleLocalization.Attributes.SupportURL,
+		"DownloadDescription": appleLocalization.Attributes.DownloadDescription,
+		"ShortDescription":    appleLocalization.Attributes.ShortDescription,
+		"LongDescription":     appleLocalization.Attributes.LongDescription,
+		"Keywords":            appleLocalization.Attributes.Keywords,
+		"ReleaseNotes":        appleLocalization.Attributes.ReleaseNotes,
+		"Source":              "apple",
+		"SyncStatus":          "synced",
+		"SyncedAt":            time.Now(),
+	}
+
+	return s.AppLocalizationService.UpdateAppLocalization(appID, languageCode, updates)
+}
+
+// pushLocalizationToApple syncs a single localization from local to Apple
+func (s *AppleConnectService) pushLocalizationToApple(appID uint, languageCode, issuerID, keyID, privateKeyPath, privateKey string) error {
+	app, err := s.AppService.GetApp(appID)
+	if err != nil {
+		return err
+	}
+
+	client, err := appleconnect.NewAppleConnectClient(issuerID, keyID, privateKeyPath, privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to create Apple Connect client: %v", err)
+	}
+
+	localLoc, err := s.AppLocalizationService.GetAppLocalization(appID, languageCode)
+	if err != nil {
+		return fmt.Errorf("failed to get local localization: %v", err)
+	}
+
+	// Try to get existing localization from Apple
+	appleLoc, err := client.GetAppLocalization(app.AppleID, languageCode)
+	if err != nil {
+		// Localization doesn't exist in Apple, create it
+		_, err = client.CreateAppLocalization(
+			app.AppleID,
+			languageCode,
+			localLoc.Name,
+			localLoc.Subtitle,
+			localLoc.PrivacyURL,
+			localLoc.MarketingURL,
+			localLoc.SupportURL,
+			localLoc.DownloadDescription,
+			localLoc.ShortDescription,
+			localLoc.LongDescription,
+			localLoc.Keywords,
+			localLoc.ReleaseNotes,
+			localLoc.PromotionalText,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create localization in Apple Connect: %v", err)
+		}
+	} else {
+		// Update existing localization
+		_, err = client.UpdateAppLocalization(
+			appleLoc.ID,
+			localLoc.Name,
+			localLoc.Subtitle,
+			localLoc.PrivacyURL,
+			localLoc.MarketingURL,
+			localLoc.SupportURL,
+			localLoc.DownloadDescription,
+			localLoc.ShortDescription,
+			localLoc.LongDescription,
+			localLoc.Keywords,
+			localLoc.ReleaseNotes,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update localization in Apple Connect: %v", err)
+		}
+	}
+
+	// Update local record
+	updates := map[string]interface{}{
+		"Source":     "local",
+		"SyncStatus": "synced",
+		"SyncedAt":   time.Now(),
+	}
+
+	return s.AppLocalizationService.UpdateAppLocalization(appID, languageCode, updates)
+}
+
+// SyncWithDirectionAndStrategy syncs localizations with specified direction and conflict resolution strategy
+func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction SyncDirection, strategy ConflictResolutionStrategy, issuerID, keyID, privateKeyPath, privateKey string) ([]database.AppLocalization, []map[string]interface{}, error) {
+	app, err := s.AppService.GetApp(appID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	client, err := appleconnect.NewAppleConnectClient(issuerID, keyID, privateKeyPath, privateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create Apple Connect client: %v", err)
+	}
+
+	var syncedLocalizations []database.AppLocalization
+	var conflicts []map[string]interface{}
+
+	// Get local localizations
+	localLocalizations, err := s.AppLocalizationService.GetAppLocalizations(appID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get local localizations: %v", err)
+	}
+
+	// Get Apple localizations
+	appleLocalizationsResponse, err := client.GetAppLocalizations(app.AppleID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get Apple localizations: %v", err)
+	}
+
+	// Create a map of Apple localizations by locale
+	appleLocMap := make(map[string]*appleconnect.AppLocalization)
+	for i := range appleLocalizationsResponse.Data {
+		appleLocMap[appleLocalizationsResponse.Data[i].Attributes.Locale] = &appleLocalizationsResponse.Data[i]
+	}
+
+	// Sync based on direction
+	if direction == SyncDirectionPull || direction == SyncDirectionBoth {
+		// Pull from Apple to local
+		for _, appleLoc := range appleLocalizationsResponse.Data {
+			locale := appleLoc.Attributes.Locale
+			localLoc, err := s.AppLocalizationService.GetAppLocalization(appID, locale)
+
+			if err != nil {
+				// Localization doesn't exist locally, create it
+				newLoc, err := s.AppLocalizationService.CreateAppLocalization(
+					appID,
+					locale,
+					appleLoc.Attributes.Name,
+					appleLoc.Attributes.Subtitle,
+					appleLoc.Attributes.PrivacyURL,
+					appleLoc.Attributes.MarketingURL,
+					appleLoc.Attributes.SupportURL,
+					appleLoc.Attributes.DownloadDescription,
+					appleLoc.Attributes.ShortDescription,
+					appleLoc.Attributes.LongDescription,
+					appleLoc.Attributes.Keywords,
+					appleLoc.Attributes.ReleaseNotes,
+					appleLoc.Attributes.PromotionalText,
+					"",
+				)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to create localization %s: %v", locale, err)
+				}
+
+				_ = s.AppLocalizationService.UpdateAppLocalization(appID, locale, map[string]interface{}{
+					"Source":     "apple",
+					"SyncStatus": "synced",
+					"SyncedAt":   time.Now(),
+				})
+				syncedLocalizations = append(syncedLocalizations, *newLoc)
+			} else {
+				// Check for conflict
+				hasConflict := s.isLocalizationDifferent(localLoc, &appleLoc)
+
+				if hasConflict {
+					if strategy == ConflictResolutionManual {
+						conflicts = append(conflicts, map[string]interface{}{
+							"appId":        appID,
+							"languageCode": locale,
+							"localVersion": localLoc,
+							"appleVersion": appleLoc,
+							"hasConflict":  true,
+							"checkedAt":    time.Now(),
+						})
+						continue
+					} else if strategy == ConflictResolutionAppleFirst {
+						// Use Apple's version
+						_ = s.pullLocalizationFromApple(appID, locale, issuerID, keyID, privateKeyPath, privateKey)
+						syncedLocalizations = append(syncedLocalizations, *localLoc)
+					} else {
+						// Local first - keep local version, mark as pending sync
+						continue
+					}
+				} else {
+					// No conflict, update local
+					_ = s.pullLocalizationFromApple(appID, locale, issuerID, keyID, privateKeyPath, privateKey)
+					syncedLocalizations = append(syncedLocalizations, *localLoc)
+				}
+			}
+		}
+	}
+
+	if direction == SyncDirectionPush || direction == SyncDirectionBoth {
+		// Push from local to Apple
+		for _, localLoc := range localLocalizations {
+			locale := localLoc.LanguageCode
+			appleLoc, exists := appleLocMap[locale]
+
+			if !exists {
+				// Localization doesn't exist in Apple, create it
+				_, err := client.CreateAppLocalization(
+					app.AppleID,
+					locale,
+					localLoc.Name,
+					localLoc.Subtitle,
+					localLoc.PrivacyURL,
+					localLoc.MarketingURL,
+					localLoc.SupportURL,
+					localLoc.DownloadDescription,
+					localLoc.ShortDescription,
+					localLoc.LongDescription,
+					localLoc.Keywords,
+					localLoc.ReleaseNotes,
+					localLoc.PromotionalText,
+				)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to create localization in Apple %s: %v", locale, err)
+				}
+
+				_ = s.AppLocalizationService.UpdateAppLocalization(appID, locale, map[string]interface{}{
+					"Source":     "local",
+					"SyncStatus": "synced",
+					"SyncedAt":   time.Now(),
+				})
+				syncedLocalizations = append(syncedLocalizations, localLoc)
+			} else {
+				// Check for conflict
+				hasConflict := s.isLocalizationDifferent(&localLoc, appleLoc)
+
+				if hasConflict {
+					if strategy == ConflictResolutionManual {
+						conflicts = append(conflicts, map[string]interface{}{
+							"appId":        appID,
+							"languageCode": locale,
+							"localVersion": localLoc,
+							"appleVersion": appleLoc,
+							"hasConflict":  true,
+							"checkedAt":    time.Now(),
+						})
+						continue
+					} else if strategy == ConflictResolutionLocalFirst {
+						// Use local version
+						_ = s.pushLocalizationToApple(appID, locale, issuerID, keyID, privateKeyPath, privateKey)
+						syncedLocalizations = append(syncedLocalizations, localLoc)
+					} else {
+						// Apple first - keep Apple version, don't push
+						continue
+					}
+				} else {
+					// No conflict, push to Apple
+					_ = s.pushLocalizationToApple(appID, locale, issuerID, keyID, privateKeyPath, privateKey)
+					syncedLocalizations = append(syncedLocalizations, localLoc)
+				}
+			}
+		}
+	}
+
+	return syncedLocalizations, conflicts, nil
 }
