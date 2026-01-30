@@ -272,40 +272,7 @@ const metadataItems = ref([
   { key: 'releaseNotes', source: 'What\'s new in this version', translation: '', description: t('workspace.releaseNotesDesc') }
 ]);
 
-const availableLanguages = [
-  { code: 'en-US', name: 'English (US)' },
-  { code: 'en-GB', name: 'English (UK)' },
-  { code: 'zh-Hans', name: 'Chinese (Simplified)' },
-  { code: 'zh-Hant', name: 'Chinese (Traditional)' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'pt-BR', name: 'Portuguese (Brazil)' },
-  { code: 'pt-PT', name: 'Portuguese (Portugal)' },
-  { code: 'it', name: 'Italian' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'sv', name: 'Swedish' },
-  { code: 'da', name: 'Danish' },
-  { code: 'fi', name: 'Finnish' },
-  { code: 'no', name: 'Norwegian' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'th', name: 'Thai' },
-  { code: 'vi', name: 'Vietnamese' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'cs', name: 'Czech' },
-  { code: 'el', name: 'Greek' },
-  { code: 'he', name: 'Hebrew' },
-  { code: 'hu', name: 'Hungarian' },
-  { code: 'ro', name: 'Romanian' },
-  { code: 'sk', name: 'Slovak' },
-  { code: 'uk', name: 'Ukrainian' }
-];
+const availableLanguages = ref<{ code: string; name: string; native_name: string; region?: string; direction: string }[]>([])
 
 const hasAppleConnectConfig = computed(() => appleConnectConfigs.value.length > 0);
 
@@ -443,8 +410,21 @@ async function syncToAppleConnect() {
   }
 }
 
+async function fetchLanguages() {
+  try {
+    const response = await api.getSupportedLanguages()
+    if (response.success) {
+      availableLanguages.value = response.languages
+    }
+  } catch (error) {
+    console.error('Failed to fetch languages:', error)
+  }
+}
+
 // Fetch app data on component mount
 onMounted(async () => {
+  await fetchLanguages()
+
   try {
     const response = await api.getApp(appId.value);
     if (response.success) {

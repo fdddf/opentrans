@@ -28,9 +28,9 @@
         <div class="mt-4 space-y-4">
           <div>
             <p class="text-sm text-slate-400 mb-3">{{ t('applocalizations.selectProviderConfig') }}</p>
-            <select 
-              v-model="selectedConfigId" 
-              class="w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" 
+            <select
+              v-model="selectedConfigId"
+              class="w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint"
               required
             >
               <option value="">{{ t('applocalizations.chooseConfig') }}</option>
@@ -39,23 +39,66 @@
               </option>
             </select>
           </div>
-          
+
+          <div>
+            <p class="text-sm text-slate-400 mb-3">{{ t('applocalizations.syncDirection') }}</p>
+            <select
+              v-model="syncDirection"
+              class="w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint"
+            >
+              <option value="pull">{{ t('applocalizations.pullFromApple') }}</option>
+              <option value="push">{{ t('applocalizations.pushToApple') }}</option>
+              <option value="both">{{ t('applocalizations.bidirectional') }}</option>
+            </select>
+          </div>
+
+          <div>
+            <p class="text-sm text-slate-400 mb-3">{{ t('applocalizations.conflictStrategy') }}</p>
+            <select
+              v-model="syncStrategy"
+              class="w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint"
+            >
+              <option value="apple_first">{{ t('applocalizations.appleFirst') }}</option>
+              <option value="local_first">{{ t('applocalizations.localFirst') }}</option>
+              <option value="manual">{{ t('applocalizations.manual') }}</option>
+            </select>
+          </div>
+
+          <div>
+            <p class="text-sm text-slate-400 mb-3">{{ t('applocalizations.selectLanguages') }} ({{ t('applocalizations.optional') }})</p>
+            <div class="max-h-40 overflow-y-auto rounded-lg bg-white/5 border border-white/10 p-2 space-y-1">
+              <label v-for="lang in availableLanguages" :key="lang.code" class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 p-1 rounded">
+                <input
+                  type="checkbox"
+                  :value="lang.code"
+                  v-model="selectedSyncLanguages"
+                  class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+                />
+                <span>{{ lang.name }} ({{ lang.code }})</span>
+              </label>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">{{ t('applocalizations.selectLanguagesDesc') }}</p>
+          </div>
+
           <div v-if="syncResult" class="p-3 rounded-lg bg-white/5 border border-white/10">
             <p class="text-sm">{{ syncResult.message }}</p>
             <p v-if="syncResult.count" class="text-sm text-mint">{{ t('applocalizations.syncedCount', { count: syncResult.count }) }}</p>
+            <div v-if="syncResult.conflicts && syncResult.conflicts.length > 0" class="mt-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
+              <p class="text-xs text-yellow-500">{{ t('applocalizations.conflictsDetected', { count: syncResult.conflicts.length }) }}</p>
+            </div>
           </div>
 
           <div class="flex justify-end gap-2 pt-4">
-            <button 
-              type="button" 
-              class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint" 
+            <button
+              type="button"
+              class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
               @click="closeSyncModal"
             >
               {{ t('common.cancel') || 'Cancel' }}
             </button>
-            <button 
-              type="button" 
-              class="rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-midnight shadow" 
+            <button
+              type="button"
+              class="rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-midnight shadow"
               @click="syncLocalizations"
               :disabled="!selectedConfigId || syncing"
             >
@@ -347,10 +390,15 @@ const showAddLocalizationModal = ref(false)
 const showEditLocalizationModal = ref(false)
 const showSyncModal = ref(false)
 const syncing = ref(false)
-const syncResult = ref<{ message: string; count?: number } | null>(null)
+const syncResult = ref<{ message: string; count?: number; conflicts?: any[] } | null>(null)
 const selectedConfigId = ref<number | null>(null)
+const syncDirection = ref('pull')
+const syncStrategy = ref('apple_first')
+const selectedSyncLanguages = ref<string[]>([])
 const appleConnectConfigs = ref<ProviderConfig[]>([])
 const validationErrors = ref<Record<string, string>>({})
+const availableLanguages = ref<{ code: string; name: string; native_name: string; region?: string; direction: string }[]>([])
+const loadingLanguages = ref(false)
 
 const newLocalization = reactive({
   languageCode: '',
@@ -434,43 +482,8 @@ function clearValidationErrors() {
   validationErrors.value = {}
 }
 
-const availableLanguages = [
-  { code: 'en-US', name: 'English (US)' },
-  { code: 'en-GB', name: 'English (UK)' },
-  { code: 'zh-Hans', name: 'Chinese (Simplified)' },
-  { code: 'zh-Hant', name: 'Chinese (Traditional)' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'fr', name: 'French' },
-  { code: 'de', name: 'German' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'pt-BR', name: 'Portuguese (Brazil)' },
-  { code: 'pt-PT', name: 'Portuguese (Portugal)' },
-  { code: 'it', name: 'Italian' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'sv', name: 'Swedish' },
-  { code: 'da', name: 'Danish' },
-  { code: 'fi', name: 'Finnish' },
-  { code: 'no', name: 'Norwegian' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'th', name: 'Thai' },
-  { code: 'vi', name: 'Vietnamese' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'id', name: 'Indonesian' },
-  { code: 'cs', name: 'Czech' },
-  { code: 'el', name: 'Greek' },
-  { code: 'he', name: 'Hebrew' },
-  { code: 'hu', name: 'Hungarian' },
-  { code: 'ro', name: 'Romanian' },
-  { code: 'sk', name: 'Slovak' },
-  { code: 'uk', name: 'Ukrainian' }
-]
-
 function getLanguageName(code: string): string {
-  const lang = availableLanguages.find(l => l.code === code)
+  const lang = availableLanguages.value.find(l => l.code === code)
   return lang ? lang.name : code
 }
 
@@ -496,6 +509,9 @@ function closeAddLocalizationModal() {
 function closeSyncModal() {
   showSyncModal.value = false
   selectedConfigId.value = null
+  syncDirection.value = 'pull'
+  syncStrategy.value = 'apple_first'
+  selectedSyncLanguages.value = []
   syncResult.value = null
 }
 
@@ -614,13 +630,17 @@ async function syncLocalizations() {
     }
 
     const response = await api.syncAppleAppLocalizations(appId.value, {
-      configId: selectedConfigId.value
+      configId: selectedConfigId.value,
+      languageCodes: selectedSyncLanguages.value.length > 0 ? selectedSyncLanguages.value : undefined,
+      direction: syncDirection.value,
+      strategy: syncStrategy.value
     })
-    
+
     if (response.success) {
       syncResult.value = {
         message: response.message || t('applocalizations.syncSuccess'),
-        count: response.count
+        count: response.count,
+        conflicts: response.conflicts
       }
       // Refresh localizations list
       await fetchLocalizations()
@@ -768,7 +788,22 @@ watch(appId, () => {
   fetchLocalizations()
 })
 
+async function fetchLanguages() {
+  loadingLanguages.value = true
+  try {
+    const response = await api.getSupportedLanguages()
+    if (response.success) {
+      availableLanguages.value = response.languages
+    }
+  } catch (error) {
+    console.error('Failed to fetch languages:', error)
+  } finally {
+    loadingLanguages.value = false
+  }
+}
+
 onMounted(() => {
+  fetchLanguages()
   fetchLocalizations()
   fetchProviderConfigs()
 })

@@ -275,3 +275,38 @@ type TranslationQueue struct {
 	// Result data
 	ResultData map[string]interface{} `gorm:"type:jsonb" json:"result_data"` // Result of translation job
 }
+
+// SyncHistory represents synchronization history for app localizations
+type SyncHistory struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+
+	UserID    uint `gorm:"not null" json:"user_id"` // User who initiated the sync
+	AppID     uint `gorm:"not null" json:"app_id"`  // App being synced
+	ConfigID  uint `gorm:"not null" json:"config_id"` // Provider config used
+
+	// Sync details
+	Direction     string `gorm:"type:varchar(20);not null" json:"direction"`     // "pull", "push", "both"
+	Strategy      string `gorm:"type:varchar(20);default:'apple_first'" json:"strategy"` // "apple_first", "local_first", "manual"
+	Status        string `gorm:"type:varchar(20);not null" json:"status"`        // "pending", "running", "completed", "failed"
+
+	// Sync results
+	TotalSynced   int `gorm:"default:0" json:"total_synced"`   // Total number of localizations synced
+	TotalFailed   int `gorm:"default:0" json:"total_failed"`   // Total number of localizations that failed
+	TotalConflicts int `gorm:"default:0" json:"total_conflicts"` // Total number of conflicts detected
+
+	// Language codes synced
+	LanguageCodes []string `gorm:"serializer:json" json:"language_codes"` // Specific languages synced
+
+	// Error details
+	Error string `gorm:"type:text" json:"error,omitempty"` // Error message if failed
+
+	// Snapshot data (for rollback capability)
+	SnapshotData map[string]interface{} `gorm:"type:jsonb" json:"snapshot_data,omitempty"` // Before/after snapshot
+
+	// Metadata
+	IPAddress string `gorm:"type:varchar(45)" json:"ip_address,omitempty"` // IP address of the requester
+	UserAgent string `gorm:"type:text" json:"user_agent,omitempty"`        // User agent string
+}

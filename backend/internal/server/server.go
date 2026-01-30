@@ -466,12 +466,9 @@ func (s *ServerState) handleTranslate(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"jobId": job.ID})
 }
 
-// handleGetSupportedLanguages returns the supported language codes
+// handleGetSupportedLanguages returns the supported language codes with metadata
 func handleGetSupportedLanguages(c *fiber.Ctx) error {
-	languages := make([]string, 0, len(services.SupportedLanguages))
-	for lang := range services.SupportedLanguages {
-		languages = append(languages, lang)
-	}
+	languages := services.GetSupportedLanguagesList()
 	return c.JSON(fiber.Map{
 		"success":   true,
 		"languages": languages,
@@ -2546,13 +2543,23 @@ func handleSyncAppleAppLocalizations(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		ConfigID uint `json:"configId"`
+		ConfigID      uint     `json:"configId"`
+		LanguageCodes []string `json:"languageCodes"` // Optional: specific languages to sync
+		Direction     string   `json:"direction"`     // "pull", "push", or "both"
+		Strategy      string   `json:"strategy"`      // "apple_first", "local_first", or "manual"
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
 	}
 	if req.ConfigID == 0 {
 		return fiber.NewError(fiber.StatusBadRequest, "configId is required")
+	}
+	// Set defaults
+	if req.Direction == "" {
+		req.Direction = "pull"
+	}
+	if req.Strategy == "" {
+		req.Strategy = "apple_first"
 	}
 
 	// Check if user has access to this app
@@ -2590,10 +2597,17 @@ func handleSyncAppleAppLocalizations(c *fiber.Ctx) error {
 	if queueService.AppService == nil || queueService.AppLocalizationService == nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Apple Connect service unavailable")
 	}
-	localizations, err := services.NewAppleConnectService(services.AppleConnectServiceDeps{
+
+	// Use the new sync method with direction and strategy
+	syncService := services.NewAppleConnectService(services.AppleConnectServiceDeps{
 		AppService:             queueService.AppService,
 		AppLocalizationService: queueService.AppLocalizationService,
-	}).SyncLocalizations(uint(appID),
+	})
+
+	localizations, conflicts, err := syncService.SyncWithDirectionAndStrategy(
+		uint(appID),
+		services.SyncDirection(req.Direction),
+		services.ConflictResolutionStrategy(req.Strategy),
 		config.ConfigData["issuerID"].(string),
 		config.ConfigData["keyID"].(string),
 		fmt.Sprintf("%v", config.ConfigData["privateKeyPath"]),
@@ -2604,9 +2618,10 @@ func handleSyncAppleAppLocalizations(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"success": true,
-		"message": fmt.Sprintf("Synced %d localizations from Apple Connect", len(localizations)),
-		"count":   len(localizations),
+		"success":   true,
+		"message":   fmt.Sprintf("Synced %d localizations from Apple Connect", len(localizations)),
+		"count":     len(localizations),
+		"conflicts": conflicts,
 	})
 }
 

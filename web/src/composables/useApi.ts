@@ -233,6 +233,19 @@ export interface QueueJobsResponse {
   jobs: TranslationQueue[];
 }
 
+export interface LanguageMetadata {
+  code: string;
+  name: string;
+  native_name: string;
+  region?: string;
+  direction: string;
+}
+
+export interface LanguagesResponse {
+  success: boolean;
+  languages: LanguageMetadata[];
+}
+
 export interface LoginResponse {
   success: boolean;
   message: string;
@@ -530,6 +543,11 @@ class ApiClient {
     return this.request<ProviderConfigResponse>(`/protected/providers/${providerType}/default`);
   }
 
+  // Language methods
+  async getSupportedLanguages(): Promise<LanguagesResponse> {
+    return this.request<LanguagesResponse>('/api/languages');
+  }
+
   // Activity methods
   async getUserActivities(): Promise<UserActivitiesResponse> {
     return this.request<UserActivitiesResponse>('/protected/activities');
@@ -648,7 +666,7 @@ class ApiClient {
     });
   }
 
-  async syncAppleAppLocalizations(appId: number, payload: { configId: number }): Promise<any> {
+  async syncAppleAppLocalizations(appId: number, payload: { configId: number; languageCodes?: string[]; direction?: string; strategy?: string }): Promise<any> {
     return this.request(`/protected/apple-connect/${appId}/sync-localizations`, {
       method: 'POST',
       body: JSON.stringify(payload),
