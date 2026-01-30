@@ -401,61 +401,208 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 		return fmt.Errorf("failed to get app localizations: %v", err)
 	}
 
+	// Get the primary locale as the source
+	sourceLoc, err := qs.AppLocalizationService.GetAppLocalization(*job.AppID, app.PrimaryLocale)
+	if err != nil {
+		return fmt.Errorf("failed to get source localization: %v", err)
+	}
+
+	// Create translation provider
+	provider, err := createProviderFromConfig(job.ProviderType, job.ConfigData)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %v", err)
+	}
+
+	// Get the actual translation provider interface
+	translationProvider, ok := provider.(model.TranslationProvider)
+	if !ok {
+		return errors.New("invalid provider type")
+	}
+
+	// Create translation service with concurrency 1 for Llama to avoid thread safety issues
+	concurrency := 1
+	if job.ProviderType != "llama" {
+		concurrency = 4
+	}
+
+	timeout := 300 * time.Second
+	if t, ok := job.ConfigData["timeout"].(int); ok && t > 0 {
+		timeout = time.Duration(t) * time.Second
+	}
+
+	service := translator.NewTranslationService(translationProvider, concurrency, timeout)
+
+	// Count total fields to translate
+	fieldsToTranslate := []string{
+		"Name", "Subtitle", "ShortDescription", "LongDescription", "Keywords",
+		"ReleaseNotes", "PromotionalText", "DownloadDescription",
+	}
+	totalFields := len(job.TargetLanguages) * len(fieldsToTranslate)
+
+	// Update job with total count
+	err = qs.UpdateQueueJob(job.ID, map[string]interface{}{
+		"Total": totalFields,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update job total: %v", err)
+	}
+
 	// Process each target language
+	doneCount := 0
+	ctx := context.Background()
+
 	for _, targetLang := range job.TargetLanguages {
 		// Check if localization already exists
+		var targetLoc *database.AppLocalization
 		exists := false
 		for _, loc := range localizations {
 			if loc.LanguageCode == targetLang {
 				exists = true
+				targetLoc = &loc
 				break
 			}
 		}
 
-		// If it doesn't exist, create an empty one
+		// If it doesn't exist, create one from source
 		if !exists {
-			// Get the primary locale as the source
-			sourceLoc, err := qs.AppLocalizationService.GetAppLocalization(*job.AppID, app.PrimaryLocale)
-			if err != nil {
-				// If no primary locale exists, we'll just create an empty template
-				sourceLoc = &database.AppLocalization{
-					Name:                "App Name",
-					ShortDescription:    "Short description",
-					LongDescription:     "Long description",
-					Keywords:            "keywords",
-					Subtitle:            "",
-					PrivacyURL:          "",
-					MarketingURL:        "",
-					SupportURL:          "",
-					DownloadDescription: "",
-					ReleaseNotes:        "",
-				}
+			targetLoc = &database.AppLocalization{
+				AppID:              *job.AppID,
+				LanguageCode:       targetLang,
+				Name:               sourceLoc.Name,
+				Subtitle:           sourceLoc.Subtitle,
+				PrivacyURL:         sourceLoc.PrivacyURL,
+				MarketingURL:       sourceLoc.MarketingURL,
+				SupportURL:         sourceLoc.SupportURL,
+				DownloadDescription: sourceLoc.DownloadDescription,
+				ShortDescription:   sourceLoc.ShortDescription,
+				LongDescription:    sourceLoc.LongDescription,
+				Keywords:           sourceLoc.Keywords,
+				ReleaseNotes:       sourceLoc.ReleaseNotes,
+				PromotionalText:    sourceLoc.PromotionalText,
+			}
+		}
+
+		// Translate each field
+		for _, field := range fieldsToTranslate {
+			sourceText := ""
+			switch field {
+			case "Name":
+				sourceText = sourceLoc.Name
+			case "Subtitle":
+				sourceText = sourceLoc.Subtitle
+			case "ShortDescription":
+				sourceText = sourceLoc.ShortDescription
+			case "LongDescription":
+				sourceText = sourceLoc.LongDescription
+			case "Keywords":
+				sourceText = sourceLoc.Keywords
+			case "ReleaseNotes":
+				sourceText = sourceLoc.ReleaseNotes
+			case "PromotionalText":
+				sourceText = sourceLoc.PromotionalText
+			case "DownloadDescription":
+				sourceText = sourceLoc.DownloadDescription
 			}
 
-			// For now, we'll just create a placeholder localization
-			// In the real implementation, this is where the translation would happen
-			_, err = qs.AppLocalizationService.CreateAppLocalization(*job.AppID, targetLang,
-				"",                   // Name will be translated
-				"",                   // Subtitle will be translated
-				sourceLoc.PrivacyURL, // Keep original URLs
-				sourceLoc.MarketingURL,
-				sourceLoc.SupportURL,
-				"", // DownloadDescription will be translated
-				"", // ShortDescription will be translated
-				"", // LongDescription will be translated
-				"", // Keywords will be translated
-				"", // ReleaseNotes will be translated
-			)
-			if err != nil {
-				return fmt.Errorf("failed to create app localization: %v", err)
+			// Skip empty fields
+			if sourceText == "" {
+				doneCount++
+				progress := int(float64(doneCount) / float64(totalFields) * 100)
+				qs.UpdateQueueJob(job.ID, map[string]interface{}{
+					"Done":     doneCount,
+					"Progress": progress,
+				})
+				continue
 			}
+
+			// Create translation request
+			req := model.TranslationRequest{
+				Key:            fmt.Sprintf("%s.%s", targetLang, field),
+				Text:           sourceText,
+				SourceLanguage: job.SourceLanguage,
+				TargetLanguage: targetLang,
+			}
+
+			// Translate using batch method (single item batch)
+			responses, err := service.TranslateBatch(ctx, []model.TranslationRequest{req}, nil)
+			if err != nil || len(responses) == 0 || responses[0].Error != nil {
+				// Log error but continue with other fields
+				if err != nil {
+					fmt.Printf("Error translating %s: %v\n", field, err)
+				} else if len(responses) > 0 && responses[0].Error != nil {
+					fmt.Printf("Error translating %s: %v\n", field, responses[0].Error)
+				}
+				doneCount++
+				progress := int(float64(doneCount) / float64(totalFields) * 100)
+				qs.UpdateQueueJob(job.ID, map[string]interface{}{
+					"Done":     doneCount,
+					"Progress": progress,
+				})
+				continue
+			}
+
+			// Update the field with translated text
+			switch field {
+			case "Name":
+				targetLoc.Name = responses[0].TranslatedText
+			case "Subtitle":
+				targetLoc.Subtitle = responses[0].TranslatedText
+			case "ShortDescription":
+				targetLoc.ShortDescription = responses[0].TranslatedText
+			case "LongDescription":
+				targetLoc.LongDescription = responses[0].TranslatedText
+			case "Keywords":
+				targetLoc.Keywords = responses[0].TranslatedText
+			case "ReleaseNotes":
+				targetLoc.ReleaseNotes = responses[0].TranslatedText
+			case "PromotionalText":
+				targetLoc.PromotionalText = responses[0].TranslatedText
+			case "DownloadDescription":
+				targetLoc.DownloadDescription = responses[0].TranslatedText
+			}
+
+			doneCount++
+			progress := int(float64(doneCount) / float64(totalFields) * 100)
+			qs.UpdateQueueJob(job.ID, map[string]interface{}{
+				"Done":     doneCount,
+				"Progress": progress,
+			})
+		}
+
+		// Save or update the localization
+		updates := map[string]interface{}{
+			"name":                targetLoc.Name,
+			"subtitle":            targetLoc.Subtitle,
+			"privacy_url":         targetLoc.PrivacyURL,
+			"marketing_url":       targetLoc.MarketingURL,
+			"support_url":         targetLoc.SupportURL,
+			"download_description": targetLoc.DownloadDescription,
+			"short_description":   targetLoc.ShortDescription,
+			"long_description":    targetLoc.LongDescription,
+			"keywords":            targetLoc.Keywords,
+			"release_notes":       targetLoc.ReleaseNotes,
+			"promotional_text":    targetLoc.PromotionalText,
+		}
+
+		if exists {
+			err = qs.AppLocalizationService.UpdateAppLocalizationWithValidation(*job.AppID, targetLang, updates)
+		} else {
+			_, err = qs.AppLocalizationService.CreateAppLocalization(*job.AppID, targetLang,
+				targetLoc.Name, targetLoc.Subtitle, targetLoc.PrivacyURL,
+				targetLoc.MarketingURL, targetLoc.SupportURL, targetLoc.DownloadDescription,
+				targetLoc.ShortDescription, targetLoc.LongDescription, targetLoc.Keywords,
+				targetLoc.ReleaseNotes, targetLoc.PromotionalText, "",
+			)
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to save app localization for %s: %v", targetLang, err)
 		}
 	}
 
-	// Update job progress
+	// Mark job as completed
 	err = qs.UpdateQueueJob(job.ID, map[string]interface{}{
-		"Total":    len(job.TargetLanguages),
-		"Done":     len(job.TargetLanguages),
+		"Done":     totalFields,
 		"Progress": 100,
 	})
 	if err != nil {
@@ -529,6 +676,87 @@ func createProviderFromConfig(providerType string, configData map[string]interfa
 			maxTokens = mt
 		}
 		return translator.NewOpenAITranslator(apiKey, apiBaseURL, model, temperature, maxTokens), nil
+
+	case "llama":
+		modelPath, ok := configData["modelPath"].(string)
+		if !ok || modelPath == "" {
+			return nil, errors.New("modelPath required for Llama provider")
+		}
+		libPath, ok := configData["libPath"].(string)
+		if !ok || libPath == "" {
+			return nil, errors.New("libPath required for Llama provider")
+		}
+
+		// Build Llama options from config data
+		options := translator.LlamaOptions{
+			ModelPath:   modelPath,
+			GrammarPath: "",
+			Threads:     4,
+			Seed:        -1,
+			Tokens:      4096,
+			TopK:        20,
+			Tfs:         1.0,
+			TopP:        0.6,
+			MinP:        0.1,
+			TypicalP:    1.0,
+			RepeatLastN: 64,
+			RepeatPenalty: 1.05,
+			FrequencyPenalty: 0.0,
+			PresencePenalty: 0.0,
+			Temperature: 0.7,
+			Verbose:     false,
+		}
+
+		// Override with config values if present
+		if t, ok := configData["threads"].(int); ok && t > 0 {
+			options.Threads = t
+		}
+		if s, ok := configData["seed"].(int); ok {
+			options.Seed = s
+		}
+		if tok, ok := configData["tokens"].(int); ok && tok > 0 {
+			options.Tokens = tok
+		}
+		if tk, ok := configData["topK"].(int); ok && tk > 0 {
+			options.TopK = tk
+		}
+		if tf, ok := configData["tfs"].(float64); ok {
+			options.Tfs = tf
+		}
+		if tp, ok := configData["topP"].(float64); ok {
+			options.TopP = tp
+		}
+		if mp, ok := configData["minP"].(float64); ok {
+			options.MinP = mp
+		}
+		if typ, ok := configData["typicalP"].(float64); ok {
+			options.TypicalP = typ
+		}
+		if rln, ok := configData["repeatLastN"].(int); ok && rln > 0 {
+			options.RepeatLastN = rln
+		}
+		if rp, ok := configData["repeatPenalty"].(float64); ok {
+			options.RepeatPenalty = rp
+		}
+		if fp, ok := configData["frequencyPenalty"].(float64); ok {
+			options.FrequencyPenalty = fp
+		}
+		if pp, ok := configData["presencePenalty"].(float64); ok {
+			options.PresencePenalty = pp
+		}
+		if temp, ok := configData["temperature"].(float64); ok {
+			options.Temperature = temp
+		}
+		if v, ok := configData["verbose"].(bool); ok {
+			options.Verbose = v
+		}
+
+		// Initialize llama library before creating translator
+		if err := translator.InitLlamaLibrary(libPath); err != nil {
+			return nil, fmt.Errorf("failed to initialize llama library: %v", err)
+		}
+
+		return translator.NewLlamaTranslator(options)
 
 	default:
 		return nil, fmt.Errorf("unsupported provider type: %s", providerType)

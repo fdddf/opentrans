@@ -344,3 +344,16 @@ func (l *LlamaTranslator) Close() {
 	}
 	// llama.Close() will be called externally after all translators are closed
 }
+
+// InitLlamaLibrary initializes the llama library with the specified lib path
+func InitLlamaLibrary(libPath string) error {
+	// Load the llama library
+	if err := llama.Load(libPath); err != nil {
+		return fmt.Errorf("failed to load llama library from %s: %v", libPath, err)
+	}
+
+	// Initialize the llama backend
+	llama.Init()
+
+	return nil
+}

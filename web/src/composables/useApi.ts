@@ -623,6 +623,23 @@ class ApiClient {
     return this.request<QueueJobResponse>(`/protected/queue/jobs/${jobId}`);
   }
 
+  // App localization translation methods
+  async translateAppLocalizations(appId: number, translateData: {
+    providerType: string;
+    sourceLanguage: string;
+    targetLanguages: string[];
+    configData: any;
+  }): Promise<QueueJobResponse> {
+    return this.request<QueueJobResponse>('/protected/queue/translate', {
+      method: 'POST',
+      body: JSON.stringify({
+        jobType: 'app_localization',
+        appId: appId,
+        ...translateData,
+      }),
+    });
+  }
+
   // Project additional methods
   async getProjectStats(projectId: number): Promise<any> {
     return this.request(`/protected/projects/${projectId}/stats`);

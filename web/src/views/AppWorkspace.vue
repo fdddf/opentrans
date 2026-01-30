@@ -330,44 +330,148 @@ async function addLanguage() {
 }
 
 async function translateCurrentLanguage() {
-  // Simulate translation API call
   if (selectedLang.value && selectedLang.value.code !== sourceLanguage.value) {
-    // In a real implementation, this would call the translation API
-    // For now, we'll just simulate by copying the source values
-    metadataItems.value.forEach(item => {
-      if (!item.translation) {
-        item.translation = `Translated ${item.key} to ${selectedLang.value.name}`;
+    try {
+      // Check if user has a Llama provider config
+      const llamaConfigs = appleConnectConfigs.value.filter(config => config.providerType === 'llama');
+      if (llamaConfigs.length === 0) {
+        alert('Please configure a Llama provider first');
+        return;
       }
-    });
-    
-    // Update done count
-    const selected = translations.value.find(t => t === selectedLang.value);
-    if (selected) {
-      selected.done = metadataItems.value.filter(i => i.translation).length;
+
+      const config = llamaConfigs[0];
+      const response = await api.translateAppLocalizations(appId.value, {
+        providerType: 'llama',
+        sourceLanguage: sourceLanguage.value,
+        targetLanguages: [selectedLang.value.code],
+        configData: config.configData,
+      });
+
+      if (response.success) {
+        // Poll for job completion
+        pollTranslationJob(response.job.id);
+      } else {
+        alert('Failed to start translation: ' + (response.job.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Translation error:', error);
+      alert('Failed to start translation');
     }
   }
 }
 
 async function translateAll() {
-  // Simulate translation for all languages
-  // In a real implementation, this would call the translation API for each language
-  translations.value.forEach(translation => {
-    if (translation.code !== sourceLanguage.value) {
-      metadataItems.value.forEach(item => {
-        if (!item.translation) {
-          item.translation = `Translated ${item.key} to ${translation.name}`;
+  try {
+    // Check if user has a Llama provider config
+    const llamaConfigs = appleConnectConfigs.value.filter(config => config.providerType === 'llama');
+    if (llamaConfigs.length === 0) {
+      alert('Please configure a Llama provider first');
+      return;
+    }
+
+    const config = llamaConfigs[0];
+    const targetLanguages = translations.value.filter(t => t.code !== sourceLanguage.value).map(t => t.code);
+
+    if (targetLanguages.length === 0) {
+      alert('No target languages to translate');
+      return;
+    }
+
+    const response = await api.translateAppLocalizations(appId.value, {
+      providerType: 'llama',
+      sourceLanguage: sourceLanguage.value,
+      targetLanguages,
+      configData: config.configData,
+    });
+
+    if (response.success) {
+      // Poll for job completion
+      pollTranslationJob(response.job.id);
+    } else {
+      alert('Failed to start translation: ' + (response.job.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Translation error:', error);
+    alert('Failed to start translation');
+  }
+}
+
+async function pollTranslationJob(jobId: number) {
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await api.getQueueJob(jobId);
+      if (response.success) {
+        const job = response.job;
+        console.log(`Translation progress: ${job.progress}% (${job.done}/${job.total})`);
+
+        if (job.status === 'completed') {
+          clearInterval(pollInterval);
+          alert('Translation completed successfully!');
+          // Refresh localizations
+          await fetchAppLocalizations();
+        } else if (job.status === 'failed') {
+          clearInterval(pollInterval);
+          alert('Translation failed: ' + (job.error || 'Unknown error'));
+        }
+      }
+    } catch (error) {
+      console.error('Poll error:', error);
+      clearInterval(pollInterval);
+    }
+  }, 2000);
+}
+
+async function fetchAppLocalizations() {
+  try {
+    const response = await api.getAppLocalizations(appId.value);
+    if (response.success) {
+      // Update translations array with fresh data
+      localizationResponse.localizations.forEach((loc: AppLocalization) => {
+        if (loc.languageCode !== sourceLanguage.value) {
+          const lang = availableLanguages.value.find(l => l.code === loc.languageCode);
+          if (lang) {
+            const existing = translations.value.find(t => t.code === loc.languageCode);
+            if (existing) {
+              // Update existing
+              const doneCount = metadataItems.value.filter(i => {
+                switch(i.key) {
+                  case 'name': return !!loc.name;
+                  case 'subtitle': return !!loc.subtitle;
+                  case 'shortDescription': return !!loc.shortDescription;
+                  case 'longDescription': return !!loc.longDescription;
+                  case 'keywords': return !!loc.keywords;
+                  case 'releaseNotes': return !!loc.releaseNotes;
+                  case 'promotionalText': return !!loc.promotionalText;
+                  case 'downloadDescription': return !!loc.downloadDescription;
+                  default: return false;
+                }
+              }).length;
+              existing.done = doneCount;
+            } else {
+              // Add new
+              translations.value.push({
+                code: loc.languageCode,
+                name: lang.name,
+                total: metadataItems.value.length,
+                done: 0
+              });
+            }
+          }
         }
       });
-      translation.done = metadataItems.value.filter(i => i.translation).length;
     }
-  });
+  } catch (error) {
+    console.error('Failed to fetch app localizations:', error);
+  }
 }
 
 async function fetchProviderConfigs() {
   try {
     const response = await api.getProviderConfigs()
     if (response.success) {
-      appleConnectConfigs.value = response.configs.filter(config => config.providerType === 'appleconnect')
+      appleConnectConfigs.value = response.configs.filter(config =>
+        config.providerType === 'appleconnect' || config.providerType === 'llama'
+      )
     }
   } catch (error) {
     console.error('Failed to fetch provider configs:', error)
@@ -431,29 +535,13 @@ onMounted(async () => {
       app.value = response.app;
       sourceLanguage.value = response.app.primaryLocale || 'en';
     }
-    
+
     // Fetch localizations for this app
-    const localizationResponse = await api.getAppLocalizations(appId.value);
-    if (localizationResponse.success) {
-      // Process localizations to populate translations
-      localizationResponse.localizations.forEach((loc: AppLocalization) => {
-        if (loc.languageCode !== sourceLanguage.value) {
-          const lang = availableLanguages.find(l => l.code === loc.languageCode);
-          if (lang) {
-            translations.value.push({
-              code: loc.languageCode,
-              name: lang.name,
-              total: metadataItems.value.length,
-              done: 0 // This would be calculated based on actual translated fields
-            });
-          }
-        }
-      });
-    }
+    await fetchAppLocalizations();
   } catch (error) {
     console.error('Failed to fetch app data:', error);
   }
-  
+
   // Fetch provider configs
   fetchProviderConfigs();
 });

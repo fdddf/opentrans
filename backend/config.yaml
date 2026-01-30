@@ -34,3 +34,22 @@ openai:
   model: "gpt-3.5-turbo"
   temperature: 0.3
   max_tokens: 1024
+
+# Llama local model configuration
+llama:
+  lib_path: "/usr/local/lib/libllama.so"
+  model_path: "./models/HY-MT1.5-1.8B-Q4_K_M.gguf"
+  threads: 4
+  seed: -1
+  tokens: 4096
+  top_k: 20
+  tfs: 1.0
+  top_p: 0.6
+  min_p: 0.1
+  typical_p: 1.0
+  repeat_last_n: 64
+  repeat_penalty: 1.05
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  temperature: 0.7
+  verbose: false

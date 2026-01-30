@@ -183,6 +183,14 @@ func (s *ProviderService) ValidateProviderConfigData(providerType string, config
 		if privateKey, exists := configData["privateKey"]; !exists || privateKey == "" {
 			return errors.New("privateKey is required for Apple Connect provider")
 		}
+	case "llama":
+		// Required fields: modelPath, libPath
+		if modelPath, exists := configData["modelPath"]; !exists || modelPath == "" {
+			return errors.New("modelPath is required for Llama provider")
+		}
+		if libPath, exists := configData["libPath"]; !exists || libPath == "" {
+			return errors.New("libPath is required for Llama provider")
+		}
 	default:
 		return fmt.Errorf("unknown provider type: %s", providerType)
 	}
