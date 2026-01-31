@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run",
+            "name": "Run Backend",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "main.go",
+            "program": "${workspaceFolder}/backend/main.go",
             "args": [
                 "baidu",
                 "-i", "${workspaceFolder}/example2.xcstrings",
@@ -18,22 +18,28 @@
                 "-s", "en",
                 "-t", "fr",
                 "-t", "de"
-            ]
+            ],
+            "envFile": [
+                "${workspaceFolder}/.env"
+            ],
+            "cwd": "${workspaceFolder}/backend"
         },
         {
-            "name": "Debug OpenAI",
-            "type": "go",
+            "name": "Run Frontend",
+            "type": "pwa-node",
             "request": "launch",
-            "mode": "auto",
-            "program": "main.go",
-            "args": [
-                "openai",
-                "-c", "~/.xcstringlocal.yaml",
-                "-i", "${workspaceFolder}/example2.xcstrings",
-                "-s", "en",
-                "-t", "fr",
-            ]
-
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "dev"
+            ],
+            "cwd": "${workspaceFolder}/web",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            }
         }
     ]
 }

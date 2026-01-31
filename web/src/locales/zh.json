@@ -97,7 +97,29 @@
     "title": "订阅管理",
     "subtitle": "用户购买/续订后可使用 App 管理与翻译服务。",
     "new": "新建订阅",
-    "sync": "同步账单"
+    "sync": "同步账单",
+    "userInfo": "用户订阅信息",
+    "plan": "套餐",
+    "appsUsed": "已用应用",
+    "translationsUsed": "已用翻译",
+    "status": "状态",
+    "active": "启用",
+    "inactive": "停用",
+    "plans": "订阅套餐",
+    "free": "免费版",
+    "basic": "基础版",
+    "premium": "高级版",
+    "current": "当前套餐",
+    "upgrade": "升级",
+    "usage": "使用情况",
+    "features": {
+      "upToApps": "最多 {count} 个应用",
+      "upToTranslations": "最多 {count} 次翻译",
+      "basicSupport": "基础支持",
+      "prioritySupport": "优先支持",
+      "teamAccess": "团队访问",
+      "advancedAnalytics": "高级分析"
+    }
   },
   "languages": {
     "title": "多语言库",

@@ -97,7 +97,29 @@
     "title": "Subscription Management",
     "subtitle": "After users purchase or renew, they can use App Management and Translation services.",
     "new": "New Subscription",
-    "sync": "Sync Billing"
+    "sync": "Sync Billing",
+    "userInfo": "User Subscription Info",
+    "plan": "Plan",
+    "appsUsed": "Apps Used",
+    "translationsUsed": "Translations Used",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "plans": "Subscription Plans",
+    "free": "Free Plan",
+    "basic": "Basic Plan",
+    "premium": "Premium Plan",
+    "current": "Current",
+    "upgrade": "Upgrade",
+    "usage": "Usage Information",
+    "features": {
+      "upToApps": "Up to {count} app(s)",
+      "upToTranslations": "Up to {count} translations",
+      "basicSupport": "Basic Support",
+      "prioritySupport": "Priority Support",
+      "teamAccess": "Team Access",
+      "advancedAnalytics": "Advanced Analytics"
+    }
   },
   "languages": {
     "title": "Language Library",
