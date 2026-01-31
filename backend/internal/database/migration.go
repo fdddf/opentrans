@@ -17,7 +17,8 @@ func RunMigrations(db *Database) error {
 	if err != nil {
 		return err
 	}
-	defer closeMigrator(m)
+	// Don't close the migrator as it shares the database connection with GORM
+	// defer closeMigrator(m)
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to apply migrations: %v", err)
@@ -109,7 +110,8 @@ func Rollback(db *Database) error {
 	if err != nil {
 		return err
 	}
-	defer closeMigrator(m)
+	// Don't close the migrator as it shares the database connection with GORM
+	// defer closeMigrator(m)
 
 	if err := m.Steps(-1); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to rollback migration: %v", err)
@@ -124,7 +126,8 @@ func GetMigrationStatus(db *Database) (*MigrationStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer closeMigrator(m)
+	// Don't close the migrator as it shares the database connection with GORM
+	// defer closeMigrator(m)
 
 	version, dirty, err := m.Version()
 	if err != nil {

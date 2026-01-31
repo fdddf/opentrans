@@ -15,16 +15,19 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: { requiresAuth: false }
   },
   {
     path: '/register',
     name: 'Register',
-    component: Register
+    component: Register,
+    meta: { requiresAuth: false }
   },
   {
     path: '/',
     component: AppShell,
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
@@ -79,6 +82,26 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+// Global navigation guard for authentication
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem('token')
+  const isAuthenticated = !!token
+
+  // Check if route requires authentication
+  const requiresAuth = to.meta.requiresAuth !== false // Default to true
+
+  if (requiresAuth && !isAuthenticated) {
+    // Redirect to login page if not authenticated
+    next('/login')
+  } else if (!requiresAuth && isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+    // Redirect to dashboard if already authenticated and trying to access login/register
+    next('/dashboard')
+  } else {
+    // Proceed to route
+    next()
+  }
 })
 
 export default router

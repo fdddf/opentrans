@@ -20,7 +20,10 @@ type AuthParams struct {
 
 // NewAuthFromFX creates a new Auth instance with dependency injection
 func NewAuthFromFX(p AuthParams) *Auth {
-	return &Auth{
+	auth := &Auth{
 		DB: p.DB,
 	}
+	// Set the global auth instance for backward compatibility
+	SetAuthInstance(auth)
+	return auth
 }

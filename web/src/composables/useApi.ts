@@ -305,7 +305,14 @@ class ApiClient {
 
     if (!response.ok) {
       const errorData = await response.text();
-      throw new Error(errorData || `HTTP error! status: ${response.status}`);
+      // Try to parse as JSON to extract the message
+      try {
+        const parsedError = JSON.parse(errorData);
+        throw new Error(parsedError.message || errorData || `HTTP error! status: ${response.status}`);
+      } catch {
+        // If parsing fails, use the raw error text
+        throw new Error(errorData || `HTTP error! status: ${response.status}`);
+      }
     }
 
     const data = await response.json();
@@ -314,10 +321,17 @@ class ApiClient {
 
   // Auth methods
   async login(username: string, password: string): Promise<LoginResponse> {
-    return this.request<LoginResponse>('/auth/login', {
+    const response = await this.request<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
+
+    // Set token on successful login
+    if (response.success && response.token) {
+      this.setToken(response.token);
+    }
+
+    return response;
   }
 
   async register(username: string, email: string, password: string): Promise<RegisterResponse> {
@@ -680,6 +694,48 @@ class ApiClient {
     return this.request('/protected/apple-connect/sync-apps', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  // Apple Connect configuration methods
+  async getAppleConnectConfigs(): Promise<any> {
+    return this.request('/protected/appleconnections');
+  }
+
+  async getAppleConnectConfig(configId: number): Promise<any> {
+    return this.request(`/protected/appleconnections/${configId}`);
+  }
+
+  async createAppleConnectConfig(configData: { issuerId: string; keyId: string; privateKey: string; isDefault?: boolean }): Promise<any> {
+    return this.request('/protected/appleconnections', {
+      method: 'POST',
+      body: JSON.stringify(configData),
+    });
+  }
+
+  async updateAppleConnectConfig(configId: number, configData: { issuerId?: string; keyId?: string; privateKey?: string; isDefault?: boolean }): Promise<any> {
+    return this.request(`/protected/appleconnections/${configId}`, {
+      method: 'PUT',
+      body: JSON.stringify(configData),
+    });
+  }
+
+  async deleteAppleConnectConfig(configId: number): Promise<any> {
+    return this.request(`/protected/appleconnections/${configId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async testAppleConnectConnection(configId: number): Promise<any> {
+    return this.request(`/protected/appleconnections/${configId}/test`, {
+      method: 'POST',
+    });
+  }
+
+  async testAppleConnectCredentials(credentials: { issuerId: string; keyId: string; privateKey: string }): Promise<any> {
+    return this.request('/protected/appleconnections/test', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
     });
   }
 

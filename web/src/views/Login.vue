@@ -65,8 +65,14 @@
           </div>
         </form>
       </div>
-      <div v-if="statusMessage" class="text-center text-sm" :class="statusClass">
-        {{ statusMessage }}
+      <!-- Status Message with better styling -->
+      <div v-if="statusMessage" class="rounded-2xl px-6 py-4 flex items-center justify-center gap-3" :class="statusTone === 'error' ? 'bg-rose-900/20 border border-rose-500/30' : 'bg-emerald-900/20 border border-emerald-500/30'">
+        <span class="text-xl" :class="statusTone === 'error' ? 'text-rose-400' : 'text-emerald-400'">
+          {{ statusTone === 'error' ? '✕' : '✓' }}
+        </span>
+        <span class="text-sm font-medium" :class="statusTone === 'error' ? 'text-rose-100' : 'text-emerald-100'">
+          {{ statusMessage }}
+        </span>
       </div>
     </div>
   </div>
@@ -76,9 +82,11 @@
 import { reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useApi } from '../composables/useApi'
 
 const router = useRouter()
 const { t } = useI18n()
+const { api } = useApi()
 
 // Authentication state
 const loginForm = reactive({
@@ -89,52 +97,48 @@ const loginForm = reactive({
 const statusMessage = ref('')
 const statusTone = ref<'info' | 'error'>('info')
 
-const statusClass = computed(() =>
-  statusTone.value === 'error'
-    ? 'text-red-400'
-    : 'text-mint'
-)
-
 // Authentication functions
 async function performLogin() {
   try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(loginForm)
-    })
+    const response = await api.login(loginForm.username, loginForm.password)
 
-    let data;
-    // For consistency, always parse the response body in case of error or success
-    if (!res.ok) {
-      data = await res.json()
-      showStatus(data.message || 'Login failed', 'error')
+    if (!response.success || !response.token) {
+      // Extract message safely - handle case where message might be undefined
+      const errorMsg = response.message || t('auth.loginFailed')
+      showStatus(errorMsg, 'error')
       return
     }
 
-    data = await res.json()
-    
-    // Check if the response has the expected structure for success
-    if (!data.success || !data.token) {
-      showStatus('Invalid response format from server', 'error')
-      return
+    // ApiClient automatically sets the token via setToken
+    // and stores it in localStorage
+    // Also store the user object from the login response
+    if (response.user) {
+      localStorage.setItem('currentUser', JSON.stringify(response.user))
     }
-    
-    localStorage.setItem('token', data.token)
-    
-    showStatus('Login successful. Redirecting...', 'info')
-    
+
+    showStatus(t('auth.loginSuccess'), 'info')
+
     // Redirect to dashboard after a short delay
     setTimeout(() => {
       router.push('/dashboard')
     }, 1000)
   } catch (err) {
-    showStatus('Login failed: ' + (err as Error).message, 'error')
+    // Handle network errors or API errors
+    const error = err as Error
+    let errorMsg = t('auth.loginFailed')
+
+    // If error message is valid and doesn't look like JSON, use it
+    if (error.message && !error.message.startsWith('{')) {
+      errorMsg = error.message
+    }
+
+    showStatus(errorMsg, 'error')
   }
 }
 
 function showStatus(message: string, tone: 'info' | 'error' = 'info') {
-  statusMessage.value = message
+  // Ensure message is a string and not an object
+  statusMessage.value = String(message)
   statusTone.value = tone
 }
 </script>

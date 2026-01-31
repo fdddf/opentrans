@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/fx"
 
@@ -56,8 +57,56 @@ func InitializeAuth(p InitializeAuthParams) {
 	// Add lifecycle hook to properly initialize auth if needed
 	p.Lifecycle.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			// Any auth initialization needed
+			// Initialize admin user if not exists
+			if p.Config.Admin.CreateIfNotExists {
+				if err := EnsureAdminUser(p.DB, p.Config.Admin); err != nil {
+					fmt.Printf("Warning: failed to initialize admin user: %v\n", err)
+				}
+			}
 			return nil
 		},
 	})
+}
+
+// EnsureAdminUser ensures an admin user exists, creating one if necessary
+func EnsureAdminUser(db *database.Database, adminConfig config.AdminConfig) error {
+	// Check if any admin user already exists
+	var existingAdmin database.User
+	result := db.Where("role = ?", "admin").First(&existingAdmin)
+
+	if result.Error == nil {
+		// Admin already exists, no need to create
+		fmt.Printf("Admin user already exists: %s\n", existingAdmin.Username)
+		return nil
+	}
+
+	// No admin exists, create the default admin
+	hashedPassword, err := auth.HashPassword(adminConfig.Password)
+	if err != nil {
+		return fmt.Errorf("failed to hash admin password: %v", err)
+	}
+
+	adminUser := &database.User{
+		Username:       adminConfig.Username,
+		Email:          adminConfig.Email,
+		Password:       hashedPassword,
+		IsActive:       true,
+		IsActivated:    true,
+		Role:           "admin",
+		SubscriptionType: "premium",
+		MaxApps:        100,
+		MaxTranslations: 100000,
+		CurrentUsage:   0,
+		CurrentAppCount: 0,
+	}
+
+	if err := db.Create(adminUser).Error; err != nil {
+		return fmt.Errorf("failed to create admin user: %v", err)
+	}
+
+	fmt.Printf("Created admin user: %s (%s)\n", adminUser.Username, adminUser.Email)
+	fmt.Printf("Admin password: %s\n", adminConfig.Password)
+	fmt.Println("Please change the admin password after first login!")
+
+	return nil
 }

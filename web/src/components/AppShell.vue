@@ -18,8 +18,19 @@
             <span>{{ typeof item.label === 'function' ? item.label() : item.label }}</span>
           </RouterLink>
         </nav>
-        <div class="p-4 border-t border-white/5 text-xs text-slate-500">
-          Multi-tenant & multilingual workspace
+        <div class="p-4 border-t border-white/5">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="h-8 w-8 rounded-full bg-mint/20 flex items-center justify-center">
+              <span class="text-sm font-semibold text-mint">{{ currentUserInitials }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate">{{ currentUser?.username || 'User' }}</p>
+              <p class="text-xs text-slate-500 truncate">{{ currentUser?.email || '' }}</p>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500">
+            {{ t('users.' + (currentUser?.role || 'userRegular')) }}
+          </div>
         </div>
       </aside>
 
@@ -39,9 +50,26 @@
                 <option value="en">English</option>
                 <option value="zh">中文</option>
               </select>
-              <button class="rounded-full border border-white/20 px-3 py-1 text-xs hover:border-mint/60 hover:text-mint">Profile</button>
-              <button class="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-midnight">{{ t('common.logout') }}</button>
+              <button class="rounded-full border border-white/20 px-3 py-1 text-xs hover:border-mint/60 hover:text-mint" @click="showProfileMenu = !showProfileMenu">
+                Profile
+              </button>
+              <button class="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-midnight" @click="handleLogout">
+                {{ t('common.logout') }}
+              </button>
             </div>
+          </div>
+          <!-- Profile Dropdown -->
+          <div v-if="showProfileMenu" class="absolute right-4 top-16 w-48 bg-midnight/95 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl p-2 space-y-1 z-50">
+            <div class="px-3 py-2 border-b border-white/5">
+              <p class="text-sm font-medium">{{ currentUser?.username }}</p>
+              <p class="text-xs text-slate-500">{{ currentUser?.email }}</p>
+            </div>
+            <button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 text-slate-300 hover:text-white">
+              {{ t('common.settings') || 'Settings' }}
+            </button>
+            <button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 text-rose-400 hover:text-rose-300" @click="handleLogout">
+              {{ t('common.logout') }}
+            </button>
           </div>
         </header>
 
@@ -54,11 +82,19 @@
 </template>
 
 <script setup lang="ts">
-import { RouterLink, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useApi } from '../composables/useApi'
+import type { User } from '../composables/useApi'
 
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
+const { api } = useApi()
+
+const currentUser = ref<User | null>(null)
+const showProfileMenu = ref(false)
 
 const navItems = [
   { to: '/dashboard', label: () => t('nav.dashboard'), icon: '🏠' },
@@ -70,4 +106,77 @@ const navItems = [
 ]
 
 const isActive = (path: string) => route.path.startsWith(path)
+
+const currentUserInitials = computed(() => {
+  if (!currentUser.value?.username) return 'U'
+  return currentUser.value.username.substring(0, 2).toUpperCase()
+})
+
+// Fetch current user from token
+async function fetchCurrentUser() {
+  try {
+    // First try to get user from localStorage (stored during login)
+    const storedUser = localStorage.getItem('currentUser')
+    if (storedUser) {
+      currentUser.value = JSON.parse(storedUser)
+      return
+    }
+
+    // Fallback: Get user ID from token claims
+    const token = localStorage.getItem('token')
+    if (!token) {
+      handleLogout()
+      return
+    }
+
+    // Decode JWT to get user ID
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const userId = payload.user_id
+
+    if (userId) {
+      const response = await api.getUser(userId)
+      if (response.success) {
+        currentUser.value = response.user
+        // Store for future use
+        localStorage.setItem('currentUser', JSON.stringify(response.user))
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch current user:', error)
+  }
+}
+
+async function handleLogout() {
+  try {
+    await api.logout()
+  } catch (error) {
+    console.error('Logout error:', error)
+  } finally {
+    // Clear local storage
+    localStorage.removeItem('token')
+    localStorage.removeItem('currentUser')
+    api.clearToken()
+    currentUser.value = null
+
+    // Redirect to login
+    router.push('/login')
+  }
+}
+
+// Close profile menu when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.profile-menu-container')) {
+    showProfileMenu.value = false
+  }
+}
+
+onMounted(() => {
+  fetchCurrentUser()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>

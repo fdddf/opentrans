@@ -54,6 +54,12 @@ func NewConfig() (*FXConfig, error) {
 			FromAddress:  getEnv("EMAIL_FROM", "noreply@example.com"),
 			BaseURL:      getEnv("BASE_URL", "http://localhost:3000"),
 		},
+		Admin: AdminConfig{
+			Username:     getEnv("ADMIN_USERNAME", "admin"),
+			Email:        getEnv("ADMIN_EMAIL", "admin@example.com"),
+			Password:     getEnv("ADMIN_PASSWORD", "admin123"),
+			CreateIfNotExists: getEnv("ADMIN_CREATE_IF_NOT_EXISTS", "true") == "true",
+		},
 	}
 
 	return cfg, nil
@@ -87,6 +93,14 @@ type EmailConfig struct {
 	BaseURL      string
 }
 
+// AdminConfig holds admin user initialization configuration
+type AdminConfig struct {
+	Username         string
+	Email            string
+	Password         string
+	CreateIfNotExists bool
+}
+
 // FXConfig is the main configuration struct for FX
 type FXConfig struct {
 	Database DatabaseConfig
@@ -94,6 +108,7 @@ type FXConfig struct {
 	JWT      JWTConfig
 	Stripe   StripeConfig
 	Email    EmailConfig
+	Admin    AdminConfig
 }
 
 // getEnv gets an environment variable or returns a default value

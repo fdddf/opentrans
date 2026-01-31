@@ -30,7 +30,9 @@
     "active": "启用",
     "inactive": "停用",
     "admin": "管理员",
-    "user": "用户"
+    "user": "用户",
+    "default": "默认",
+    "deleting": "删除中..."
   },
   "dashboard": {
     "title": "多租户多语言运营总览",
@@ -47,6 +49,8 @@
   "auth": {
     "loginTitle": "登录您的账号",
     "loginCta": "登录",
+    "loginFailed": "登录失败",
+    "loginSuccess": "登录成功，正在跳转...",
     "registerPrompt": "创建新账号",
     "registerTitle": "创建您的账号",
     "haveAccount": "已有账号？",
@@ -245,11 +249,29 @@
     "privateKeyPlaceholder": "输入您的 PEM 格式私钥",
     "testConnection": "测试连接",
     "testing": "测试中...",
-    "save": "保存配置",
     "saving": "保存中...",
+    "addNew": "添加配置",
+    "addFirst": "添加第一个配置",
+    "editConfig": "编辑配置",
+    "setAsDefault": "设为默认配置",
+    "confirmDelete": "您确定要删除此配置吗？",
+    "createdAt": "创建时间",
+    "fillAllFields": "请填写所有必填字段",
     "saved": {
       "title": "配置已保存",
       "message": "您的 Apple Connect 配置已成功保存"
+    },
+    "updated": {
+      "title": "配置已更新",
+      "message": "您的 Apple Connect 配置已成功更新"
+    },
+    "deleted": {
+      "title": "配置已删除",
+      "message": "配置已成功删除"
+    },
+    "deleteError": {
+      "title": "删除失败",
+      "message": "删除配置失败"
     },
     "testSuccess": {
       "title": "连接成功",
@@ -262,6 +284,10 @@
     "saveError": {
       "title": "保存失败",
       "message": "保存配置失败"
+    },
+    "noConfigs": {
+      "title": "还没有配置",
+      "message": "您还没有添加任何 Apple Connect 配置。添加一个配置即可开始与 App Store Connect 同步。"
     },
     "help": {
       "title": "如何获取 Apple Connect 凭据",

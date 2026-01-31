@@ -119,7 +119,7 @@ type ProviderConfig struct {
 	ProviderType string `gorm:"not null" json:"provider_type"`
 
 	// Configuration settings (stored as JSON for flexibility)
-	ConfigData map[string]interface{} `gorm:"type:jsonb" json:"config_data"`
+	ConfigData map[string]interface{} `gorm:"serializer:json" json:"config_data"`
 
 	// Whether this configuration is the default one
 	IsDefault bool `json:"is_default"`
