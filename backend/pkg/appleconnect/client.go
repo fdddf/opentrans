@@ -50,8 +50,8 @@ type AppLocalization struct {
 		MarketingURL        string `json:"marketingUrl"`
 		SupportURL          string `json:"supportUrl"`
 		DownloadDescription string `json:"downloadDescription"`
+		Description         string `json:"description"`
 		ShortDescription    string `json:"shortDescription"`
-		LongDescription     string `json:"longDescription"`
 		Keywords            string `json:"keywords"`
 		ReleaseNotes        string `json:"releaseNotes"`
 		PromotionalText     string `json:"promotionalText"`
@@ -368,7 +368,7 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 				"supportUrl":          supportURL,
 				"downloadDescription": downloadDescription,
 				"shortDescription":    shortDescription,
-				"longDescription":     longDescription,
+				"description":         longDescription,
 				"keywords":            keywords,
 				"releaseNotes":        releaseNotes,
 			},
@@ -447,7 +447,7 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 				"supportUrl":          supportURL,
 				"downloadDescription": downloadDescription,
 				"shortDescription":    shortDescription,
-				"longDescription":     longDescription,
+				"description":         longDescription,
 				"keywords":            keywords,
 				"releaseNotes":        releaseNotes,
 			},

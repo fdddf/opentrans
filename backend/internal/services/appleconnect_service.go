@@ -127,9 +127,10 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 				"SupportURL":          locData.Attributes.SupportURL,
 				"DownloadDescription": locData.Attributes.DownloadDescription,
 				"ShortDescription":    locData.Attributes.ShortDescription,
-				"LongDescription":     locData.Attributes.LongDescription,
+				"LongDescription":     locData.Attributes.Description,
 				"Keywords":            locData.Attributes.Keywords,
 				"ReleaseNotes":        locData.Attributes.ReleaseNotes,
+				"PromotionalText":     locData.Attributes.PromotionalText,
 				"Source":              "apple",
 				"SyncStatus":          "synced",
 				"SyncedAt":            time.Now(),
@@ -166,7 +167,7 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 			locData.Attributes.SupportURL,
 			locData.Attributes.DownloadDescription,
 			locData.Attributes.ShortDescription,
-			locData.Attributes.LongDescription,
+			locData.Attributes.Description,
 			locData.Attributes.Keywords,
 			locData.Attributes.ReleaseNotes,
 			locData.Attributes.PromotionalText, // PromotionalText
@@ -244,7 +245,7 @@ func (s *AppleConnectService) isLocalizationDifferent(localLoc *database.AppLoca
 		localLoc.SupportURL != appleLoc.Attributes.SupportURL ||
 		localLoc.DownloadDescription != appleLoc.Attributes.DownloadDescription ||
 		localLoc.ShortDescription != appleLoc.Attributes.ShortDescription ||
-		localLoc.LongDescription != appleLoc.Attributes.LongDescription ||
+		localLoc.LongDescription != appleLoc.Attributes.Description ||
 		localLoc.Keywords != appleLoc.Attributes.Keywords ||
 		localLoc.ReleaseNotes != appleLoc.Attributes.ReleaseNotes
 }
@@ -309,9 +310,10 @@ func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode
 		"SupportURL":          appleLocalization.Attributes.SupportURL,
 		"DownloadDescription": appleLocalization.Attributes.DownloadDescription,
 		"ShortDescription":    appleLocalization.Attributes.ShortDescription,
-		"LongDescription":     appleLocalization.Attributes.LongDescription,
+		"LongDescription":     appleLocalization.Attributes.Description,
 		"Keywords":            appleLocalization.Attributes.Keywords,
 		"ReleaseNotes":        appleLocalization.Attributes.ReleaseNotes,
+		"PromotionalText":     appleLocalization.Attributes.PromotionalText,
 		"Source":              "apple",
 		"SyncStatus":          "synced",
 		"SyncedAt":            time.Now(),
@@ -454,7 +456,7 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 					appleLoc.Attributes.SupportURL,
 					appleLoc.Attributes.DownloadDescription,
 					appleLoc.Attributes.ShortDescription,
-					appleLoc.Attributes.LongDescription,
+					appleLoc.Attributes.Description,
 					appleLoc.Attributes.Keywords,
 					appleLoc.Attributes.ReleaseNotes,
 					appleLoc.Attributes.PromotionalText,

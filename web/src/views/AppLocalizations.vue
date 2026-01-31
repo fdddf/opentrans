@@ -236,16 +236,11 @@
 
             <div>
               <label class="text-sm text-slate-400">
-                {{ t('applocalizations.shortDescription') }}
-                <span class="text-xs text-slate-500">({{ editLocalizationData.shortDescription.length }}/80)</span>
+                {{ t('applocalizations.description') }}
+                <span class="text-xs text-slate-500">({{ editLocalizationData.description.length }}/4000)</span>
               </label>
-              <textarea v-model="editLocalizationData.shortDescription" rows="2" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.shortDescriptionPlaceholder')" :class="{ 'ring-rose-500': getFieldError('shortDescription') }"></textarea>
-              <p v-if="getFieldError('shortDescription')" class="mt-1 text-xs text-rose-500">{{ getFieldError('shortDescription') }}</p>
-            </div>
-
-            <div>
-              <label class="text-sm text-slate-400">{{ t('applocalizations.longDescription') }}</label>
-              <textarea v-model="editLocalizationData.longDescription" rows="4" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.longDescriptionPlaceholder')"></textarea>
+              <textarea v-model="editLocalizationData.description" rows="4" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.descriptionPlaceholder')" :class="{ 'ring-rose-500': getFieldError('description') }"></textarea>
+              <p v-if="getFieldError('description')" class="mt-1 text-xs text-rose-500">{{ getFieldError('description') }}</p>
             </div>
 
             <div>
@@ -327,8 +322,7 @@
         
         <div class="mt-3 space-y-2 text-sm">
           <p v-if="loc.subtitle"><span class="text-slate-500">{{ t('applocalizations.subtitle') }}:</span> {{ loc.subtitle }}</p>
-          <p v-if="loc.shortDescription"><span class="text-slate-500">{{ t('applocalizations.shortDescription') }}:</span> {{ loc.shortDescription }}</p>
-          <p v-if="loc.longDescription"><span class="text-slate-500">{{ t('applocalizations.longDescription') }}:</span> {{ loc.longDescription }}</p>
+          <p v-if="loc.description || loc.shortDescription || loc.longDescription"><span class="text-slate-500">{{ t('applocalizations.description') }}:</span> {{ loc.description || loc.shortDescription || loc.longDescription }}</p>
           <p v-if="loc.keywords"><span class="text-slate-500">{{ t('applocalizations.keywords') }}:</span> {{ loc.keywords }}</p>
           <div v-if="loc.privacyUrl || loc.marketingUrl || loc.supportUrl" class="flex flex-wrap gap-4">
             <p v-if="loc.privacyUrl"><span class="text-slate-500">{{ t('applocalizations.privacyUrl') }}:</span> <a :href="loc.privacyUrl" target="_blank" class="text-mint hover:underline">{{ loc.privacyUrl }}</a></p>
@@ -440,7 +434,7 @@ const editLocalizationData = reactive({
   marketingUrl: '',
   supportUrl: '',
   shortDescription: '',
-  longDescription: '',
+  description: '',
   keywords: '',
   releaseNotes: '',
   promotionalText: ''
@@ -450,8 +444,7 @@ const editLocalizationData = reactive({
 const validationRules = {
   name: { maxLength: 30, required: true },
   subtitle: { maxLength: 30, required: false },
-  shortDescription: { maxLength: 80, required: false },
-  longDescription: { maxLength: 4000, required: false },
+  description: { maxLength: 4000, required: false },
   keywords: { maxLength: 100, required: false },
   privacyUrl: { maxLength: 255, required: false },
   marketingUrl: { maxLength: 255, required: false },
@@ -820,7 +813,7 @@ function editLocalization(localization: AppLocalization) {
   editLocalizationData.marketingUrl = localization.marketingUrl || ''
   editLocalizationData.supportUrl = localization.supportUrl || ''
   editLocalizationData.shortDescription = localization.shortDescription || ''
-  editLocalizationData.longDescription = localization.longDescription || ''
+  editLocalizationData.description = localization.longDescription || localization.description || ''
   editLocalizationData.keywords = localization.keywords || ''
   editLocalizationData.releaseNotes = localization.releaseNotes || ''
   editLocalizationData.promotionalText = localization.promotionalText || ''

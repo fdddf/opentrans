@@ -36,8 +36,7 @@ export interface AppLocalization {
   marketingUrl?: string;
   supportUrl?: string;
   downloadDescription?: string;
-  shortDescription?: string;
-  longDescription?: string;
+  description?: string; // Combined from short and long description
   keywords?: string;
   releaseNotes?: string;
   promotionalText?: string;
