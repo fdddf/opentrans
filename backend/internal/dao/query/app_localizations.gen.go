@@ -43,9 +43,12 @@ func newAppLocalization(db *gorm.DB, opts ...gen.DOOption) appLocalization {
 	_appLocalization.LongDescription = field.NewString(tableName, "long_description")
 	_appLocalization.Keywords = field.NewString(tableName, "keywords")
 	_appLocalization.ReleaseNotes = field.NewString(tableName, "release_notes")
+	_appLocalization.PromotionalText = field.NewString(tableName, "promotional_text")
+	_appLocalization.WhatToTest = field.NewString(tableName, "what_to_test")
 	_appLocalization.SyncedAt = field.NewTime(tableName, "synced_at")
 	_appLocalization.Source = field.NewString(tableName, "source")
 	_appLocalization.SyncStatus = field.NewString(tableName, "sync_status")
+	_appLocalization.Locale = field.NewString(tableName, "locale")
 	_appLocalization.App = appLocalizationBelongsToApp{
 		db: db.Session(&gorm.Session{}),
 
@@ -82,9 +85,12 @@ type appLocalization struct {
 	LongDescription     field.String
 	Keywords            field.String
 	ReleaseNotes        field.String
+	PromotionalText     field.String
+	WhatToTest          field.String
 	SyncedAt            field.Time
 	Source              field.String
 	SyncStatus          field.String
+	Locale              field.String
 	App                 appLocalizationBelongsToApp
 
 	fieldMap map[string]field.Expr
@@ -118,9 +124,12 @@ func (a *appLocalization) updateTableName(table string) *appLocalization {
 	a.LongDescription = field.NewString(table, "long_description")
 	a.Keywords = field.NewString(table, "keywords")
 	a.ReleaseNotes = field.NewString(table, "release_notes")
+	a.PromotionalText = field.NewString(table, "promotional_text")
+	a.WhatToTest = field.NewString(table, "what_to_test")
 	a.SyncedAt = field.NewTime(table, "synced_at")
 	a.Source = field.NewString(table, "source")
 	a.SyncStatus = field.NewString(table, "sync_status")
+	a.Locale = field.NewString(table, "locale")
 
 	a.fillFieldMap()
 
@@ -137,7 +146,7 @@ func (a *appLocalization) GetFieldByName(fieldName string) (field.OrderExpr, boo
 }
 
 func (a *appLocalization) fillFieldMap() {
-	a.fieldMap = make(map[string]field.Expr, 20)
+	a.fieldMap = make(map[string]field.Expr, 23)
 	a.fieldMap["id"] = a.ID
 	a.fieldMap["created_at"] = a.CreatedAt
 	a.fieldMap["updated_at"] = a.UpdatedAt
@@ -154,9 +163,12 @@ func (a *appLocalization) fillFieldMap() {
 	a.fieldMap["long_description"] = a.LongDescription
 	a.fieldMap["keywords"] = a.Keywords
 	a.fieldMap["release_notes"] = a.ReleaseNotes
+	a.fieldMap["promotional_text"] = a.PromotionalText
+	a.fieldMap["what_to_test"] = a.WhatToTest
 	a.fieldMap["synced_at"] = a.SyncedAt
 	a.fieldMap["source"] = a.Source
 	a.fieldMap["sync_status"] = a.SyncStatus
+	a.fieldMap["locale"] = a.Locale
 
 }
 

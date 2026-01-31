@@ -44,6 +44,8 @@ export interface AppLocalization {
   syncedAt?: string;
   source?: string;
   syncStatus?: string;
+  version?: string;
+  versionState?: string;
   createdAt: string;
   updatedAt: string;
 }

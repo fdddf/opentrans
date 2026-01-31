@@ -349,6 +349,14 @@
               <span class="text-slate-400">{{ t('applocalizations.syncStatus') }}: {{ getSyncStatusText(loc.syncStatus) }}</span>
             </div>
             
+            <div v-if="loc.version" class="text-xs text-slate-400">
+              {{ t('applocalizations.version') }}: {{ loc.version }}
+            </div>
+            
+            <div v-if="loc.versionState" class="text-xs text-slate-400">
+              {{ t('applocalizations.versionState') }}: {{ getVersionStateText(loc.versionState) }}
+            </div>
+            
             <div v-if="loc.syncedAt" class="text-xs text-slate-400">
               {{ t('applocalizations.lastSynced') }}: {{ formatDate(loc.syncedAt) }}
             </div>
@@ -363,7 +371,16 @@
         <div class="flex justify-end gap-2 pt-3 mt-3 border-t border-white/10">
           <button class="rounded border border-white/20 px-2 py-1 text-xs hover:border-mint/60 hover:text-mint" @click="pullFromApple(loc)">{{ t('applocalizations.pullFromApple') }}</button>
           <button class="rounded border border-white/20 px-2 py-1 text-xs hover:border-mint/60 hover:text-mint" @click="pushToApple(loc)">{{ t('applocalizations.pushToApple') }}</button>
-          <button class="rounded border border-white/20 px-2 py-1 text-xs hover:border-mint/60 hover:text-mint" @click="editLocalization(loc)">{{ t('common.edit') }}</button>
+          <button 
+            v-if="isLocalizationEditable(loc)"
+            class="rounded border border-white/20 px-2 py-1 text-xs hover:border-mint/60 hover:text-mint" 
+            @click="editLocalization(loc)"
+          >{{ t('common.edit') }}</button>
+          <span 
+            v-else
+            class="rounded border border-white/10 px-2 py-1 text-xs text-slate-500 cursor-not-allowed"
+            :title="t('applocalizations.lockedMessage')"
+          >{{ t('applocalizations.locked') }}</span>
           <button class="rounded border border-white/20 px-2 py-1 text-xs hover:border-rose-600/60 hover:text-rose-500" @click="deleteLocalization(loc.id)">{{ t('common.delete') }}</button>
         </div>
       </div>
@@ -543,6 +560,34 @@ function getSourceText(source?: string): string {
     'local': 'Local'
   };
   return sourceMap[source] || source || 'Unknown';
+}
+
+function getVersionStateText(state?: string): string {
+  if (!state) return 'Unknown';
+  const stateMap: Record<string, string> = {
+    'PREPARE_FOR_SUBMISSION': 'Prepare for Submission',
+    'WAITING_FOR_REVIEW': 'Waiting for Review',
+    'IN_REVIEW': 'In Review',
+    'PENDING_DEVELOPER_RELEASE': 'Pending Developer Release',
+    'PENDING_APPLE_RELEASE': 'Pending Apple Release',
+    'READY_FOR_SALE': 'Ready for Sale',
+    'REJECTED': 'Rejected',
+    'REMOVED_FROM_SALE': 'Removed from Sale',
+    'DEVELOPER_REJECTED': 'Developer Rejected',
+    'METADATA_REJECTED': 'Metadata Rejected'
+  };
+  return stateMap[state] || state || 'Unknown';
+}
+
+function isLocalizationEditable(loc: AppLocalization): boolean {
+  // Only allow editing if:
+  // 1. Source is local (manually created)
+  // 2. Or source is apple but version state is not READY_FOR_SALE
+  if (loc.source === 'local') return true;
+  if (loc.source === 'apple') {
+    return loc.versionState !== 'READY_FOR_SALE';
+  }
+  return true;
 }
 
 function formatDate(dateString?: string): string {

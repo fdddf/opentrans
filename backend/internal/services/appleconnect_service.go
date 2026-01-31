@@ -110,7 +110,7 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 		return nil, fmt.Errorf("failed to create Apple Connect client: %v", err)
 	}
 
-	localizationsResponse, err := client.GetAppLocalizations(app.AppleID)
+	localizationsResponse, versionString, versionState, err := client.GetAppLocalizations(app.AppleID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get localizations from Apple Connect: %v", err)
 	}
@@ -119,8 +119,8 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 	for _, locData := range localizationsResponse.Data {
 		existing, err := s.AppLocalizationService.GetAppLocalization(appID, locData.Attributes.Locale)
 		if err == nil && existing != nil {
-			err = s.AppLocalizationService.UpdateAppLocalization(appID, locData.Attributes.Locale, map[string]interface{}{
-				"Name":                locData.Attributes.Name,
+			// Prepare update data
+			updateData := map[string]interface{}{
 				"Subtitle":            locData.Attributes.Subtitle,
 				"PrivacyURL":          locData.Attributes.PrivacyURL,
 				"MarketingURL":        locData.Attributes.MarketingURL,
@@ -133,7 +133,16 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 				"Source":              "apple",
 				"SyncStatus":          "synced",
 				"SyncedAt":            time.Now(),
-			})
+				"Version":             versionString,
+				"VersionState":        versionState,
+			}
+
+			// Only update name if Apple provides a non-empty name
+			if locData.Attributes.Name != "" {
+				updateData["Name"] = locData.Attributes.Name
+			}
+
+			err = s.AppLocalizationService.UpdateAppLocalization(appID, locData.Attributes.Locale, updateData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to update localization %s: %v", locData.Attributes.Locale, err)
 			}
@@ -141,10 +150,16 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 			continue
 		}
 
+		// If Apple doesn't provide a name, use the app's default name
+		name := locData.Attributes.Name
+		if name == "" {
+			name = app.Name
+		}
+
 		newLoc, err := s.AppLocalizationService.CreateAppLocalization(
 			appID,
 			locData.Attributes.Locale,
-			locData.Attributes.Name,
+			name,
 			locData.Attributes.Subtitle,
 			locData.Attributes.PrivacyURL,
 			locData.Attributes.MarketingURL,
@@ -162,9 +177,11 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 		}
 
 		_ = s.AppLocalizationService.UpdateAppLocalization(appID, locData.Attributes.Locale, map[string]interface{}{
-			"Source":     "apple",
-			"SyncStatus": "synced",
-			"SyncedAt":   time.Now(),
+			"Source":       "apple",
+			"SyncStatus":   "synced",
+			"SyncedAt":     time.Now(),
+			"Version":      versionString,
+			"VersionState": versionState,
 		})
 		syncedLocalizations = append(syncedLocalizations, *newLoc)
 	}
@@ -184,7 +201,7 @@ func (s *AppleConnectService) CheckLocalizationConflicts(appID uint, issuerID, k
 		return nil, fmt.Errorf("failed to create Apple Connect client: %v", err)
 	}
 
-	localizationsResponse, err := client.GetAppLocalizations(app.AppleID)
+	localizationsResponse, _, _, err := client.GetAppLocalizations(app.AppleID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get localizations from Apple Connect: %v", err)
 	}
@@ -278,8 +295,14 @@ func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode
 		return fmt.Errorf("failed to get localization from Apple Connect: %v", err)
 	}
 
+	// Get current version string and state
+	versionString, versionState, err := client.GetAppVersion(app.AppleID)
+	if err != nil {
+		return fmt.Errorf("failed to get app version: %v", err)
+	}
+
+	// Prepare update data
 	updates := map[string]interface{}{
-		"Name":                appleLocalization.Attributes.Name,
 		"Subtitle":            appleLocalization.Attributes.Subtitle,
 		"PrivacyURL":          appleLocalization.Attributes.PrivacyURL,
 		"MarketingURL":        appleLocalization.Attributes.MarketingURL,
@@ -292,6 +315,13 @@ func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode
 		"Source":              "apple",
 		"SyncStatus":          "synced",
 		"SyncedAt":            time.Now(),
+		"Version":             versionString,
+		"VersionState":        versionState,
+	}
+
+	// Only update name if Apple provides a non-empty name
+	if appleLocalization.Attributes.Name != "" {
+		updates["Name"] = appleLocalization.Attributes.Name
 	}
 
 	return s.AppLocalizationService.UpdateAppLocalization(appID, languageCode, updates)
@@ -388,7 +418,7 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 	}
 
 	// Get Apple localizations
-	appleLocalizationsResponse, err := client.GetAppLocalizations(app.AppleID)
+	appleLocalizationsResponse, versionString, versionState, err := client.GetAppLocalizations(app.AppleID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get Apple localizations: %v", err)
 	}
@@ -408,10 +438,16 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 
 			if err != nil {
 				// Localization doesn't exist locally, create it
+				// If Apple doesn't provide a name, use the app's default name
+				name := appleLoc.Attributes.Name
+				if name == "" {
+					name = app.Name
+				}
+
 				newLoc, err := s.AppLocalizationService.CreateAppLocalization(
 					appID,
 					locale,
-					appleLoc.Attributes.Name,
+					name,
 					appleLoc.Attributes.Subtitle,
 					appleLoc.Attributes.PrivacyURL,
 					appleLoc.Attributes.MarketingURL,
@@ -429,9 +465,11 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 				}
 
 				_ = s.AppLocalizationService.UpdateAppLocalization(appID, locale, map[string]interface{}{
-					"Source":     "apple",
-					"SyncStatus": "synced",
-					"SyncedAt":   time.Now(),
+					"Source":       "apple",
+					"SyncStatus":   "synced",
+					"SyncedAt":     time.Now(),
+					"Version":      versionString,
+					"VersionState": versionState,
 				})
 				syncedLocalizations = append(syncedLocalizations, *newLoc)
 			} else {

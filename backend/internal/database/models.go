@@ -184,9 +184,11 @@ type AppLocalization struct {
 	WhatToTest          string `json:"whatToTest"`         // What to test notes for beta testing
 
 	// Sync metadata
-	SyncedAt   *time.Time `json:"syncedAt"`
-	Source     string     `gorm:"type:varchar(20);default:'local'" json:"source"`
-	SyncStatus string     `gorm:"type:varchar(20);default:'pending'" json:"syncStatus"`
+	SyncedAt    *time.Time `json:"syncedAt"`
+	Source      string     `gorm:"type:varchar(20);default:'local'" json:"source"`
+	SyncStatus  string     `gorm:"type:varchar(20);default:'pending'" json:"syncStatus"`
+	Version     string     `gorm:"type:varchar(50)" json:"version"`         // App Store version this localization belongs to
+	VersionState string    `gorm:"type:varchar(50)" json:"versionState"`   // App Store version state (e.g., READY_FOR_SALE)
 
 	// Additional metadata that might be useful
 	Locale string `json:"locale"` // Locale identifier

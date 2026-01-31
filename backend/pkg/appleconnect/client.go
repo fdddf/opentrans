@@ -198,15 +198,21 @@ func (c *AppleConnectClient) GetApps() (*AppsResponse, error) {
 }
 
 // GetAppLocalizations retrieves all localizations for a specific app
-func (c *AppleConnectClient) GetAppLocalizations(appID string) (*AppLocalizationsResponse, error) {
-	jwtToken, err := c.GenerateJWT()
+func (c *AppleConnectClient) GetAppLocalizations(appID string) (*AppLocalizationsResponse, string, string, error) {
+	// First get the app's latest version ID, version string, and state
+	versionID, versionString, versionState, err := c.getAppLatestVersionID(appID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate JWT: %w", err)
+		return nil, "", "", fmt.Errorf("failed to get app version: %w", err)
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/v1/apps/%s/appStoreVersionLocalizations", c.baseURL, appID), nil)
+	jwtToken, err := c.GenerateJWT()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, "", "", fmt.Errorf("failed to generate JWT: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/v1/appStoreVersions/%s/appStoreVersionLocalizations", c.baseURL, versionID), nil)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
@@ -214,37 +220,43 @@ func (c *AppleConnectClient) GetAppLocalizations(appID string) (*AppLocalization
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
+		return nil, "", "", fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, "", "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var localizationsResponse AppLocalizationsResponse
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, "", "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	err = json.Unmarshal(body, &localizationsResponse)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, "", "", fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	return &localizationsResponse, nil
+	return &localizationsResponse, versionString, versionState, nil
 }
 
 // GetAppLocalization retrieves a specific localization for an app by locale
 func (c *AppleConnectClient) GetAppLocalization(appID, locale string) (*AppLocalization, error) {
+	// First get the app's latest version ID (version string and state not needed here)
+	versionID, _, _, err := c.getAppLatestVersionID(appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app version: %w", err)
+	}
+
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/v1/apps/%s/appStoreVersionLocalizations?filter[locale]=%s", c.baseURL, appID, locale), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/v1/appStoreVersions/%s/appStoreVersionLocalizations?filter[locale]=%s", c.baseURL, versionID, locale), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -281,17 +293,23 @@ func (c *AppleConnectClient) GetAppLocalization(appID, locale string) (*AppLocal
 	return &localizationsResponse.Data[0], nil
 }
 
-// getAppLatestVersionID retrieves the latest version ID for an app
-func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, error) {
+// GetAppVersion retrieves the latest version string and state for an app
+func (c *AppleConnectClient) GetAppVersion(appID string) (string, string, error) {
+	_, versionString, versionState, err := c.getAppLatestVersionID(appID)
+	return versionString, versionState, err
+}
+
+// getAppLatestVersionID retrieves the latest version ID, version string, and state for an app
+func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, string, string, error) {
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate JWT: %w", err)
+		return "", "", "", fmt.Errorf("failed to generate JWT: %w", err)
 	}
 
 	url := fmt.Sprintf("%s/v1/apps/%s/appStoreVersions?limit=200", c.baseURL, appID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", "", "", fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
@@ -299,30 +317,30 @@ func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, error)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to make request: %w", err)
+		return "", "", "", fmt.Errorf("failed to make request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		return "", "", "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var versionsResponse AppStoreVersionsResponse
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
+		return "", "", "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if err := json.Unmarshal(body, &versionsResponse); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return "", "", "", fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if len(versionsResponse.Data) == 0 {
-		return "", fmt.Errorf("no app store versions found for app %s", appID)
+		return "", "", "", fmt.Errorf("no app store versions found for app %s", appID)
 	}
 
-	return versionsResponse.Data[0].ID, nil
+	return versionsResponse.Data[0].ID, versionsResponse.Data[0].Attributes.VersionString, versionsResponse.Data[0].Attributes.State, nil
 }
 
 // CreateAppLocalization creates a new localization for an app
@@ -333,7 +351,7 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 	}
 
 	// First get the app's version ID to associate the localization with
-	versionID, err := c.getAppLatestVersionID(appID)
+	versionID, _, _, err := c.getAppLatestVersionID(appID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app version: %w", err)
 	}

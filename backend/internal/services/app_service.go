@@ -595,7 +595,7 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 	}
 
 	// Get localizations from Apple Connect
-	localizationsResponse, err := client.GetAppLocalizations(app.AppleID)
+	localizationsResponse, _, _, err := client.GetAppLocalizations(app.AppleID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get localizations from Apple Connect: %v", err)
 	}
