@@ -12,12 +12,17 @@
     <section class="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div class="flex items-center justify-between mb-3">
         <div class="text-sm text-slate-400">{{ t('languages.languageList') }}</div>
-        <input class="rounded-lg bg-midnight/40 px-3 py-2 text-xs ring-1 ring-white/10" :placeholder="t('languages.searchPlaceholder')" />
+        <input
+          v-model="searchQuery"
+          class="rounded-lg bg-midnight/40 px-3 py-2 text-xs ring-1 ring-white/10 w-64 focus:outline-none focus:ring-mint/60"
+          :placeholder="t('languages.searchPlaceholder')"
+        />
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead class="text-left text-slate-500">
             <tr>
+              <th class="py-2 w-12"></th>
               <th class="py-2">{{ t('languages.name') }}</th>
               <th class="py-2">{{ t('languages.code') }}</th>
               <th class="py-2">{{ t('languages.nativeName') }}</th>
@@ -27,7 +32,8 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
-            <tr v-for="lang in languages" :key="lang.code" class="hover:bg-white/5">
+            <tr v-for="lang in filteredLanguages" :key="lang.code" class="hover:bg-white/5">
+              <td class="py-2 text-center text-xl">{{ lang.emoji || '🌐' }}</td>
               <td class="py-2">{{ lang.name }}</td>
               <td class="py-2">{{ lang.code }}</td>
               <td class="py-2">{{ lang.native_name }}</td>
@@ -50,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
 
@@ -63,10 +69,24 @@ interface Language {
   native_name: string
   region?: string
   direction: string
+  emoji?: string
   enabled?: boolean
 }
 
 const languages = ref<Language[]>([])
+const searchQuery = ref('')
+
+const filteredLanguages = computed(() => {
+  if (!searchQuery.value) {
+    return languages.value
+  }
+  const query = searchQuery.value.toLowerCase()
+  return languages.value.filter(lang =>
+    lang.name.toLowerCase().includes(query) ||
+    lang.code.toLowerCase().includes(query) ||
+    lang.native_name.toLowerCase().includes(query)
+  )
+})
 
 async function fetchLanguages() {
   try {

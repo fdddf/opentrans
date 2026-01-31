@@ -240,6 +240,7 @@ export interface LanguageMetadata {
   native_name: string;
   region?: string;
   direction: string;
+  emoji?: string;
 }
 
 export interface LanguagesResponse {
@@ -560,7 +561,7 @@ class ApiClient {
 
   // Language methods
   async getSupportedLanguages(): Promise<LanguagesResponse> {
-    return this.request<LanguagesResponse>('/api/languages');
+    return this.request<LanguagesResponse>('/protected/languages');
   }
 
   // Activity methods

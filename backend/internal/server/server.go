@@ -150,7 +150,6 @@ func NewAppWithDB(db *database.Database) (*fiber.App, error) {
 	api.Post("/translate", state.handleTranslate)
 	api.Get("/progress", state.handleProgress)
 	api.Get("/export", state.handleExport)
-	api.Get("/languages", handleGetSupportedLanguages)
 
 	// Authentication routes
 	api.Post("/auth/register", handleRegister)
@@ -163,6 +162,7 @@ func NewAppWithDB(db *database.Database) (*fiber.App, error) {
 	protected.Use(AuthMiddleware)
 	adminOnly := protected.Group("/admin")
 	adminOnly.Use(AdminOnly)
+	protected.Get("/languages", handleGetSupportedLanguages)
 
 	// Example admin route to verify wiring (extend as needed)
 	adminOnly.Get("/health", func(c *fiber.Ctx) error {
@@ -285,6 +285,7 @@ func NewApp() (*fiber.App, error) {
 	// Protected routes (require authentication)
 	protected := api.Group("/protected")
 	protected.Use(AuthMiddleware)
+	protected.Get("/languages", handleGetSupportedLanguages)
 	protected.Get("/projects", handleGetProjects)
 	protected.Post("/projects", handleCreateProject)
 	protected.Get("/projects/:id", handleGetProject)
@@ -3102,6 +3103,8 @@ func handleGetAppleConnectConfigs(c *fiber.Ctx) error {
 	for _, config := range configs {
 		result = append(result, fiber.Map{
 			"id":          config.ID,
+			"userId":      config.UserID,
+			"providerType": config.ProviderType,
 			"issuerId":    config.ConfigData["issuerID"],
 			"keyId":       config.ConfigData["keyID"],
 			"isDefault":   config.IsDefault,
