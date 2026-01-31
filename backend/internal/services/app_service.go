@@ -110,9 +110,11 @@ func (s *AppService) GetAppsByUser(userID uint) ([]database.App, error) {
 	}
 
 	// Convert slice of pointers to slice of values
+	// Don't include User data in the response
 	appSlice := make([]database.App, len(apps))
 	for i, app := range apps {
 		appSlice[i] = *app
+		appSlice[i].User = database.User{} // Clear user data
 	}
 
 	return appSlice, nil

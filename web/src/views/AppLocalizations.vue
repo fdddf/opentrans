@@ -607,12 +607,12 @@ async function pushToApple(localization: AppLocalization) {
 
 async function fetchProviderConfigs() {
   try {
-    const response = await api.getProviderConfigs()
+    const response = await api.getAppleConnectConfigs()
     if (response.success) {
-      appleConnectConfigs.value = response.configs.filter(config => config.providerType === 'appleconnect')
+      appleConnectConfigs.value = response.data || []
     }
   } catch (error) {
-    console.error('Failed to fetch provider configs:', error)
+    console.error('Failed to fetch Apple Connect configs:', error)
   }
 }
 
