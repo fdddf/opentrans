@@ -7,6 +7,7 @@ type Config struct {
 	DeepL  DeepLConfig  `mapstructure:"deepl"`
 	Baidu  BaiduConfig  `mapstructure:"baidu"`
 	OpenAI OpenAIConfig `mapstructure:"openai"`
+	Llama  LlamaConfig  `mapstructure:"llama"`
 }
 
 // GlobalConfig contains global configuration settings
@@ -46,6 +47,26 @@ type OpenAIConfig struct {
 	Model       string  `mapstructure:"model"`
 	Temperature float64 `mapstructure:"temperature"`
 	MaxTokens   int     `mapstructure:"max_tokens"`
+}
+
+// LlamaConfig contains Llama model configuration
+type LlamaConfig struct {
+	LibPath         string  `mapstructure:"lib_path"`
+	ModelPath       string  `mapstructure:"model_path"`
+	Threads         int     `mapstructure:"threads"`
+	Seed            int     `mapstructure:"seed"`
+	Tokens          int     `mapstructure:"tokens"`
+	TopK            int     `mapstructure:"top_k"`
+	Tfs             float64 `mapstructure:"tfs"`
+	TopP            float64 `mapstructure:"top_p"`
+	MinP            float64 `mapstructure:"min_p"`
+	TypicalP        float64 `mapstructure:"typical_p"`
+	RepeatLastN     int     `mapstructure:"repeat_last_n"`
+	RepeatPenalty   float64 `mapstructure:"repeat_penalty"`
+	FrequencyPenalty float64 `mapstructure:"frequency_penalty"`
+	PresencePenalty float64 `mapstructure:"presence_penalty"`
+	Temperature     float64 `mapstructure:"temperature"`
+	Verbose         bool    `mapstructure:"verbose"`
 }
 
 // DefaultConfig returns a configuration with default values

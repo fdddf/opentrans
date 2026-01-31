@@ -32,7 +32,9 @@
     "admin": "Admin",
     "user": "User",
     "default": "Default",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "translate": "Translate",
+    "translating": "Translating..."
   },
   "dashboard": {
     "title": "Multi-tenant Multi-language Operations Dashboard",

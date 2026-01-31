@@ -75,6 +75,7 @@ interface Language {
 
 const languages = ref<Language[]>([])
 const searchQuery = ref('')
+const loading = ref(false)
 
 const filteredLanguages = computed(() => {
   if (!searchQuery.value) {
@@ -89,16 +90,20 @@ const filteredLanguages = computed(() => {
 })
 
 async function fetchLanguages() {
+  loading.value = true
   try {
+    // Fetch Apple Connect supported languages from API
     const response = await api.getSupportedLanguages()
     if (response.success) {
       languages.value = response.languages.map(lang => ({
         ...lang,
-        enabled: true // 默认所有语言都是可用的
+        enabled: true
       }))
     }
   } catch (error) {
     console.error('Failed to fetch languages:', error)
+  } finally {
+    loading.value = false
   }
 }
 

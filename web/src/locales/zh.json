@@ -32,7 +32,9 @@
     "admin": "管理员",
     "user": "用户",
     "default": "默认",
-    "deleting": "删除中..."
+    "deleting": "删除中...",
+    "translate": "翻译",
+    "translating": "翻译中..."
   },
   "dashboard": {
     "title": "多租户多语言运营总览",

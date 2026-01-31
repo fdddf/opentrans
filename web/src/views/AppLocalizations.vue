@@ -250,6 +250,14 @@
             </div>
 
             <div class="flex justify-end gap-2 pt-4">
+              <button
+                type="button"
+                class="rounded-lg border border-white/20 px-4 py-2 text-sm hover:border-mint/60 hover:text-mint"
+                @click="translateLocalization"
+                :disabled="translating"
+              >
+                {{ translating ? t('common.translating') : t('common.translate') }}
+              </button>
               <button type="submit" class="rounded-lg bg-mint px-4 py-2 text-sm font-semibold text-midnight shadow hover:bg-mint/90">
                 {{ t('common.save') }}
               </button>
@@ -303,180 +311,48 @@ const syncStrategy = ref('apple_first')
 const selectedSyncLanguages = ref<string[]>([])
 const appleConnectConfigs = ref<ProviderConfig[]>([])
 const validationErrors = ref<Record<string, string>>({})
-const availableLanguages = ref<{ code: string; name: string; native_name: string; region?: string; direction: string }[]>([])
+const availableLanguages = ref<{ code: string; name: string; native_name: string; region?: string; direction: string; emoji: string, }[]>([])
 const loadingLanguages = ref(false)
+const translating = ref(false)
 
 // Computed property for selected localization
 const selectedLocalization = computed(() => {
   return localizations.value.find(loc => loc.id === selectedLocalizationId.value) || null
 })
 
-// Language code to flag emoji mapping
-const languageFlagMap: Record<string, string> = {
-  'en': '🇺🇸',
-  'en-US': '🇺🇸',
-  'en-GB': '🇬🇧',
-  'zh': '🇨🇳',
-  'zh-Hans': '🇨🇳',
-  'zh-Hant': '🇹🇼',
-  'zh-TW': '🇹🇼',
-  'zh-HK': '🇭🇰',
-  'ja': '🇯🇵',
-  'ko': '🇰🇷',
-  'es': '🇪🇸',
-  'fr': '🇫🇷',
-  'de': '🇩🇪',
-  'it': '🇮🇹',
-  'pt': '🇵🇹',
-  'pt-BR': '🇧🇷',
-  'ru': '🇷🇺',
-  'ar': '🇸🇦',
-  'hi': '🇮🇳',
-  'th': '🇹🇭',
-  'vi': '🇻🇳',
-  'id': '🇮🇩',
-  'ms': '🇲🇾',
-  'nl': '🇳🇱',
-  'pl': '🇵🇱',
-  'tr': '🇹🇷',
-  'uk': '🇺🇦',
-  'cs': '🇨🇿',
-  'da': '🇩🇰',
-  'fi': '🇫🇮',
-  'no': '🇳🇴',
-  'sv': '🇸🇪',
-  'el': '🇬🇷',
-  'he': '🇮🇱',
-  'ro': '🇷🇴',
-  'hu': '🇭🇺',
-  'sk': '🇸🇰',
-  'bg': '🇧🇬',
-  'hr': '🇭🇷',
-  'ca': '🇪🇸',
-  'fil': '🇵🇭',
-  'ms-MY': '🇲🇾',
-  'pt-PT': '🇵🇹',
-  'es-MX': '🇲🇽',
-  'es-ES': '🇪🇸',
-  'fr-CA': '🇨🇦',
-  'fr-FR': '🇫🇷',
-  'de-DE': '🇩🇪',
-  'it-IT': '🇮🇹',
-  'nl-NL': '🇳🇱',
-  'en-CA': '🇨🇦',
-  'en-AU': '🇦🇺',
-  'en-IN': '🇮🇳',
-  'en-SG': '🇸🇬',
-  'ja-JP': '🇯🇵',
-  'ko-KR': '🇰🇷',
-  'zh-CN': '🇨🇳',
-  'zh-SG': '🇸🇬',
-  'ar-SA': '🇸🇦',
-  'ar-AE': '🇦🇪',
-  'ar-EG': '🇪🇬',
-  'tr-TR': '🇹🇷',
-  'pl-PL': '🇵🇱',
-  'ru-RU': '🇷🇺',
-  'uk-UA': '🇺🇦',
-  'th-TH': '🇹🇭',
-  'vi-VN': '🇻🇳',
-  'id-ID': '🇮🇩',
-  'hi-IN': '🇮🇳',
-  'bn-IN': '🇮🇳',
-  'ta-IN': '🇮🇳',
-  'te-IN': '🇮🇳',
-  'mr-IN': '🇮🇳',
-  'gu-IN': '🇮🇳',
-  'kn-IN': '🇮🇳',
-  'ml-IN': '🇮🇳',
-  'pa-IN': '🇮🇳',
-  'or-IN': '🇮🇳',
-  'as-IN': '🇮🇳',
-  'fa': '🇮🇷',
-  'fa-IR': '🇮🇷',
-  'ur': '🇵🇰',
-  'ur-PK': '🇵🇰',
-  'my': '🇲🇲',
-  'my-MM': '🇲🇲',
-  'km': '🇰🇭',
-  'lo': '🇱🇦',
-  'ne': '🇳🇵',
-  'ne-NP': '🇳🇵',
-  'si': '🇱🇰',
-  'si-LK': '🇱🇰',
-  'sw': '🇰🇪',
-  'sw-KE': '🇰🇪',
-  'af': '🇿🇦',
-  'af-ZA': '🇿🇦',
-  'zu': '🇿🇦',
-  'zu-ZA': '🇿🇦',
-  'xh': '🇿🇦',
-  'xh-ZA': '🇿🇦',
-  'is': '🇮🇸',
-  'is-IS': '🇮🇸',
-  'ga': '🇮🇪',
-  'ga-IE': '🇮🇪',
-  'cy': '🇬🇧',
-  'cy-GB': '🇬🇧',
-  'eu': '🇪🇸',
-  'eu-ES': '🇪🇸',
-  'gl': '🇪🇸',
-  'gl-ES': '🇪🇸',
-  'sq': '🇦🇱',
-  'sq-AL': '🇦🇱',
-  'mk': '🇲🇰',
-  'mk-MK': '🇲🇰',
-  'sr': '🇷🇸',
-  'sr-RS': '🇷🇸',
-  'bs': '🇧🇦',
-  'bs-BA': '🇧🇦',
-  'me': '🇲🇪',
-  'me-ME': '🇲🇪',
-  'sl': '🇸🇮',
-  'sl-SI': '🇸🇮',
-  'hr-HR': '🇭🇷',
-  'mt': '🇲🇹',
-  'mt-MT': '🇲🇹',
-  'lb': '🇱🇺',
-  'lb-LU': '🇱🇺',
-  'lt': '🇱🇹',
-  'lt-LT': '🇱🇹',
-  'lv': '🇱🇻',
-  'lv-LV': '🇱🇻',
-  'et': '🇪🇪',
-  'et-EE': '🇪🇪',
-  'kk': '🇰🇿',
-  'kk-KZ': '🇰🇿',
-  'ky': '🇰🇬',
-  'ky-KG': '🇰🇬',
-  'uz': '🇺🇿',
-  'uz-UZ': '🇺🇿',
-  'tg': '🇹🇯',
-  'tg-TJ': '🇹🇯',
-  'hy': '🇦🇲',
-  'hy-AM': '🇦🇲',
-  'az': '🇦🇿',
-  'az-AZ': '🇦🇿',
-  'ka': '🇬🇪',
-  'ka-GE': '🇬🇪',
-  'mn': '🇲🇳',
-  'mn-MN': '🇲🇳',
-  'bo': '🇨🇳',
-  'bo-CN': '🇨🇳',
-  'dz': '🇧🇹',
-  'dz-BT': '🇧🇹'
+async function fetchLanguages() {
+  loadingLanguages.value = true
+  try {
+    // Fetch Apple Connect supported languages from API
+    const response = await api.getSupportedLanguages()
+    if (response.success) {
+      availableLanguages.value = response.languages.map(lang => ({
+        code: lang.code,
+        name: lang.name,
+        native_name: lang.native_name,
+        direction: lang.direction,
+        emoji: lang.emoji || '🌐'
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load languages:', error)
+  } finally {
+    loadingLanguages.value = false
+  }
 }
 
 function getLanguageFlag(code: string): string {
-  // First try exact match
-  if (languageFlagMap[code]) {
-    return languageFlagMap[code]
+  // Find in availableLanguages
+  const lang = availableLanguages.value.find(l => l.code === code)
+  if (lang && lang.emoji) {
+    return lang.emoji
   }
   
   // Try to extract the base language code (e.g., 'en-US' -> 'en')
   const baseCode = code.split('-')[0]
-  if (languageFlagMap[baseCode]) {
-    return languageFlagMap[baseCode]
+  const baseLang = availableLanguages.value.find(l => l.code === baseCode)
+  if (baseLang && baseLang.emoji) {
+    return baseLang.emoji
   }
   
   // Default flag for unknown languages
@@ -526,12 +402,12 @@ function validateField(field: string, value: string): string | null {
   return null
 }
 
-function validateLocalization(data: typeof newLocalization): boolean {
+function validateLocalization(data: typeof editLocalizationData): boolean {
   const errors: Record<string, string> = {}
   let isValid = true
 
   for (const [field, value] of Object.entries(data)) {
-    const error = validateField(field, value)
+    const error = validateField(field, value as string)
     if (error) {
       errors[field] = error
       isValid = false
@@ -694,12 +570,13 @@ async function pushToApple(localization: AppLocalization) {
 
 async function fetchProviderConfigs() {
   try {
-    const response = await api.getAppleConnectConfigs()
-    if (response.success) {
-      appleConnectConfigs.value = response.data || []
+    // Fetch Apple Connect configs
+    const appleResponse = await api.getAppleConnectConfigs()
+    if (appleResponse.success) {
+      appleConnectConfigs.value = appleResponse.data || []
     }
   } catch (error) {
-    console.error('Failed to fetch Apple Connect configs:', error)
+    console.error('Failed to fetch configs:', error)
   }
 }
 
@@ -866,6 +743,76 @@ async function deleteLocalization(id: number) {
   }
 }
 
+async function translateLocalization() {
+  if (!editLocalizationData.languageCode) {
+    alert('Please select a language first.')
+    return
+  }
+
+  translating.value = true
+
+  try {
+    // Get source language (en-US or primary locale)
+    const sourceLanguage = app.value?.primaryLocale || 'en-US'
+    const targetLanguage = editLocalizationData.languageCode
+
+    // Translate name
+    if (editLocalizationData.name) {
+      const nameResult = await api.translateText(editLocalizationData.name, sourceLanguage, targetLanguage)
+      if (nameResult.success) {
+        editLocalizationData.name = nameResult.text
+      }
+    }
+
+    // Translate subtitle
+    if (editLocalizationData.subtitle) {
+      const subtitleResult = await api.translateText(editLocalizationData.subtitle, sourceLanguage, targetLanguage)
+      if (subtitleResult.success) {
+        editLocalizationData.subtitle = subtitleResult.text
+      }
+    }
+
+    // Translate long description
+    if (editLocalizationData.longDescription) {
+      const descResult = await api.translateText(editLocalizationData.longDescription, sourceLanguage, targetLanguage)
+      if (descResult.success) {
+        editLocalizationData.longDescription = descResult.text
+      }
+    }
+
+    // Translate keywords
+    if (editLocalizationData.keywords) {
+      const keywordsResult = await api.translateText(editLocalizationData.keywords, sourceLanguage, targetLanguage)
+      if (keywordsResult.success) {
+        editLocalizationData.keywords = keywordsResult.text
+      }
+    }
+
+    // Translate promotional text
+    if (editLocalizationData.promotionalText) {
+      const promoResult = await api.translateText(editLocalizationData.promotionalText, sourceLanguage, targetLanguage)
+      if (promoResult.success) {
+        editLocalizationData.promotionalText = promoResult.text
+      }
+    }
+
+    // Translate release notes
+    if (editLocalizationData.releaseNotes) {
+      const notesResult = await api.translateText(editLocalizationData.releaseNotes, sourceLanguage, targetLanguage)
+      if (notesResult.success) {
+        editLocalizationData.releaseNotes = notesResult.text
+      }
+    }
+
+    alert('Translation completed successfully!')
+  } catch (error) {
+    console.error('Translation failed:', error)
+    alert('Translation failed. Please try again.')
+  } finally {
+    translating.value = false
+  }
+}
+
 function editLocalization(localization: AppLocalization) {
   // Populate edit form with existing data
   editLocalizationData.id = localization.id
@@ -896,41 +843,47 @@ async function handleLanguageSelect() {
     return
   }
 
-  // Prepare new localization form
+  // Get en-US localization data for default values
+  const enUsLocalization = localizations.value.find(loc => loc.languageCode === 'en-US' || loc.languageCode === 'en')
+
+  // Prepare new localization form with en-US data
   editLocalizationData.id = 0
   editLocalizationData.languageCode = selectedLanguageToAdd.value
-  editLocalizationData.name = ''
-  editLocalizationData.subtitle = ''
-  editLocalizationData.privacyUrl = ''
-  editLocalizationData.marketingUrl = ''
-  editLocalizationData.supportUrl = ''
-  editLocalizationData.shortDescription = ''
-  editLocalizationData.longDescription = ''
-  editLocalizationData.keywords = ''
-  editLocalizationData.releaseNotes = ''
-  editLocalizationData.promotionalText = ''
+  editLocalizationData.name = enUsLocalization?.name || ''
+  editLocalizationData.subtitle = enUsLocalization?.subtitle || ''
+  editLocalizationData.privacyUrl = enUsLocalization?.privacyUrl || ''
+  editLocalizationData.marketingUrl = enUsLocalization?.marketingUrl || ''
+  editLocalizationData.supportUrl = enUsLocalization?.supportUrl || ''
+  editLocalizationData.shortDescription = enUsLocalization?.shortDescription || ''
+  editLocalizationData.longDescription = enUsLocalization?.longDescription || enUsLocalization?.description || ''
+  editLocalizationData.keywords = enUsLocalization?.keywords || ''
+  editLocalizationData.releaseNotes = enUsLocalization?.releaseNotes || ''
+  editLocalizationData.promotionalText = enUsLocalization?.promotionalText || ''
 
   clearValidationErrors()
   isNewLocalization.value = true
-  
+
   // Add temporary entry to list
   const tempId = -Date.now()
   const tempLocalization: AppLocalization = {
     id: tempId,
+    appId: appId.value,
     languageCode: selectedLanguageToAdd.value,
-    name: '',
-    subtitle: '',
-    description: '',
-    shortDescription: '',
-    longDescription: '',
-    keywords: '',
-    privacyUrl: '',
-    marketingUrl: '',
-    supportUrl: '',
-    promotionalText: '',
-    releaseNotes: '',
+    name: editLocalizationData.name,
+    subtitle: editLocalizationData.subtitle,
+    description: editLocalizationData.longDescription,
+    shortDescription: editLocalizationData.shortDescription,
+    longDescription: editLocalizationData.longDescription,
+    keywords: editLocalizationData.keywords,
+    privacyUrl: editLocalizationData.privacyUrl,
+    marketingUrl: editLocalizationData.marketingUrl,
+    supportUrl: editLocalizationData.supportUrl,
+    promotionalText: editLocalizationData.promotionalText,
+    releaseNotes: editLocalizationData.releaseNotes,
     syncStatus: 'pending',
     version: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     versionState: '',
     syncedAt: '',
     source: 'local'
@@ -943,20 +896,6 @@ async function handleLanguageSelect() {
 watch(appId, () => {
   fetchLocalizations()
 })
-
-async function fetchLanguages() {
-  loadingLanguages.value = true
-  try {
-    const response = await api.getSupportedLanguages()
-    if (response.success) {
-      availableLanguages.value = response.languages
-    }
-  } catch (error) {
-    console.error('Failed to fetch languages:', error)
-  } finally {
-    loadingLanguages.value = false
-  }
-}
 
 onMounted(() => {
   fetchApp()

@@ -25,7 +25,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/spf13/viper"
+	"path/filepath"
 	"github.com/google/uuid"
 )
 
@@ -59,6 +62,15 @@ type UILocalization struct {
 }
 
 // TranslateRequest describes the batch translate payload from the UI.
+
+// TranslateTextRequest describes the request for translating a single text
+type TranslateTextRequest struct {
+	Text           string `json:"text"`
+	SourceLanguage string `json:"sourceLanguage"`
+	TargetLanguage string `json:"targetLanguage"`
+}
+
+
 type TranslateRequest struct {
 	Provider        string         `json:"provider"`
 	TargetLanguages []string       `json:"targetLanguages"`
@@ -88,8 +100,16 @@ type ServerState struct {
 	fileName        string
 	xcstrings       *model.XCStrings
 	targetLanguages []string
+	llamaTranslator *translator.LlamaTranslator
 	job             *Job
 }
+
+// Global Llama translator instance for Hunyuan model
+var (
+	globalLlamaTranslator *translator.LlamaTranslator
+	llamaInitialized      bool
+	llamaInitMu           sync.Mutex
+)
 
 // Job tracks long-running translation progress.
 type Job struct {
@@ -132,6 +152,12 @@ func NewAppWithDB(db *database.Database) (*fiber.App, error) {
 
 	state := &ServerState{}
 
+	// Initialize Llama translator for Hunyuan model
+	if err := initLlamaTranslator(state); err != nil {
+		log.Warnf("Failed to initialize Llama translator: %v", err)
+	}
+
+
 	app := fiber.New()
 
 	// Use middleware to inject database into context
@@ -163,6 +189,7 @@ func NewAppWithDB(db *database.Database) (*fiber.App, error) {
 	adminOnly := protected.Group("/admin")
 	adminOnly.Use(AdminOnly)
 	protected.Get("/languages", handleGetSupportedLanguages)
+	protected.Post("/translate/text", handleTranslateText)
 
 	// Example admin route to verify wiring (extend as needed)
 	adminOnly.Get("/health", func(c *fiber.Ctx) error {
@@ -264,6 +291,12 @@ func NewApp() (*fiber.App, error) {
 
 	state := &ServerState{}
 
+	// Initialize Llama translator for Hunyuan model
+	if err := initLlamaTranslator(state); err != nil {
+		log.Warnf("Failed to initialize Llama translator: %v", err)
+	}
+
+
 	app := fiber.New()
 	app.Use(logger.New())
 	app.Use(cors.New())
@@ -286,6 +319,7 @@ func NewApp() (*fiber.App, error) {
 	protected := api.Group("/protected")
 	protected.Use(AuthMiddleware)
 	protected.Get("/languages", handleGetSupportedLanguages)
+	protected.Post("/translate/text", handleTranslateText)
 	protected.Get("/projects", handleGetProjects)
 	protected.Post("/projects", handleCreateProject)
 	protected.Get("/projects/:id", handleGetProject)
@@ -493,7 +527,8 @@ func (s *ServerState) handleTranslate(c *fiber.Ctx) error {
 
 // handleGetSupportedLanguages returns the supported language codes with metadata
 func handleGetSupportedLanguages(c *fiber.Ctx) error {
-	languages := services.GetSupportedLanguagesList()
+	// Return Apple Connect supported languages (37 languages)
+	languages := services.GetAppleConnectLanguages()
 	return c.JSON(fiber.Map{
 		"success":   true,
 		"languages": languages,
@@ -3406,4 +3441,124 @@ func handleTestAppleConnectCredentials(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Connection successful",
 	})
+}
+
+
+// handleTranslateText translates a single text using the configured Llama model
+func handleTranslateText(c *fiber.Ctx) error {
+	var req TranslateTextRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.JSON(fiber.Map{"success": false, "error": "invalid request body"})
+	}
+
+	if req.Text == "" {
+		return c.JSON(fiber.Map{"success": false, "error": "text is required"})
+	}
+
+	if req.TargetLanguage == "" {
+		return c.JSON(fiber.Map{"success": false, "error": "targetLanguage is required"})
+	}
+
+	// Create a translation request
+	translationReq := model.TranslationRequest{
+		Key:            "localization",
+		Text:           req.Text,
+		SourceLanguage: req.SourceLanguage,
+		TargetLanguage: req.TargetLanguage,
+	}
+
+	// Use global Llama translator
+	if globalLlamaTranslator == nil {
+		return c.JSON(fiber.Map{"success": false, "error": "translation service not available - please ensure the Hunyuan model is properly configured"})
+	}
+
+	// Translate the text directly using Llama translator
+	response, err := globalLlamaTranslator.Translate(c.Context(), translationReq)
+	if err != nil {
+		return c.JSON(fiber.Map{"success": false, "error": fmt.Sprintf("translation failed: %v", err)})
+	}
+
+	if response.Error != nil {
+		return c.JSON(fiber.Map{"success": false, "error": fmt.Sprintf("translation failed: %v", response.Error)})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"text":    response.TranslatedText,
+	})
+}
+
+
+
+// initLlamaTranslator initializes the Llama translator for Hunyuan model
+func initLlamaTranslator(state *ServerState) error {
+	llamaInitMu.Lock()
+	defer llamaInitMu.Unlock()
+
+	// Check if already initialized
+	if llamaInitialized {
+		return nil
+	}
+
+	// Load config.yaml if not already loaded
+	if !viper.IsSet("llama.lib_path") {
+		viper.SetConfigName("config")
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("./backend")
+		if err := viper.ReadInConfig(); err != nil {
+			return fmt.Errorf("failed to read config.yaml: %v", err)
+		}
+	}
+
+	// Get the directory containing libllama.so
+	libPath := viper.GetString("llama.lib_path")
+	libDir := filepath.Dir(libPath)
+
+	// Set LD_LIBRARY_PATH to help find libggml.so
+	if oldPath := os.Getenv("LD_LIBRARY_PATH"); oldPath != "" {
+		os.Setenv("LD_LIBRARY_PATH", libDir+":"+oldPath)
+	} else {
+		os.Setenv("LD_LIBRARY_PATH", libDir)
+	}
+
+	// Use default llama config for Hunyuan model
+	options := translator.LlamaOptions{
+		ModelPath:        viper.GetString("llama.model_path"),
+		Threads:          viper.GetInt("llama.threads"),
+		Seed:             viper.GetInt("llama.seed"),
+		Tokens:           viper.GetInt("llama.tokens"),
+		TopK:             viper.GetInt("llama.top_k"),
+		Tfs:              viper.GetFloat64("llama.tfs"),
+		TopP:             viper.GetFloat64("llama.top_p"),
+		MinP:             viper.GetFloat64("llama.min_p"),
+		TypicalP:         viper.GetFloat64("llama.typical_p"),
+		RepeatLastN:      viper.GetInt("llama.repeat_last_n"),
+		RepeatPenalty:    viper.GetFloat64("llama.repeat_penalty"),
+		FrequencyPenalty: viper.GetFloat64("llama.frequency_penalty"),
+		PresencePenalty:  viper.GetFloat64("llama.presence_penalty"),
+		Temperature:      viper.GetFloat64("llama.temperature"),
+		Verbose:          viper.GetBool("llama.verbose"),
+	}
+
+	// Check if model file exists
+	if _, err := os.Stat(options.ModelPath); os.IsNotExist(err) {
+		return fmt.Errorf("model file not found: %s", options.ModelPath)
+	}
+
+	// Initialize llama library
+	if err := translator.InitLlamaLibrary(libPath); err != nil {
+		return fmt.Errorf("failed to initialize llama library: %v", err)
+	}
+
+	// Create llama translator
+	llamaTrans, err := translator.NewLlamaTranslator(options)
+	if err != nil {
+		return fmt.Errorf("failed to create llama translator: %v", err)
+	}
+
+	globalLlamaTranslator = llamaTrans
+	state.llamaTranslator = llamaTrans
+	llamaInitialized = true
+	fmt.Printf("Llama translator initialized successfully with Hunyuan model from %s\n", options.ModelPath)
+	return nil
 }

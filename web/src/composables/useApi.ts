@@ -36,7 +36,9 @@ export interface AppLocalization {
   marketingUrl?: string;
   supportUrl?: string;
   downloadDescription?: string;
-  description?: string; // Combined from short and long description
+  description?: string;
+  shortDescription?: string;
+  longDescription?: string;
   keywords?: string;
   releaseNotes?: string;
   promotionalText?: string;
@@ -563,6 +565,17 @@ class ApiClient {
   // Language methods
   async getSupportedLanguages(): Promise<LanguagesResponse> {
     return this.request<LanguagesResponse>('/protected/languages');
+  }
+
+  async translateText(text: string, sourceLanguage: string, targetLanguage: string): Promise<any> {
+    return this.request('/protected/translate/text', {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        sourceLanguage,
+        targetLanguage
+      }),
+    });
   }
 
   // Activity methods
