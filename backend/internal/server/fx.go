@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fdddf/xcstrings-translator/internal/config"
+	"github.com/fdddf/xcstrings-translator/internal/controllers"
 	"github.com/fdddf/xcstrings-translator/internal/database"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
@@ -27,14 +28,14 @@ type ServerParams struct {
 
 // ServerStateWithDB extends ServerState to include database dependency
 type ServerStateWithDB struct {
-	*ServerState
+	*controllers.ServerState
 	DB *database.Database
 }
 
 // NewServerStateWithDB creates a new server state with database
 func NewServerStateWithDB(db *database.Database) *ServerStateWithDB {
 	return &ServerStateWithDB{
-		ServerState: &ServerState{},
+		ServerState: &controllers.ServerState{},
 		DB:          db,
 	}
 }
