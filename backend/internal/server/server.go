@@ -29,6 +29,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// Helper function to get keys from a map
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // Payload represents the data returned to the UI.
 type Payload struct {
 	FileName           string           `json:"fileName"`
@@ -2508,6 +2518,11 @@ func handleSyncAppleApps(c *fiber.Ctx) error {
 	if config.ProviderType != "appleconnect" {
 		return fiber.NewError(fiber.StatusBadRequest, "Provider configuration is not Apple Connect")
 	}
+	
+	// Debug: Log the config data
+	fmt.Printf("[SyncAppleApps] ConfigData keys: %v\n", getMapKeys(config.ConfigData))
+	fmt.Printf("[SyncAppleApps] ConfigData: %+v\n", config.ConfigData)
+	
 	_, ok = config.ConfigData["issuerID"].(string)
 	if !ok {
 		return fiber.NewError(fiber.StatusBadRequest, "issuerID is missing from configuration")
@@ -2531,8 +2546,8 @@ func handleSyncAppleApps(c *fiber.Ctx) error {
 	}).SyncApps(userID,
 		config.ConfigData["issuerID"].(string),
 		config.ConfigData["keyID"].(string),
-		fmt.Sprintf("%v", config.ConfigData["privateKeyPath"]),
-		fmt.Sprintf("%v", config.ConfigData["privateKey"]),
+		"", // Use empty string for privateKeyPath since we provide privateKey directly
+		config.ConfigData["privateKey"].(string),
 	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -2628,8 +2643,8 @@ func handleSyncAppleAppLocalizations(c *fiber.Ctx) error {
 		services.ConflictResolutionStrategy(req.Strategy),
 		config.ConfigData["issuerID"].(string),
 		config.ConfigData["keyID"].(string),
-		fmt.Sprintf("%v", config.ConfigData["privateKeyPath"]),
-		fmt.Sprintf("%v", config.ConfigData["privateKey"]),
+		"", // Use empty string for privateKeyPath since we provide privateKey directly
+		config.ConfigData["privateKey"].(string),
 	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())

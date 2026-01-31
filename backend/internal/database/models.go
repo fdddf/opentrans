@@ -9,52 +9,52 @@ import (
 // User represents a user in the system
 type User struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
 	Username       string `gorm:"uniqueIndex;not null" json:"username"`
 	Email          string `gorm:"uniqueIndex;not null" json:"email"`
 	Password       string `gorm:"not null" json:"password"` // hashed password
-	IsActive       bool   `gorm:"default:true" json:"is_active"`
-	IsActivated    bool   `gorm:"default:false" json:"is_activated"`
-	ActivationCode string `json:"activation_code,omitempty"`
+	IsActive       bool   `gorm:"default:true" json:"isActive"`
+	IsActivated    bool   `gorm:"default:false" json:"isActivated"`
+	ActivationCode string `json:"activationCode,omitempty"`
 
 	// Role and subscription fields
 	Role string `gorm:"type:varchar(20);default:'user'" json:"role"` // admin, user
 
-	IsSubscribed     bool       `json:"is_subscribed"`
-	SubscriptionType string     `json:"subscription_type"` // free, basic, premium
-	SubscriptionEnd  *time.Time `json:"subscription_end,omitempty"`
+	IsSubscribed     bool       `json:"isSubscribed"`
+	SubscriptionType string     `json:"subscriptionType"` // free, basic, premium
+	SubscriptionEnd  *time.Time `json:"subscriptionEnd,omitempty"`
 
 	// Usage limits based on subscription
-	MaxApps         int `json:"max_apps"`          // Max number of apps allowed
-	MaxTranslations int `json:"max_translations"`  // Max number of translations per month
-	CurrentUsage    int `json:"current_usage"`     // Current monthly usage
-	CurrentAppCount int `json:"current_app_count"` // Current number of apps
+	MaxApps         int `json:"maxApps"`          // Max number of apps allowed
+	MaxTranslations int `json:"maxTranslations"`  // Max number of translations per month
+	CurrentUsage    int `json:"currentUsage"`     // Current monthly usage
+	CurrentAppCount int `json:"currentAppCount"` // Current number of apps
 }
 
 // Project represents an xcstrings project
 type Project struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
 	Name        string `gorm:"not null" json:"name"`
 	Description string `json:"description"`
-	UserID      uint   `gorm:"not null" json:"user_id"` // Foreign key to User
+	UserID      uint   `gorm:"not null" json:"userId"` // Foreign key to User
 	User        User   `json:"user"`
 
 	// Store the original xcstrings file content
-	FileContent string `gorm:"type:text" json:"file_content"`
-	FileName    string `json:"file_name"`
+	FileContent string `gorm:"type:text" json:"fileContent"`
+	FileName    string `json:"fileName"`
 
 	// Source language for this project
-	SourceLanguage string `json:"source_language"`
+	SourceLanguage string `json:"sourceLanguage"`
 
 	// JSON field to store the parsed content structure
-	ContentStructure map[string]interface{} `gorm:"type:jsonb" json:"content_structure"`
+	ContentStructure map[string]interface{} `gorm:"type:jsonb" json:"contentStructure"`
 
 	// Store project settings
 	Settings map[string]interface{} `gorm:"type:jsonb" json:"settings"`
@@ -63,93 +63,93 @@ type Project struct {
 // Translation represents a translated string
 type Translation struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
 	// Foreign key to Project
-	ProjectID uint    `gorm:"not null" json:"project_id"`
+	ProjectID uint    `gorm:"not null" json:"projectId"`
 	Project   Project `json:"project"`
 
 	// The original key in the xcstrings file
 	Key string `gorm:"not null" json:"key"`
 
 	// The source text
-	SourceText string `gorm:"not null" json:"source_text"`
+	SourceText string `gorm:"not null" json:"sourceText"`
 
 	// The translated text
-	TargetText string `json:"target_text"`
+	TargetText string `json:"targetText"`
 
 	// Target language code (e.g., "zh-Hans", "ja", etc.)
-	TargetLanguage string `gorm:"not null" json:"target_language"`
+	TargetLanguage string `gorm:"not null" json:"targetLanguage"`
 
 	// State of the translation (e.g., "translated", "needs_review", etc.)
 	State string `json:"state"`
 
 	// Optional: translation provider used
-	TranslationProvider string `json:"translation_provider"`
+	TranslationProvider string `json:"translationProvider"`
 }
 
 // UserActivity represents user activity logs
 type UserActivity struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
-	UserID    uint   `gorm:"not null" json:"user_id"` // Foreign key to User
+	UserID    uint   `gorm:"not null" json:"userId"` // Foreign key to User
 	User      User   `json:"user"`
 	Action    string `gorm:"not null" json:"action"`
 	Details   string `json:"details"`
-	IPAddress string `json:"ip_address"`
-	UserAgent string `json:"user_agent"`
+	IPAddress string `json:"ipAddress"`
+	UserAgent string `json:"userAgent"`
 }
 
 // ProviderConfig represents user-specific translation provider configurations
 type ProviderConfig struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
-	UserID uint `gorm:"not null" json:"user_id"` // Foreign key to User
+	UserID uint `gorm:"not null" json:"userId"` // Foreign key to User
 	User   User `json:"user"`
 
 	// Provider type (e.g., "google", "deepl", "baidu", "openai")
-	ProviderType string `gorm:"not null" json:"provider_type"`
+	ProviderType string `gorm:"not null" json:"providerType"`
 
 	// Configuration settings (stored as JSON for flexibility)
-	ConfigData map[string]interface{} `gorm:"serializer:json" json:"config_data"`
+	ConfigData map[string]interface{} `gorm:"serializer:json" json:"configData"`
 
 	// Whether this configuration is the default one
-	IsDefault bool `json:"is_default"`
+	IsDefault bool `json:"isDefault"`
 }
 
 // App represents an iOS application in the system
 type App struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
 	Name        string `gorm:"not null" json:"name"`
 	Description string `json:"description"`
-	UserID      uint   `gorm:"not null" json:"user_id"` // Foreign key to User
+	UserID      uint   `gorm:"not null" json:"userId"` // Foreign key to User
 	User        User   `json:"user"`
 
-	BundleID          string `gorm:"not null;uniqueIndex" json:"bundle_id"`           // App's bundle identifier
-	AppleID           string `json:"apple_id"`                                        // App's Apple ID
-	PrimaryLocale     string `json:"primary_locale"`                                  // Primary language of the app
-	AppleConnectToken string `json:"apple_connect_token"`                             // Token for connecting to App Store Connect
+	BundleID          string `gorm:"not null;uniqueIndex" json:"bundleId"`           // App's bundle identifier
+	AppleID           string `json:"appleId"`                                        // App's Apple ID
+	PrimaryLocale     string `json:"primaryLocale"`                                  // Primary language of the app
+	AppleConnectToken string `json:"appleConnectToken"`                             // Token for connecting to App Store Connect
 	Origin            string `gorm:"type:varchar(20);default:'manual'" json:"origin"` // manual, synced
 
 	// App metadata
-	ShortDescription string `json:"short_description"`
-	LongDescription  string `json:"long_description"`
+	ShortDescription string `json:"shortDescription"`
+	LongDescription  string `json:"longDescription"`
 	Keywords         string `json:"keywords"` // Comma-separated keywords
-	SupportURL       string `json:"support_url"`
-	MarketingURL     string `json:"marketing_url"`
-	PrivacyURL       string `json:"privacy_url"`
+	SupportURL       string `json:"supportUrl"`
+	MarketingURL     string `json:"marketingUrl"`
+	PrivacyURL       string `json:"privacyUrl"`
 
 	// App Store status
 	Version          string `json:"version"`
@@ -160,33 +160,33 @@ type App struct {
 // AppLocalization represents localization data for an app in App Store Connect
 type AppLocalization struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
-	AppID uint `gorm:"not null" json:"app_id"` // Foreign key to App
+	AppID uint `gorm:"not null" json:"appId"` // Foreign key to App
 	App   App  `json:"app"`
 
-	LanguageCode string `gorm:"not null" json:"language_code"` // Language code (e.g., "en-US", "zh-Hans")
+	LanguageCode string `gorm:"not null" json:"languageCode"` // Language code (e.g., "en-US", "zh-Hans")
 
 	// App Store Connect localization fields
 	Name                string `json:"name"`                 // App name in this language
 	Subtitle            string `json:"subtitle"`             // App subtitle in this language
-	PrivacyURL          string `json:"privacy_url"`          // Privacy URL in this language
-	MarketingURL        string `json:"marketing_url"`        // Marketing URL in this language
-	SupportURL          string `json:"support_url"`          // Support URL in this language
-	DownloadDescription string `json:"download_description"` // Download description in this language
-	ShortDescription    string `json:"short_description"`    // Short description in this language
-	LongDescription     string `json:"long_description"`     // Long description in this language
+	PrivacyURL          string `json:"privacyUrl"`          // Privacy URL in this language
+	MarketingURL        string `json:"marketingUrl"`        // Marketing URL in this language
+	SupportURL          string `json:"supportUrl"`          // Support URL in this language
+	DownloadDescription string `json:"downloadDescription"` // Download description in this language
+	ShortDescription    string `json:"shortDescription"`    // Short description in this language
+	LongDescription     string `json:"longDescription"`     // Long description in this language
 	Keywords            string `json:"keywords"`             // Keywords in this language (comma-separated)
-	ReleaseNotes        string `json:"release_notes"`        // Release notes in this language
-	PromotionalText     string `json:"promotional_text"`     // Promotional text in this language
-	WhatToTest          string `json:"what_to_test"`         // What to test notes for beta testing
+	ReleaseNotes        string `json:"releaseNotes"`        // Release notes in this language
+	PromotionalText     string `json:"promotionalText"`     // Promotional text in this language
+	WhatToTest          string `json:"whatToTest"`         // What to test notes for beta testing
 
 	// Sync metadata
-	SyncedAt   *time.Time `json:"synced_at"`
+	SyncedAt   *time.Time `json:"syncedAt"`
 	Source     string     `gorm:"type:varchar(20);default:'local'" json:"source"`
-	SyncStatus string     `gorm:"type:varchar(20);default:'pending'" json:"sync_status"`
+	SyncStatus string     `gorm:"type:varchar(20);default:'pending'" json:"syncStatus"`
 
 	// Additional metadata that might be useful
 	Locale string `json:"locale"` // Locale identifier
@@ -195,22 +195,22 @@ type AppLocalization struct {
 // Subscription represents user subscription information
 type Subscription struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
-	UserID uint `gorm:"not null" json:"user_id"` // Foreign key to User
+	UserID uint `gorm:"not null" json:"userId"` // Foreign key to User
 	User   User `json:"user"`
 
 	// Subscription details
-	StripeSubscriptionID string     `json:"stripe_subscription_id"` // Stripe subscription ID
-	StripeCustomerID     string     `json:"stripe_customer_id"`     // Stripe customer ID
-	SubscriptionType     string     `json:"subscription_type"`      // free, basic, premium
-	SubscriptionStatus   string     `json:"subscription_status"`    // active, canceled, past_due, unpaid
-	CurrentPeriodStart   time.Time  `json:"current_period_start"`   // Current billing period start
-	CurrentPeriodEnd     time.Time  `json:"current_period_end"`     // Current billing period end
-	TrialEnd             *time.Time `json:"trial_end,omitempty"`    // When trial period ends (if any)
-	CancelAtPeriodEnd    bool       `json:"cancel_at_period_end"`   // Whether to cancel at period end
+	StripeSubscriptionID string     `json:"stripeSubscriptionId"` // Stripe subscription ID
+	StripeCustomerID     string     `json:"stripeCustomerId"`     // Stripe customer ID
+	SubscriptionType     string     `json:"subscriptionType"`      // free, basic, premium
+	SubscriptionStatus   string     `json:"subscriptionStatus"`    // active, canceled, past_due, unpaid
+	CurrentPeriodStart   time.Time  `json:"currentPeriodStart"`   // Current billing period start
+	CurrentPeriodEnd     time.Time  `json:"currentPeriodEnd"`     // Current billing period end
+	TrialEnd             *time.Time `json:"trialEnd,omitempty"`    // When trial period ends (if any)
+	CancelAtPeriodEnd    bool       `json:"cancelAtPeriodEnd"`   // Whether to cancel at period end
 }
 
 // AppUser represents the many-to-many relationship between users and apps for collaboration
@@ -220,8 +220,8 @@ type AppUser struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
-	AppID  uint `gorm:"not null" json:"app_id"`
-	UserID uint `gorm:"not null" json:"user_id"`
+	AppID  uint `gorm:"not null" json:"appId"`
+	UserID uint `gorm:"not null" json:"userId"`
 
 	// Role in the app: owner, admin, editor, viewer
 	Role string `gorm:"default:'viewer'" json:"role"`
@@ -233,29 +233,29 @@ type AppUser struct {
 // AppProviderConfig represents the binding between an app and a provider configuration
 type AppProviderConfig struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
-	AppID            uint           `gorm:"not null" json:"app_id"`
-	ProviderConfigID uint           `gorm:"not null" json:"provider_config_id"`
-	ProviderType     string         `gorm:"not null" json:"provider_type"`
-	IsDefault        bool           `json:"is_default"`
+	AppID            uint           `gorm:"not null" json:"appId"`
+	ProviderConfigID uint           `gorm:"not null" json:"providerConfigId"`
+	ProviderType     string         `gorm:"not null" json:"providerType"`
+	IsDefault        bool           `json:"isDefault"`
 	App              App            `json:"app"`
-	ProviderConfig   ProviderConfig `json:"provider_config"`
+	ProviderConfig   ProviderConfig `json:"providerConfig"`
 }
 
 // TranslationQueue represents items in the translation queue for batch processing
 type TranslationQueue struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 
 	// Foreign keys
-	UserID    uint  `gorm:"not null" json:"user_id"` // User who submitted the job
-	ProjectID *uint `json:"project_id,omitempty"`    // Optional: if related to a project
-	AppID     *uint `json:"app_id,omitempty"`        // Optional: if related to an app
+	UserID    uint  `gorm:"not null" json:"userId"` // User who submitted the job
+	ProjectID *uint `json:"projectId,omitempty"`    // Optional: if related to a project
+	AppID     *uint `json:"appId,omitempty"`        // Optional: if related to an app
 
 	// Queue job details
 	Type     string `gorm:"not null" json:"type"`      // "xcstrings", "app_localization"
@@ -267,25 +267,25 @@ type TranslationQueue struct {
 	Error    string `json:"error,omitempty"`           // Error message if failed
 
 	// Configuration
-	ProviderType    string                 `gorm:"serializer:json" json:"provider_type"`    // "google", "deepl", etc.
-	SourceLanguage  string                 `gorm:"serializer:json" json:"source_language"`  // Source language code
-	TargetLanguages []string               `gorm:"serializer:json" json:"target_languages"` // Target language codes
-	ConfigData      map[string]interface{} `gorm:"serializer:json" json:"config_data"`      // Provider-specific config
+	ProviderType    string                 `gorm:"serializer:json" json:"providerType"`    // "google", "deepl", etc.
+	SourceLanguage  string                 `gorm:"serializer:json" json:"sourceLanguage"`  // Source language code
+	TargetLanguages []string               `gorm:"serializer:json" json:"targetLanguages"` // Target language codes
+	ConfigData      map[string]interface{} `gorm:"serializer:json" json:"configData"`      // Provider-specific config
 
 	// Result data
-	ResultData map[string]interface{} `gorm:"type:jsonb" json:"result_data"` // Result of translation job
+	ResultData map[string]interface{} `gorm:"type:jsonb" json:"resultData"` // Result of translation job
 }
 
 // SyncHistory represents synchronization history for app localizations
 type SyncHistory struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
-	UserID    uint `gorm:"not null" json:"user_id"` // User who initiated the sync
-	AppID     uint `gorm:"not null" json:"app_id"`  // App being synced
-	ConfigID  uint `gorm:"not null" json:"config_id"` // Provider config used
+	UserID    uint `gorm:"not null" json:"userId"` // User who initiated the sync
+	AppID     uint `gorm:"not null" json:"appId"`  // App being synced
+	ConfigID  uint `gorm:"not null" json:"configId"` // Provider config used
 
 	// Sync details
 	Direction     string `gorm:"type:varchar(20);not null" json:"direction"`     // "pull", "push", "both"
@@ -293,20 +293,20 @@ type SyncHistory struct {
 	Status        string `gorm:"type:varchar(20);not null" json:"status"`        // "pending", "running", "completed", "failed"
 
 	// Sync results
-	TotalSynced   int `gorm:"default:0" json:"total_synced"`   // Total number of localizations synced
-	TotalFailed   int `gorm:"default:0" json:"total_failed"`   // Total number of localizations that failed
-	TotalConflicts int `gorm:"default:0" json:"total_conflicts"` // Total number of conflicts detected
+	TotalSynced   int `gorm:"default:0" json:"totalSynced"`   // Total number of localizations synced
+	TotalFailed   int `gorm:"default:0" json:"totalFailed"`   // Total number of localizations that failed
+	TotalConflicts int `gorm:"default:0" json:"totalConflicts"` // Total number of conflicts detected
 
 	// Language codes synced
-	LanguageCodes []string `gorm:"serializer:json" json:"language_codes"` // Specific languages synced
+	LanguageCodes []string `gorm:"serializer:json" json:"languageCodes"` // Specific languages synced
 
 	// Error details
 	Error string `gorm:"type:text" json:"error,omitempty"` // Error message if failed
 
 	// Snapshot data (for rollback capability)
-	SnapshotData map[string]interface{} `gorm:"type:jsonb" json:"snapshot_data,omitempty"` // Before/after snapshot
+	SnapshotData map[string]interface{} `gorm:"type:jsonb" json:"snapshotData,omitempty"` // Before/after snapshot
 
 	// Metadata
-	IPAddress string `gorm:"type:varchar(45)" json:"ip_address,omitempty"` // IP address of the requester
-	UserAgent string `gorm:"type:text" json:"user_agent,omitempty"`        // User agent string
+	IPAddress string `gorm:"type:varchar(45)" json:"ipAddress,omitempty"` // IP address of the requester
+	UserAgent string `gorm:"type:text" json:"userAgent,omitempty"`        // User agent string
 }

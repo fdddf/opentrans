@@ -139,11 +139,11 @@
             <h3 class="font-semibold">{{ app.name }}</h3>
             <p class="text-xs text-slate-500">{{ app.platform || 'iOS' }}</p>
           </div>
-          <span class="rounded-full bg-emerald-900/40 px-3 py-1 text-xs text-emerald-200" v-if="app.synced">{{ t('apps.synced') }}</span>
+          <span class="rounded-full bg-emerald-900/40 px-3 py-1 text-xs text-emerald-200" v-if="app.origin === 'synced'">{{ t('apps.synced') }}</span>
           <span class="rounded-full bg-amber-900/40 px-3 py-1 text-xs text-amber-200" v-else>{{ t('apps.manual') }}</span>
         </div>
         <p class="mt-2 text-sm text-slate-400">{{ t('apps.bundleId') }}: {{ app.bundleId }}</p>
-        <p class="text-sm text-slate-400">{{ t('apps.primaryLocale') }}: {{ app.sourceLanguage }}</p>
+        <p class="text-sm text-slate-400">{{ t('apps.primaryLocale') }}: {{ app.primaryLocale }}</p>
         
         <!-- App metadata preview -->
         <div class="mt-3 text-xs text-slate-400 space-y-1">
@@ -155,7 +155,7 @@
         <div class="mt-3 flex gap-2 text-xs">
       <RouterLink :to="`/apps/${app.id}`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.manage') }}</RouterLink>
       <RouterLink :to="`/apps/${app.id}/localizations`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.localizations') }}</RouterLink>
-      <button class="rounded border border-white/20 px-2 py-1 hover:border-rose-600/60 hover:text-rose-500" @click="deleteApp(app.id)" :disabled="app.synced">{{ t('common.delete') }}</button>
+      <button v-if="app.origin === 'manual'" class="rounded border border-white/20 px-2 py-1 hover:border-rose-600/60 hover:text-rose-500" @click="deleteApp(app.id)">{{ t('common.delete') }}</button>
         </div>
       </div>
     </section>
@@ -276,6 +276,7 @@ async function createApp() {
         id: response.app.id,
         name: form.name.trim(),
         platform: form.platform,
+        origin: 'manual',
         synced: false,
         bundleId: form.bundleId.trim(),
         sourceLanguage: form.sourceLanguage || 'en',

@@ -163,5 +163,8 @@ func InitializeServices(
 	SetSubscriptionService(db)
 	SetProjectService(db, translationService, appLocalizationService)
 	SetAppService(db, appLocalizationService)
-	SetQueueService(db)
+	
+	// Set the FX-injected queue service as the global singleton
+	// This ensures GetQueueService() returns the properly initialized instance
+	SetQueueServiceInstance(queueService)
 }

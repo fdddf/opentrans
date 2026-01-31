@@ -30,16 +30,20 @@ type QueueService struct {
 }
 
 var queueServiceInstance *QueueService
-var once sync.Once
 
 // GetQueueService returns a singleton instance of QueueService
 func GetQueueService() *QueueService {
-	once.Do(func() {
+	if queueServiceInstance == nil {
 		queueServiceInstance = &QueueService{
 			queue: make(map[uint]*database.TranslationQueue),
 		}
-	})
+	}
 	return queueServiceInstance
+}
+
+// SetQueueServiceInstance sets the global QueueService instance (used by FX)
+func SetQueueServiceInstance(qs *QueueService) {
+	queueServiceInstance = qs
 }
 
 // SubmitTranslationJob submits a new translation job to the queue

@@ -59,6 +59,7 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 				"Name":          appData.Attributes.Name,
 				"AppleID":       appData.ID,
 				"PrimaryLocale": appData.Attributes.PrimaryLocale,
+				"Origin":        "synced",
 			})
 			if err != nil {
 				failedApps = append(failedApps, fmt.Sprintf("%s: %v", appData.Attributes.BundleID, err))
@@ -72,6 +73,14 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 		newApp, err := s.AppService.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
 		if err != nil {
 			failedApps = append(failedApps, fmt.Sprintf("%s: %v", appData.Attributes.BundleID, err))
+			continue
+		}
+		// Update origin to "synced" since this app came from Apple Connect
+		err = s.AppService.UpdateApp(newApp.ID, map[string]interface{}{
+			"Origin": "synced",
+		})
+		if err != nil {
+			failedApps = append(failedApps, fmt.Sprintf("%s: failed to set origin: %v", appData.Attributes.BundleID, err))
 			continue
 		}
 		syncedApps = append(syncedApps, *newApp)

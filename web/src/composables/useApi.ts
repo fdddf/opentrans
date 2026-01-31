@@ -21,6 +21,7 @@ export interface App {
   updatedAt: string;
   // Additional fields for UI
   platform?: string;
+  origin?: string; // 'manual' or 'synced'
   synced?: boolean;
   sourceLanguage?: string;
 }
