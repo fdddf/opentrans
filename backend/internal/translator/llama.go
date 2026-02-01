@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/fdddf/xcstrings-translator/internal/model"
+	hunyuanLang "github.com/fdddf/xcstrings-translator/pkg/hunyuan"
 	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/hybridgroup/yzma/pkg/llama"
@@ -145,7 +146,7 @@ func (l *LlamaTranslator) Translate(ctx context.Context, req model.TranslationRe
 	if template == "" {
 		template = "chatml"
 	}
-	buf := make([]byte, 1024)
+	buf := make([]byte, 4096)
 	len := llama.ChatApplyTemplate(template, messages, true, buf)
 	result := string(buf[:len])
 
@@ -270,39 +271,19 @@ func languageDisplayName(code string) string {
 		return code
 	}
 
-	nameByCode := map[string]string{
-		"ar":      "Arabic",
-		"cs":      "Czech",
-		"da":      "Danish",
-		"de":      "German",
-		"en":      "English",
-		"es":      "Spanish",
-		"fi":      "Finnish",
-		"fr":      "French",
-		"he":      "Hebrew",
-		"hi":      "Hindi",
-		"id":      "Indonesian",
-		"it":      "Italian",
-		"ja":      "Japanese",
-		"ko":      "Korean",
-		"nl":      "Dutch",
-		"no":      "Norwegian",
-		"pl":      "Polish",
-		"pt":      "Portuguese",
-		"ru":      "Russian",
-		"sv":      "Swedish",
-		"th":      "Thai",
-		"tr":      "Turkish",
-		"vi":      "Vietnamese",
-		"zh-hans": "Chinese (Simplified)",
-		"zh-hant": "Chinese (Traditional)",
+	// 使用 hunyuan 包的语言映射方法
+	displayName := hunyuanLang.MapAppStoreLocaleToDisplayName(code)
+
+	// 如果映射失败（返回原值），尝试使用标识符映射
+	if displayName == code {
+		if identifier := hunyuanLang.MapAppStoreLocaleToHunyuan(code); identifier != code {
+			if lang := hunyuanLang.GetLanguageByIdentifier(identifier); lang != nil {
+				return lang.DisplayName
+			}
+		}
 	}
 
-	normalized := strings.ToLower(strings.TrimSpace(code))
-	if name, ok := nameByCode[normalized]; ok {
-		return name
-	}
-	return code
+	return displayName
 }
 
 func cleanLlamaResponse(response string) string {

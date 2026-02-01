@@ -80,7 +80,7 @@ import { ref, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 
 const { t } = useI18n()
-const api = useApi()
+const { api } = useApi()
 
 const metrics = ref({
   activeUsers: 0,

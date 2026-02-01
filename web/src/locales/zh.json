@@ -1,13 +1,14 @@
 {
-  "nav": {
-    "dashboard": "总览",
-    "apps": "应用管理",
+"nav": {
+    "dashboard": "仪表板",
+    "apps": "应用",
     "applocalizations": "应用本地化",
-    "languages": "多语言库",
-    "users": "用户管理",
-    "subscriptions": "订阅管理",
+    "languages": "语言",
+    "users": "用户",
+    "subscriptions": "订阅",
     "providerConfigs": "提供商配置",
-    "appleConnectConfig": "Apple Connect 配置"
+    "appleConnectConfig": "Apple Connect 配置",
+    "profile": "个人资料"
   },
   "common": {
     "appleConnectConfig": "Apple Connect 配置",
@@ -21,6 +22,7 @@
     "logout": "退出登录",
     "dashboard": "总览",
     "save": "保存",
+    "saving": "保存中",
     "update": "更新",
     "edit": "编辑",
     "delete": "删除",
@@ -34,7 +36,8 @@
     "default": "默认",
     "deleting": "删除中...",
     "translate": "翻译",
-    "translating": "翻译中..."
+    "translating": "翻译中...",
+    "settings": "设置"
   },
   "dashboard": {
     "title": "多租户多语言运营总览",
@@ -330,5 +333,29 @@
       "step3": "为密钥输入名称并选择 App Store Connect API 角色（至少为 App Manager）",
       "step4": "点击生成，然后从页面右上角复制 Issuer ID"
     }
+  },
+  "profile": {
+    "title": "个人资料",
+    "subtitle": "管理您的个人信息和账户设置",
+    "personalInfo": "个人信息",
+    "usernameReadOnly": "用户名不可更改",
+    "changePassword": "修改密码",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "accountInfo": "账户信息",
+    "userId": "用户ID",
+    "subscriptionType": "订阅类型",
+    "createdAt": "注册时间",
+    "usage": "使用情况",
+    "appsUsed": "已用应用",
+    "translationsUsed": "已用翻译",
+    "updateProfile": "更新资料",
+    "updatePassword": "更新密码",
+    "updateSuccess": "资料更新成功",
+    "updateFailed": "资料更新失败",
+    "passwordMismatch": "两次输入的密码不一致",
+    "passwordTooShort": "密码长度至少为6个字符",
+    "passwordUpdateSuccess": "密码修改成功",
+    "passwordUpdateFailed": "密码修改失败"
   }
 }

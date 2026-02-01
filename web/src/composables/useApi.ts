@@ -291,7 +291,7 @@ class ApiClient {
   // Make an HTTP request
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -310,14 +310,26 @@ class ApiClient {
 
     if (!response.ok) {
       const errorData = await response.text();
+      let errorMessage: string;
+
       // Try to parse as JSON to extract the message
       try {
         const parsedError = JSON.parse(errorData);
-        throw new Error(parsedError.message || errorData || `HTTP error! status: ${response.status}`);
+        errorMessage = parsedError.message || errorData || `HTTP error! status: ${response.status}`;
       } catch {
         // If parsing fails, use the raw error text
-        throw new Error(errorData || `HTTP error! status: ${response.status}`);
+        errorMessage = errorData || `HTTP error! status: ${response.status}`;
       }
+
+      // Handle token expiration (401 Unauthorized)
+      if (response.status === 401 || errorMessage.toLowerCase().includes('invalid or expired token')) {
+        this.clearToken();
+        localStorage.removeItem('currentUser');
+        // Dispatch custom event for token expiration
+        window.dispatchEvent(new CustomEvent('token-expired'));
+      }
+
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -769,7 +781,7 @@ class ApiClient {
     });
   }
 
-}
+  }
 
 const apiClient = new ApiClient();
 

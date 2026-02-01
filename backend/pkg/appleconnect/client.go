@@ -59,6 +59,25 @@ type AppLocalization struct {
 	} `json:"attributes"`
 }
 
+// AppInfo represents global app information (name, subtitle)
+type AppInfo struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		Name     string `json:"name"`
+		BundleID string `json:"bundleId"`
+		Sku      string `json:"sku"`
+	} `json:"attributes"`
+	Relationships struct {
+		AppStoreVersions struct {
+			Data []struct {
+				Type string `json:"type"`
+				ID   string `json:"id"`
+			} `json:"data"`
+		} `json:"appStoreVersions"`
+	} `json:"relationships"`
+}
+
 // AppStoreVersion represents an app store version in App Store Connect
 type AppStoreVersion struct {
 	ID         string `json:"id"`
@@ -194,6 +213,14 @@ func (c *AppleConnectClient) GetApps() (*AppsResponse, error) {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	// Debug: log the first app to see what we get
+	if len(appsResponse.Data) > 0 {
+		fmt.Printf("[DEBUG] GetApps returned first app: id=%s, bundleId=%s, name='%s'\n",
+			appsResponse.Data[0].ID,
+			appsResponse.Data[0].Attributes.BundleID,
+			appsResponse.Data[0].Attributes.Name)
+	}
+
 	return &appsResponse, nil
 }
 
@@ -238,6 +265,15 @@ func (c *AppleConnectClient) GetAppLocalizations(appID string) (*AppLocalization
 	err = json.Unmarshal(body, &localizationsResponse)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Debug: log the first localization to see what we get
+	if len(localizationsResponse.Data) > 0 {
+		fmt.Printf("[DEBUG] Apple API returned first localization: locale=%s, name='%s', subtitle='%s', description='%s'\n",
+			localizationsResponse.Data[0].Attributes.Locale,
+			localizationsResponse.Data[0].Attributes.Name,
+			localizationsResponse.Data[0].Attributes.Subtitle,
+			localizationsResponse.Data[0].Attributes.Description)
 	}
 
 	return &localizationsResponse, versionString, versionState, nil
@@ -524,3 +560,4 @@ func (c *AppleConnectClient) DeleteAppLocalization(localizationID string) error 
 
 	return nil
 }
+

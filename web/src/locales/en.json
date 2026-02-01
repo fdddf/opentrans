@@ -1,5 +1,5 @@
 {
-  "nav": {
+"nav": {
     "dashboard": "Dashboard",
     "apps": "Apps",
     "applocalizations": "App Localizations",
@@ -7,7 +7,8 @@
     "users": "Users",
     "subscriptions": "Subscriptions",
     "providerConfigs": "Provider Configs",
-    "appleConnectConfig": "Apple Connect Config"
+    "appleConnectConfig": "Apple Connect Config",
+    "profile": "Profile"
   },
   "common": {
     "appleConnectConfig": "Apple Connect Configuration",
@@ -21,6 +22,7 @@
     "logout": "Logout",
     "dashboard": "Dashboard",
     "save": "Save",
+    "saving": "Saving",
     "update": "Update",
     "edit": "Edit",
     "delete": "Delete",
@@ -34,7 +36,8 @@
     "default": "Default",
     "deleting": "Deleting...",
     "translate": "Translate",
-    "translating": "Translating..."
+    "translating": "Translating...",
+    "settings": "Settings"
   },
   "dashboard": {
     "title": "Multi-tenant Multi-language Operations Dashboard",
@@ -330,5 +333,29 @@
       "step3": "Enter a name for the key and select App Store Connect API role (at least App Manager)",
       "step4": "Click Generate, then copy the Issuer ID from the top right of the page"
     }
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your personal information and account settings",
+    "personalInfo": "Personal Information",
+    "usernameReadOnly": "Username cannot be changed",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "accountInfo": "Account Information",
+    "userId": "User ID",
+    "subscriptionType": "Subscription Type",
+    "createdAt": "Member Since",
+    "usage": "Usage",
+    "appsUsed": "Apps Used",
+    "translationsUsed": "Translations Used",
+    "updateProfile": "Update Profile",
+    "updatePassword": "Update Password",
+    "updateSuccess": "Profile updated successfully",
+    "updateFailed": "Failed to update profile",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordUpdateSuccess": "Password changed successfully",
+    "passwordUpdateFailed": "Failed to change password"
   }
 }

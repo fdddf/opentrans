@@ -519,8 +519,15 @@ async function pullFromApple(localization: AppLocalization) {
     return;
   }
   
+  // Auto-select config if none is selected
+  if (!selectedConfigId.value && appleConnectConfigs.value.length > 0) {
+    const defaultConfig = appleConnectConfigs.value.find(c => c.isDefault)
+    selectedConfigId.value = defaultConfig ? defaultConfig.id : appleConnectConfigs.value[0].id
+  }
+  
   if (!selectedConfigId.value || !hasValidAppId.value) {
     alert('Please select an Apple Connect configuration first.');
+    showSyncModal.value = true
     return;
   }
   
@@ -546,8 +553,15 @@ async function pushToApple(localization: AppLocalization) {
     return;
   }
   
+  // Auto-select config if none is selected
+  if (!selectedConfigId.value && appleConnectConfigs.value.length > 0) {
+    const defaultConfig = appleConnectConfigs.value.find(c => c.isDefault)
+    selectedConfigId.value = defaultConfig ? defaultConfig.id : appleConnectConfigs.value[0].id
+  }
+  
   if (!selectedConfigId.value || !hasValidAppId.value) {
     alert('Please select an Apple Connect configuration first.');
+    showSyncModal.value = true
     return;
   }
   
@@ -574,6 +588,18 @@ async function fetchProviderConfigs() {
     const appleResponse = await api.getAppleConnectConfigs()
     if (appleResponse.success) {
       appleConnectConfigs.value = appleResponse.data || []
+      
+      // Auto-select the first config if none is selected
+      if (appleConnectConfigs.value.length > 0 && !selectedConfigId.value) {
+        // Check if there's a default config (isDefault = true)
+        const defaultConfig = appleConnectConfigs.value.find(c => c.isDefault)
+        if (defaultConfig) {
+          selectedConfigId.value = defaultConfig.id
+        } else {
+          // If no default config, select the first one
+          selectedConfigId.value = appleConnectConfigs.value[0].id
+        }
+      }
     }
   } catch (error) {
     console.error('Failed to fetch configs:', error)

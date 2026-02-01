@@ -50,9 +50,9 @@
                 <option value="en">English</option>
                 <option value="zh">中文</option>
               </select>
-              <button class="rounded-full border border-white/20 px-3 py-1 text-xs hover:border-mint/60 hover:text-mint" @click="showProfileMenu = !showProfileMenu">
-                Profile
-              </button>
+              <router-link to="/profile" class="rounded-full border border-white/20 px-3 py-1 text-xs hover:border-mint/60 hover:text-mint">
+                {{ t('nav.profile') }}
+              </router-link>
               <button class="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-midnight" @click="handleLogout">
                 {{ t('common.logout') }}
               </button>
@@ -64,9 +64,9 @@
               <p class="text-sm font-medium">{{ currentUser?.username }}</p>
               <p class="text-xs text-slate-500">{{ currentUser?.email }}</p>
             </div>
-            <button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 text-slate-300 hover:text-white">
-              {{ t('common.settings') || 'Settings' }}
-            </button>
+            <router-link to="/profile" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 text-slate-300 hover:text-white">
+              {{ t('common.settings') }}
+            </router-link>
             <button class="w-full text-left px-3 py-2 text-sm rounded hover:bg-white/5 text-rose-400 hover:text-rose-300" @click="handleLogout">
               {{ t('common.logout') }}
             </button>
@@ -174,9 +174,20 @@ function handleClickOutside(event: MouseEvent) {
 onMounted(() => {
   fetchCurrentUser()
   document.addEventListener('click', handleClickOutside)
+
+  // Listen for token expiration event
+  window.addEventListener('token-expired', handleTokenExpired)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('token-expired', handleTokenExpired)
 })
+
+function handleTokenExpired() {
+  // Clear current user
+  currentUser.value = null
+  // Redirect to login
+  router.push('/login')
+}
 </script>

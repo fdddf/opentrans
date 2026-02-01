@@ -218,6 +218,7 @@ func (s *AppLocalizationService) BulkCreateAppLocalizations(appID uint, localiza
 					"LongDescription":     localization.LongDescription,
 					"Keywords":            localization.Keywords,
 					"ReleaseNotes":        localization.ReleaseNotes,
+					"PromotionalText":     localization.PromotionalText,
 				})
 			if result.Error != nil {
 				return fmt.Errorf("failed to update localization: %v", result.Error)

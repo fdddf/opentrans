@@ -53,10 +53,40 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 	var createdApps []string
 
 	for _, appData := range appsResponse.Data {
+		fmt.Printf("[DEBUG] Apple API returned app: id=%s, bundleId=%s, name='%s', primaryLocale='%s'\n",
+			appData.ID, appData.Attributes.BundleID, appData.Attributes.Name, appData.Attributes.PrimaryLocale)
+
+		// Try to get the app name from its primary locale localization
+		appName := appData.Attributes.Name
+		if appName == "" {
+			// If name is not available in the app data, try to get it from localizations
+			localizationsResponse, _, _, err := client.GetAppLocalizations(appData.ID)
+			if err == nil && len(localizationsResponse.Data) > 0 {
+				// Try to find the primary locale localization
+				for _, loc := range localizationsResponse.Data {
+					if loc.Attributes.Locale == appData.Attributes.PrimaryLocale && loc.Attributes.Name != "" {
+						appName = loc.Attributes.Name
+						fmt.Printf("[DEBUG] Got app name from primary locale localization: '%s'\n", appName)
+						break
+					}
+				}
+				// If primary locale not found, use the first localization with a name
+				if appName == "" {
+					for _, loc := range localizationsResponse.Data {
+						if loc.Attributes.Name != "" {
+							appName = loc.Attributes.Name
+							fmt.Printf("[DEBUG] Got app name from first localization: '%s'\n", appName)
+							break
+						}
+					}
+				}
+			}
+		}
+
 		existingApp, err := s.AppService.GetAppByBundleID(appData.Attributes.BundleID)
 		if err == nil && existingApp != nil {
 			err = s.AppService.UpdateApp(existingApp.ID, map[string]interface{}{
-				"Name":          appData.Attributes.Name,
+				"Name":          appName,
 				"AppleID":       appData.ID,
 				"PrimaryLocale": appData.Attributes.PrimaryLocale,
 				"Origin":        "synced",
@@ -70,7 +100,7 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 			continue
 		}
 
-		newApp, err := s.AppService.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
+		newApp, err := s.AppService.CreateApp(userID, appName, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
 		if err != nil {
 			failedApps = append(failedApps, fmt.Sprintf("%s: %v", appData.Attributes.BundleID, err))
 			continue
@@ -117,10 +147,20 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 
 	var syncedLocalizations []database.AppLocalization
 	for _, locData := range localizationsResponse.Data {
+		fmt.Printf("[DEBUG] Apple API returned for locale %s: name='%s', subtitle='%s', description='%s'\n",
+			locData.Attributes.Locale, locData.Attributes.Name, locData.Attributes.Subtitle, locData.Attributes.Description)
+
 		existing, err := s.AppLocalizationService.GetAppLocalization(appID, locData.Attributes.Locale)
 		if err == nil && existing != nil {
 			// Prepare update data
+			// If Apple doesn't provide a name, use the app's default name
+			name := locData.Attributes.Name
+			if name == "" {
+				name = app.Name
+			}
+
 			updateData := map[string]interface{}{
+				"Name":                name,
 				"Subtitle":            locData.Attributes.Subtitle,
 				"PrivacyURL":          locData.Attributes.PrivacyURL,
 				"MarketingURL":        locData.Attributes.MarketingURL,
@@ -136,11 +176,6 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 				"SyncedAt":            time.Now(),
 				"Version":             versionString,
 				"VersionState":        versionState,
-			}
-
-			// Only update name if Apple provides a non-empty name
-			if locData.Attributes.Name != "" {
-				updateData["Name"] = locData.Attributes.Name
 			}
 
 			err = s.AppLocalizationService.UpdateAppLocalization(appID, locData.Attributes.Locale, updateData)
@@ -302,8 +337,15 @@ func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode
 		return fmt.Errorf("failed to get app version: %v", err)
 	}
 
+	// If Apple doesn't provide a name, use the app's default name
+	name := appleLocalization.Attributes.Name
+	if name == "" {
+		name = app.Name
+	}
+
 	// Prepare update data
 	updates := map[string]interface{}{
+		"Name":                name,
 		"Subtitle":            appleLocalization.Attributes.Subtitle,
 		"PrivacyURL":          appleLocalization.Attributes.PrivacyURL,
 		"MarketingURL":        appleLocalization.Attributes.MarketingURL,
@@ -319,11 +361,6 @@ func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode
 		"SyncedAt":            time.Now(),
 		"Version":             versionString,
 		"VersionState":        versionState,
-	}
-
-	// Only update name if Apple provides a non-empty name
-	if appleLocalization.Attributes.Name != "" {
-		updates["Name"] = appleLocalization.Attributes.Name
 	}
 
 	return s.AppLocalizationService.UpdateAppLocalization(appID, languageCode, updates)

@@ -10,6 +10,7 @@ import Users from '../views/Users.vue'
 import Subscriptions from '../views/Subscriptions.vue'
 import Languages from '../views/Languages.vue'
 import AppleConnectConfig from '../views/AppleConnectConfig.vue'
+import Profile from '../views/Profile.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -74,6 +75,11 @@ const routes: RouteRecordRaw[] = [
         path: 'apple-connect-config',
         name: 'AppleConnectConfig',
         component: AppleConnectConfig
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: Profile
       }
     ]
   }

@@ -65,6 +65,7 @@ func NewApp(db *database.Database) (*fiber.App, error) {
 	translationController := controllers.NewTranslationController()
 	fileController := controllers.NewFileController()
 	userActivityController := controllers.NewUserActivityController()
+	userController := controllers.NewUserController()
 
 	// Public routes (no authentication required)
 	api := app.Group("/api")
@@ -161,6 +162,12 @@ func NewApp(db *database.Database) (*fiber.App, error) {
 	protected.Get("/subscription", subscriptionController.GetUserSubscription)
 	protected.Post("/subscription/webhook", subscriptionController.SubscriptionWebhook)
 	protected.Get("/subscription/usage", subscriptionController.GetUsage)
+
+	// User management routes
+	protected.Get("/users/:id", userController.GetUser(db))
+	protected.Put("/users/:id", userController.UpdateUser(db))
+	protected.Put("/user/profile", userController.UpdateCurrentUser(db))
+	protected.Post("/change-password", userController.ChangePassword(db))
 
 	// Translation queue routes
 	protected.Post("/queue/translate", context.SubscriptionRequired, translationController.QueueTranslationJob)

@@ -140,6 +140,7 @@ type App struct {
 	BundleID          string `gorm:"not null;uniqueIndex" json:"bundleId"`           // App's bundle identifier
 	AppleID           string `json:"appleId"`                                        // App's Apple ID
 	PrimaryLocale     string `json:"primaryLocale"`                                  // Primary language of the app
+	Subtitle          string `json:"subtitle"`                                        // App subtitle (primary language)
 	AppleConnectToken string `json:"appleConnectToken"`                             // Token for connecting to App Store Connect
 	Origin            string `gorm:"type:varchar(20);default:'manual'" json:"origin"` // manual, synced
 

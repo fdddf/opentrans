@@ -53,6 +53,7 @@ const (
 	chineseTraditional AppleConnectLanguage = "zh-Hant"
 	romanian       AppleConnectLanguage = "ro"
 	finnish        AppleConnectLanguage = "fi"
+	englishUS      AppleConnectLanguage = "en-US"
 	englishCanada   AppleConnectLanguage = "en-CA"
 	englishAustralia AppleConnectLanguage = "en-AU"
 	englishUK      AppleConnectLanguage = "en-GB"
@@ -72,7 +73,7 @@ var AppleConnectLanguages = []AppleConnectLanguage{
 	danish, ukrainian, russian, croatian, catalan, hungarian, hindiNorth, indonesian,
 	turkish, hebrew, greek, german, italian, norwegian, czech, slovak, japanese,
 	french, frenchCanada, polish, thai, swedish, chineseSimplified, chineseTraditional,
-	romanian, finnish, englishCanada, englishAustralia, englishUK, dutch,
+	romanian, finnish, englishUS, englishCanada, englishAustralia, englishUK, dutch,
 	portugueseBrazil, portuguesePortugal, spanishMexico, spanishSpain, vietnamese,
 	arabic, korean, malay,
 }
@@ -138,6 +139,7 @@ var LanguageMetadataMap = map[string]LanguageMetadata{
 	"zh-Hant": {Code: "zh-Hant", Name: "Chinese (Traditional)", NativeName: "繁體中文", Region: "Asia", Direction: "ltr", Emoji: "🇹🇼"},
 	"ro":      {Code: "ro", Name: "Romanian", NativeName: "Română", Region: "Europe", Direction: "ltr", Emoji: "🇷🇴"},
 	"fi":      {Code: "fi", Name: "Finnish", NativeName: "Suomi", Region: "Europe", Direction: "ltr", Emoji: "🇫🇮"},
+	"en-US":   {Code: "en-US", Name: "English (America)", NativeName: "English (America)", Region: "Americas", Direction: "ltr", Emoji: "🇺🇸"},
 	"en-CA":   {Code: "en-CA", Name: "English (Canada)", NativeName: "English (Canada)", Region: "Americas", Direction: "ltr", Emoji: "🇨🇦"},
 	"en-AU":   {Code: "en-AU", Name: "English (Australia)", NativeName: "English (Australia)", Region: "Oceania", Direction: "ltr", Emoji: "🇦🇺"},
 	"en-GB":   {Code: "en-GB", Name: "English (United Kingdom)", NativeName: "English (United Kingdom)", Region: "Europe", Direction: "ltr", Emoji: "🇬🇧"},
