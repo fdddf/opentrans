@@ -42,8 +42,8 @@ func NewServerStateWithDB(db *database.Database) *ServerStateWithDB {
 
 // NewFiberApp creates a new Fiber application
 func NewFiberApp(p ServerParams) (*fiber.App, error) {
-	// Create the Fiber app using the existing NewApp function
-	app, err := NewApp()
+	// Create the Fiber app using the NewApp function with database
+	app, err := NewApp(p.DB)
 	if err != nil {
 		return nil, err
 	}

@@ -76,26 +76,57 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { ref, onMounted } from 'vue'
+import { useApi } from '@/composables/useApi'
 
 const { t } = useI18n()
+const api = useApi()
 
-const metrics = {
-  activeUsers: 18,
-  activeSubscriptions: 12,
-  apps: 6,
-  pendingStrings: 342
+const metrics = ref({
+  activeUsers: 0,
+  activeSubscriptions: 0,
+  apps: 0,
+  pendingStrings: 0
+})
+
+const recentActivities = ref<any[]>([])
+const languageProgress = ref([
+  { code: 'zh-CN', name: '简体中文', done: 0, total: 0 },
+  { code: 'ja', name: '日本語', done: 0, total: 0 },
+  { code: 'fr', name: 'Français', done: 0, total: 0 }
+])
+
+const formatTimeAgo = (date: string) => {
+  const now = new Date()
+  const past = new Date(date)
+  const diffMs = now.getTime() - past.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+
+  if (diffMins < 1) return '刚刚'
+  if (diffMins < 60) return `${diffMins} 分钟前`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours} 小时前`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays} 天前`
 }
 
-const recentActivities = [
-  { id: 1, scope: '用户', action: '新建管理员 alice@demo', timestamp: '5 分钟前' },
-  { id: 2, scope: '应用', action: '同步 “移动 App” 的 xcstrings', timestamp: '30 分钟前' },
-  { id: 3, scope: '翻译', action: '完成 zh-CN 目标语言 64 条', timestamp: '1 小时前' },
-  { id: 4, scope: '订阅', action: 'User A 升级到 Pro 套餐', timestamp: '1 小时前' }
-]
+const loadActivities = async () => {
+  try {
+    const response = await api.getUserActivities()
+    if (response.success) {
+      recentActivities.value = response.activities.map((activity: any) => ({
+        id: activity.id,
+        scope: activity.details || '操作',
+        action: activity.action,
+        timestamp: formatTimeAgo(activity.createdAt)
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load activities:', error)
+  }
+}
 
-const languageProgress = [
-  { code: 'zh-CN', name: '简体中文', done: 64, total: 128 },
-  { code: 'ja', name: '日本語', done: 12, total: 128 },
-  { code: 'fr', name: 'Français', done: 4, total: 128 }
-]
+onMounted(() => {
+  loadActivities()
+})
 </script>
