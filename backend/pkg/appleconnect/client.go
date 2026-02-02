@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -404,6 +405,16 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 		return nil, fmt.Errorf("failed to get app version: %w", err)
 	}
 
+	// Truncate fields to Apple's limits before sending
+	name = truncateString(name, 30)
+	subtitle = truncateString(subtitle, 30)
+	privacyURL = truncateString(privacyURL, 255)
+	marketingURL = truncateString(marketingURL, 255)
+	supportURL = truncateString(supportURL, 255)
+	shortDescription = truncateString(shortDescription, 80)
+	keywords = truncateString(keywords, 100)
+	promotionalText = truncateString(promotionalText, 170)
+
 	payload := map[string]interface{}{
 		"data": map[string]interface{}{
 			"type": "appStoreVersionLocalizations",
@@ -495,6 +506,12 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
+
+	// Truncate fields to Apple's limits before sending
+	keywords = truncateString(keywords, 100)
+	marketingURL = truncateString(marketingURL, 255)
+	supportURL = truncateString(supportURL, 255)
+	promotionalText = truncateString(promotionalText, 170)
 
 	// Build attributes map with only supported fields
 	attributes := map[string]interface{}{}
@@ -596,47 +613,21 @@ func (c *AppleConnectClient) DeleteAppLocalization(localizationID string) error 
 	return nil
 }
 
-// UpdateAppStoreVersionReleaseNotes updates the release notes (whatsNew) for an app store version
-func (c *AppleConnectClient) UpdateAppStoreVersionReleaseNotes(versionID, whatsNew string) error {
-	jwtToken, err := c.GenerateJWT()
-	if err != nil {
-		return fmt.Errorf("failed to generate JWT: %w", err)
+// truncateString truncates a string to the specified maximum length
+// It tries to avoid cutting in the middle of a word when possible
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
 	}
 
-	payload := map[string]interface{}{
-		"data": map[string]interface{}{
-			"type": "appStoreVersions",
-			"id":   versionID,
-			"attributes": map[string]interface{}{
-				"whatsNew": whatsNew,
-			},
-		},
+	// Truncate to max length
+	truncated := s[:maxLen]
+
+	// Try to find last space or comma to avoid cutting words
+	lastSpace := strings.LastIndexAny(truncated, " ,")
+	if lastSpace > maxLen/2 {
+		truncated = truncated[:lastSpace]
 	}
 
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	req, err := http.NewRequest("PATCH", fmt.Sprintf("%s/v1/appStoreVersions/%s", c.baseURL, versionID), nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+jwtToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Body = io.NopCloser(bytes.NewReader(payloadBytes))
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return strings.TrimSpace(truncated)
 }

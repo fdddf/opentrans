@@ -145,12 +145,10 @@ type App struct {
 	Origin            string `gorm:"type:varchar(20);default:'manual'" json:"origin"` // manual, synced
 
 	// App metadata
-	ShortDescription string `json:"shortDescription"`
-	LongDescription  string `json:"longDescription"`
-	Keywords         string `json:"keywords"` // Comma-separated keywords
-	SupportURL       string `json:"supportUrl"`
-	MarketingURL     string `json:"marketingUrl"`
-	PrivacyURL       string `json:"privacyUrl"`
+	Keywords    string `json:"keywords"` // Comma-separated keywords
+	SupportURL  string `json:"supportUrl"`
+	MarketingURL string `json:"marketingUrl"`
+	PrivacyURL   string `json:"privacyUrl"`
 
 	// App Store status
 	Version          string `json:"version"`
@@ -171,18 +169,16 @@ type AppLocalization struct {
 	LanguageCode string `gorm:"not null" json:"languageCode"` // Language code (e.g., "en-US", "zh-Hans")
 
 	// App Store Connect localization fields
-	Name                string `json:"name"`                 // App name in this language
-	Subtitle            string `json:"subtitle"`             // App subtitle in this language
-	PrivacyURL          string `json:"privacyUrl"`          // Privacy URL in this language
-	MarketingURL        string `json:"marketingUrl"`        // Marketing URL in this language
-	SupportURL          string `json:"supportUrl"`          // Support URL in this language
-	DownloadDescription string `json:"downloadDescription"` // Download description in this language
-	ShortDescription    string `json:"shortDescription"`    // Short description in this language
-	LongDescription     string `json:"longDescription"`     // Long description in this language
-	Keywords            string `json:"keywords"`             // Keywords in this language (comma-separated)
-	WhatsNew            string `json:"whatsNew"`             // What's new in this version
-	PromotionalText     string `json:"promotionalText"`     // Promotional text in this language
-	WhatToTest          string `json:"whatToTest"`         // What to test notes for beta testing
+	Name            string `json:"name"`             // App name in this language
+	Subtitle        string `json:"subtitle"`         // App subtitle in this language
+	PrivacyURL      string `json:"privacyUrl"`      // Privacy URL in this language
+	MarketingURL    string `json:"marketingUrl"`    // Marketing URL in this language
+	SupportURL      string `json:"supportUrl"`      // Support URL in this language
+	Description     string `json:"description"`     // Description in this language
+	Keywords        string `json:"keywords"`         // Keywords in this language (comma-separated)
+	WhatsNew        string `json:"whatsNew"`         // What's new in this version
+	PromotionalText string `json:"promotionalText"` // Promotional text in this language
+	WhatToTest      string `json:"whatToTest"`     // What to test notes for beta testing
 
 	// Sync metadata
 	SyncedAt    *time.Time `json:"syncedAt"`

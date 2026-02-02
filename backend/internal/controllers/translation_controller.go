@@ -79,3 +79,51 @@ func (ctrl *TranslationController) QueueTranslationJob(c *fiber.Ctx) error {
 		"job":     job,
 	})
 }
+
+// GetQueueJobs gets all queue jobs for the current user
+func (ctrl *TranslationController) GetQueueJobs(c *fiber.Ctx) error {
+	userID, ok := context.GetUserIDFromContext(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
+	}
+
+	queueService := services.GetQueueService()
+	jobs, err := queueService.GetQueueJobsByUser(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"jobs":    jobs,
+	})
+}
+
+// GetQueueJob gets a specific queue job by ID
+func (ctrl *TranslationController) GetQueueJob(c *fiber.Ctx) error {
+	userID, ok := context.GetUserIDFromContext(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
+	}
+
+	jobID, err := c.ParamsInt("id", 0)
+	if err != nil || jobID <= 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid job ID")
+	}
+
+	queueService := services.GetQueueService()
+	job, err := queueService.GetQueueJob(uint(jobID))
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "Queue job not found")
+	}
+
+	// Verify user has access to this job
+	if job.UserID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "Access denied to this job")
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"job":     job,
+	})
+}

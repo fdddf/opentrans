@@ -212,6 +212,7 @@
     "addFirstLanguage": "Add your first language",
     "selectLanguage": "Select a language",
     "selectLanguageDesc": "Choose a language from the sidebar to view and edit its details",
+    "selectAll": "Select All",
     "appName": "App name",
     "appNamePlaceholder": "App name in this language",
     "subtitle": "Subtitle",
@@ -257,7 +258,18 @@
     "promotionalText": "Promotional text",
     "promotionalTextPlaceholder": "Promotional text in this language",
     "whatsNew": "What's new in this version",
-    "whatsNewPlaceholder": "What's new in this version"
+    "whatsNewPlaceholder": "What's new in this version",
+    "batchTranslate": "Batch Translate",
+    "batchTranslateDesc": "Add and translate all languages in one click",
+    "translateAll": "Translate All",
+    "selectTargetLanguages": "Select Target Languages",
+    "selectTargetLanguagesDesc": "Select languages to translate, unselected ones will be skipped",
+    "translateAllSuccess": "Translation task submitted, processing in background",
+    "translateAllFailed": "Failed to submit translation task",
+    "translateAllSubmitted": "Translation task submitted",
+    "translateAllProgress": "Translation progress: {progress}%",
+    "translateAllCompleted": "Translation completed",
+    "translateAllError": "Translation error: {error}"
   },
   "providerConfigs": {
     "title": "Provider Configurations",

@@ -171,6 +171,8 @@ func NewApp(db *database.Database) (*fiber.App, error) {
 
 	// Translation queue routes
 	protected.Post("/queue/translate", context.SubscriptionRequired, translationController.QueueTranslationJob)
+	protected.Get("/queue/jobs", translationController.GetQueueJobs)
+	protected.Get("/queue/jobs/:id", translationController.GetQueueJob)
 
 	app.Use("/", filesystem.New(filesystem.Config{
 		Root:         http.FS(distFS),

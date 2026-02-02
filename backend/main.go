@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/fx"
 
@@ -45,9 +46,10 @@ func main() {
 type InitializeAuthParams struct {
 	fx.In
 
-	Config    *config.FXConfig
-	DB        *database.Database
-	Lifecycle fx.Lifecycle
+	Config      *config.FXConfig
+	DB          *database.Database
+	Lifecycle   fx.Lifecycle
+	QueueService *services.QueueService
 }
 
 // InitializeAuth initializes the auth package with JWT secret and sets up lifecycle
@@ -63,6 +65,13 @@ func InitializeAuth(p InitializeAuthParams) {
 					fmt.Printf("Warning: failed to initialize admin user: %v\n", err)
 				}
 			}
+
+			// Start queue processing in background
+			if p.QueueService != nil {
+				go p.QueueService.PollForNextJob(2 * time.Second)
+				fmt.Println("Translation queue processor started")
+			}
+
 			return nil
 		},
 	})

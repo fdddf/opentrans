@@ -6,8 +6,15 @@
         <h1 class="text-2xl font-semibold">{{ t('applocalizations.title') }}</h1>
       </div>
       <div class="flex items-center gap-2">
-        <button 
-          class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint" 
+        <button
+          class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
+          @click="showBatchTranslateModal = true"
+          :disabled="batchTranslating"
+        >
+          {{ batchTranslating ? t('applocalizations.translateAllProgress', { progress: batchTranslateProgress }) : t('applocalizations.batchTranslate') }}
+        </button>
+        <button
+          class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
           @click="showSyncModal = true"
         >
           {{ t('applocalizations.sync') }}
@@ -116,7 +123,18 @@
           </div>
 
           <div>
-            <p class="text-sm text-slate-400 mb-3">{{ t('applocalizations.selectLanguages') }} ({{ t('applocalizations.optional') }})</p>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm text-slate-400">{{ t('applocalizations.selectLanguages') }} ({{ t('applocalizations.optional') }})</p>
+              <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-mint text-slate-400">
+                <input
+                  type="checkbox"
+                  :checked="selectAllSyncLanguages"
+                  @change="toggleSelectAllSyncLanguages"
+                  class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+                />
+                <span>{{ t('applocalizations.selectAll') || '全选' }}</span>
+              </label>
+            </div>
             <div class="max-h-40 overflow-y-auto rounded-lg bg-white/5 border border-white/10 p-2 space-y-1">
               <label v-for="lang in availableLanguages" :key="lang.code" class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 p-1 rounded">
                 <input
@@ -157,6 +175,92 @@
               <span v-else class="flex items-center gap-1">
                 <span class="h-3 w-3 rounded-full bg-midnight animate-pulse"></span>
                 {{ t('applocalizations.syncing') }}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Translate Modal -->
+    <div v-if="showBatchTranslateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-midnight p-6 shadow-xl">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">{{ t('applocalizations.batchTranslate') }}</h2>
+          <button class="text-slate-400 hover:text-white" @click="closeBatchTranslateModal">×</button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div class="flex items-center gap-2 p-3 rounded-lg bg-mint/10 border border-mint/20">
+            <span class="text-lg">🦙</span>
+            <div>
+              <p class="text-sm font-medium text-mint">腾讯混元 Hunyuan 模型</p>
+              <p class="text-xs text-slate-400">本地模型翻译，数据安全</p>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm text-slate-400">{{ t('applocalizations.selectTargetLanguages') }}</p>
+              <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-mint text-slate-400">
+                <input
+                  type="checkbox"
+                  :checked="selectAllLanguages"
+                  @change="toggleSelectAllLanguages"
+                  class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+                />
+                <span>{{ t('applocalizations.selectAll') || '全选' }}</span>
+              </label>
+            </div>
+            <div class="max-h-60 overflow-y-auto rounded-lg bg-white/5 border border-white/10 p-2 space-y-1">
+              <label v-for="lang in availableLanguages" :key="lang.code" class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 p-1 rounded">
+                <input
+                  type="checkbox"
+                  :value="lang.code"
+                  v-model="selectedBatchTranslateLanguages"
+                  :disabled="app?.primaryLocale === lang.code"
+                  class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+                />
+                <span>{{ lang.name }} ({{ lang.code }})</span>
+              </label>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">{{ t('applocalizations.selectTargetLanguagesDesc') }}</p>
+          </div>
+
+          <div v-if="batchTranslateResult" class="p-3 rounded-lg bg-white/5 border border-white/10">
+            <p class="text-sm">{{ batchTranslateResult.message }}</p>
+            <div v-if="batchTranslateResult.progress !== undefined" class="mt-2">
+              <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div class="h-full bg-mint transition-all duration-300" :style="{ width: batchTranslateResult.progress + '%' }"></div>
+              </div>
+              <div class="flex justify-between text-xs text-slate-400 mt-1">
+                <span>{{ t('applocalizations.translateAllProgress', { progress: batchTranslateResult.progress }) }}</span>
+                <span v-if="batchTranslateResult.done !== undefined && batchTranslateResult.total !== undefined">
+                  {{ batchTranslateResult.done }} / {{ batchTranslateResult.total }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4">
+            <button
+              type="button"
+              class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
+              @click="closeBatchTranslateModal"
+              :disabled="batchTranslating"
+            >
+              {{ t('common.cancel') || 'Cancel' }}
+            </button>
+            <button
+              type="button"
+              class="rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-midnight shadow"
+              @click="submitBatchTranslate"
+              :disabled="selectedBatchTranslateLanguages.length === 0 || batchTranslating"
+            >
+              <span v-if="!batchTranslating">{{ t('applocalizations.translateAll') }}</span>
+              <span v-else class="flex items-center gap-1">
+                <span class="h-3 w-3 rounded-full bg-midnight animate-pulse"></span>
+                {{ t('applocalizations.translateAllProgress', { progress: batchTranslateProgress }) }}
               </span>
             </button>
           </div>
@@ -216,7 +320,7 @@
 
             <div>
               <label class="text-sm text-slate-400">{{ t('applocalizations.description') }}</label>
-              <textarea v-model="editLocalizationData.longDescription" rows="6" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.descriptionPlaceholder')"></textarea>
+              <textarea v-model="editLocalizationData.description" rows="6" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint whitespace-pre-wrap" :placeholder="t('applocalizations.descriptionPlaceholder')"></textarea>
             </div>
 
             <div>
@@ -226,12 +330,12 @@
 
             <div>
               <label class="text-sm text-slate-400">{{ t('applocalizations.promotionalText') }}</label>
-              <textarea v-model="editLocalizationData.promotionalText" rows="3" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.promotionalTextPlaceholder')"></textarea>
+              <textarea v-model="editLocalizationData.promotionalText" rows="3" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint whitespace-pre-wrap" :placeholder="t('applocalizations.promotionalTextPlaceholder')"></textarea>
             </div>
 
             <div>
               <label class="text-sm text-slate-400">{{ t('applocalizations.whatsNew') }}</label>
-              <textarea v-model="editLocalizationData.whatsNew" rows="4" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.whatsNewPlaceholder')"></textarea>
+              <textarea v-model="editLocalizationData.whatsNew" rows="4" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint whitespace-pre-wrap" :placeholder="t('applocalizations.whatsNewPlaceholder')"></textarea>
             </div>
 
             <div class="grid grid-cols-1 gap-4">
@@ -317,6 +421,13 @@ const availableLanguages = ref<{ code: string; name: string; native_name: string
 const loadingLanguages = ref(false)
 const translating = ref(false)
 
+// Batch translate state
+const showBatchTranslateModal = ref(false)
+const selectedBatchTranslateLanguages = ref<string[]>([])
+const batchTranslating = ref(false)
+const batchTranslateProgress = ref(0)
+const batchTranslateResult = ref<{ message: string; progress?: number; done?: number; total?: number } | null>(null)
+
 // Computed property for selected localization
 const selectedLocalization = computed(() => {
   return localizations.value.find(loc => loc.id === selectedLocalizationId.value) || null
@@ -370,7 +481,7 @@ const editLocalizationData = reactive({
   marketingUrl: '',
   supportUrl: '',
   shortDescription: '',
-  longDescription: '',
+  description: '',
   keywords: '',
   whatsNew: '',
   promotionalText: ''
@@ -431,6 +542,28 @@ function clearValidationErrors() {
 function getLanguageName(code: string): string {
   const lang = availableLanguages.value.find(l => l.code === code)
   return lang ? lang.name : code
+}
+
+// Computed property for select all sync languages
+const selectAllSyncLanguages = computed(() => {
+  if (availableLanguages.value.length === 0) {
+    return false
+  }
+  return availableLanguages.value.length > 0 &&
+    availableLanguages.value.every(lang => selectedSyncLanguages.value.includes(lang.code))
+})
+
+// Toggle select all sync languages
+function toggleSelectAllSyncLanguages() {
+  const allSelected = selectAllSyncLanguages.value
+
+  if (allSelected) {
+    // Deselect all
+    selectedSyncLanguages.value = []
+  } else {
+    // Select all
+    selectedSyncLanguages.value = availableLanguages.value.map(lang => lang.code)
+  }
 }
 
 function closeSyncModal() {
@@ -590,7 +723,7 @@ async function fetchProviderConfigs() {
     const appleResponse = await api.getAppleConnectConfigs()
     if (appleResponse.success) {
       appleConnectConfigs.value = appleResponse.data || []
-      
+
       // Auto-select the first config if none is selected
       if (appleConnectConfigs.value.length > 0 && !selectedConfigId.value) {
         // Check if there's a default config (isDefault = true)
@@ -673,7 +806,7 @@ async function updateLocalization() {
         supportUrl: editLocalizationData.supportUrl,
         downloadDescription: '',
         shortDescription: editLocalizationData.shortDescription,
-        longDescription: editLocalizationData.longDescription,
+        description: editLocalizationData.description,
         keywords: editLocalizationData.keywords,
         whatsNew: editLocalizationData.whatsNew,
         promotionalText: editLocalizationData.promotionalText
@@ -687,7 +820,7 @@ async function updateLocalization() {
         marketingUrl: editLocalizationData.marketingUrl,
         supportUrl: editLocalizationData.supportUrl,
         shortDescription: editLocalizationData.shortDescription,
-        longDescription: editLocalizationData.longDescription,
+        description: editLocalizationData.description,
         keywords: editLocalizationData.keywords,
         whatsNew: editLocalizationData.whatsNew,
         promotionalText: editLocalizationData.promotionalText
@@ -802,10 +935,10 @@ async function translateLocalization() {
     }
 
     // Translate long description
-    if (editLocalizationData.longDescription) {
-      const descResult = await api.translateText(editLocalizationData.longDescription, sourceLanguage, targetLanguage)
+    if (editLocalizationData.description) {
+      const descResult = await api.translateText(editLocalizationData.description, sourceLanguage, targetLanguage)
       if (descResult.success) {
-        editLocalizationData.longDescription = descResult.text
+        editLocalizationData.description = descResult.text
       }
     }
 
@@ -842,6 +975,149 @@ async function translateLocalization() {
   }
 }
 
+// Computed property for select all languages
+const selectAllLanguages = computed(() => {
+  if (!app.value || availableLanguages.value.length === 0) {
+    return false
+  }
+  const selectableLanguages = availableLanguages.value.filter(lang => lang.code !== app.value?.primaryLocale)
+  return selectableLanguages.length > 0 &&
+    selectableLanguages.every(lang => selectedBatchTranslateLanguages.value.includes(lang.code))
+})
+
+// Toggle select all languages
+function toggleSelectAllLanguages() {
+  if (!app.value) {
+    return
+  }
+
+  const selectableLanguages = availableLanguages.value.filter(lang => lang.code !== app.value?.primaryLocale)
+  const allSelected = selectAllLanguages.value
+
+  if (allSelected) {
+    // Deselect all
+    selectedBatchTranslateLanguages.value = []
+  } else {
+    // Select all
+    selectedBatchTranslateLanguages.value = selectableLanguages.map(lang => lang.code)
+  }
+}
+
+function closeBatchTranslateModal() {
+  showBatchTranslateModal.value = false
+  selectedBatchTranslateLanguages.value = []
+  batchTranslateResult.value = null
+  batchTranslateProgress.value = 0
+}
+
+async function submitBatchTranslate() {
+  if (!hasValidAppId.value) {
+    toast.warning('Invalid app ID')
+    return
+  }
+
+  if (selectedBatchTranslateLanguages.value.length === 0) {
+    toast.warning('Please select at least one target language.')
+    return
+  }
+
+  batchTranslating.value = true
+  batchTranslateProgress.value = 0
+  batchTranslateResult.value = { message: t('applocalizations.translateAllSubmitted'), progress: 0 }
+
+  try {
+    // Get source language (primary locale or en-US)
+    const sourceLanguage = app.value?.primaryLocale || 'en-US'
+
+    // Submit translation job using llama/hunyuan
+    // Note: The backend will use default llama configuration from backend/config.yaml
+    // modelPath and libPath are not required to be sent from frontend
+    const response = await api.translateAppLocalizations(appId.value, {
+      providerType: 'llama',
+      sourceLanguage: sourceLanguage,
+      targetLanguages: selectedBatchTranslateLanguages.value,
+      configData: {
+        // Hunyuan model generation parameters
+        threads: 4,
+        temperature: 0.7,
+        topP: 0.6,
+        topK: 20,
+        tokens: 4096
+      }
+    })
+
+    if (response.success) {
+      batchTranslateResult.value = {
+        message: t('applocalizations.translateAllSuccess'),
+        progress: 0
+      }
+
+      // Start polling for progress
+      pollTranslationProgress(response.job.id)
+
+      toast.success(t('applocalizations.translateAllSuccess'))
+    } else {
+      throw new Error(response.message || t('applocalizations.translateAllFailed'))
+    }
+  } catch (error) {
+    console.error('Failed to submit batch translation:', error)
+    batchTranslateResult.value = {
+      message: t('applocalizations.translateAllError', { error: error instanceof Error ? error.message : 'Unknown error' })
+    }
+    toast.error(t('applocalizations.translateAllFailed'))
+    batchTranslating.value = false
+  }
+}
+
+async function pollTranslationProgress(jobId: number) {
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await api.getQueueJob(jobId)
+      if (response.success) {
+        const job = response.job
+
+        // Update progress
+        batchTranslateProgress.value = job.progress || 0
+        batchTranslateResult.value = {
+          message: t('applocalizations.translateAllSubmitted'),
+          progress: batchTranslateProgress.value,
+          done: job.done,
+          total: job.total
+        }
+
+        // Check if job is completed
+        if (job.status === 'completed') {
+          clearInterval(pollInterval)
+          batchTranslating.value = false
+          batchTranslateResult.value = {
+            message: t('applocalizations.translateAllCompleted'),
+            progress: 100,
+            done: job.done,
+            total: job.total
+          }
+
+          // Refresh localizations
+          await fetchLocalizations()
+          toast.success(t('applocalizations.translateAllCompleted'))
+        } else if (job.status === 'failed') {
+          clearInterval(pollInterval)
+          batchTranslating.value = false
+          batchTranslateResult.value = {
+            message: t('applocalizations.translateAllError', { error: job.error || 'Unknown error' }),
+            done: job.done,
+            total: job.total
+          }
+          toast.error(t('applocalizations.translateAllError', { error: job.error || 'Unknown error' }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to poll translation progress:', error)
+      clearInterval(pollInterval)
+      batchTranslating.value = false
+    }
+  }, 2000) // Poll every 2 seconds
+}
+
 function editLocalization(localization: AppLocalization) {
   // Populate edit form with existing data
   editLocalizationData.id = localization.id
@@ -852,7 +1128,7 @@ function editLocalization(localization: AppLocalization) {
   editLocalizationData.marketingUrl = localization.marketingUrl || ''
   editLocalizationData.supportUrl = localization.supportUrl || ''
   editLocalizationData.shortDescription = localization.shortDescription || ''
-  editLocalizationData.longDescription = localization.longDescription || localization.description || ''
+  editLocalizationData.description = localization.description || localization.description || ''
   editLocalizationData.keywords = localization.keywords || ''
   editLocalizationData.whatsNew = localization.whatsNew || ''
   editLocalizationData.promotionalText = localization.promotionalText || ''
@@ -884,7 +1160,7 @@ async function handleLanguageSelect() {
   editLocalizationData.marketingUrl = enUsLocalization?.marketingUrl || ''
   editLocalizationData.supportUrl = enUsLocalization?.supportUrl || ''
   editLocalizationData.shortDescription = enUsLocalization?.shortDescription || ''
-  editLocalizationData.longDescription = enUsLocalization?.longDescription || enUsLocalization?.description || ''
+  editLocalizationData.description = enUsLocalization?.description || enUsLocalization?.description || ''
   editLocalizationData.keywords = enUsLocalization?.keywords || ''
   editLocalizationData.whatsNew = enUsLocalization?.whatsNew || ''
   editLocalizationData.promotionalText = enUsLocalization?.promotionalText || ''
@@ -900,9 +1176,7 @@ async function handleLanguageSelect() {
     languageCode: selectedLanguageToAdd.value,
     name: editLocalizationData.name,
     subtitle: editLocalizationData.subtitle,
-    description: editLocalizationData.longDescription,
-    shortDescription: editLocalizationData.shortDescription,
-    longDescription: editLocalizationData.longDescription,
+    description: editLocalizationData.description,
     keywords: editLocalizationData.keywords,
     privacyUrl: editLocalizationData.privacyUrl,
     marketingUrl: editLocalizationData.marketingUrl,

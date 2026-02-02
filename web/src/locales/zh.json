@@ -212,6 +212,7 @@
     "addFirstLanguage": "添加第一个语言",
     "selectLanguage": "选择一个语言",
     "selectLanguageDesc": "从侧边栏选择一个语言来查看和编辑其详细信息",
+    "selectAll": "全选",
     "appName": "应用名称",
     "appNamePlaceholder": "此语言的应用名称",
     "subtitle": "副标题",
@@ -257,7 +258,18 @@
     "promotionalText": "推广文本",
     "promotionalTextPlaceholder": "此语言的推广文本",
     "whatsNew": "此版本的新内容",
-    "whatsNewPlaceholder": "此版本的新内容"
+    "whatsNewPlaceholder": "此版本的新内容",
+    "batchTranslate": "一键翻译",
+    "batchTranslateDesc": "批量添加并翻译所有语言",
+    "translateAll": "翻译全部",
+    "selectTargetLanguages": "选择目标语言",
+    "selectTargetLanguagesDesc": "选择要翻译的语言，未选择的将被跳过",
+    "translateAllSuccess": "翻译任务已提交，正在后台处理",
+    "translateAllFailed": "翻译任务提交失败",
+    "translateAllSubmitted": "翻译任务已提交",
+    "translateAllProgress": "翻译进度: {progress}%",
+    "translateAllCompleted": "翻译已完成",
+    "translateAllError": "翻译出错: {error}"
   },
   "providerConfigs": {
     "title": "提供商配置",

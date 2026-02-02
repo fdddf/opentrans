@@ -36,6 +36,11 @@ var hunyuanLanguages = []Language{
 	{"pl", "Polish", "Polish", "🇵🇱"},
 	{"cs", "Czech", "Czech", "🇨🇿"},
 	{"nl", "Dutch", "Dutch", "🇳🇱"},
+	{"da", "Danish", "Danish", "🇩🇰"},
+	{"sv", "Swedish", "Swedish", "🇸🇪"},
+	{"no", "Norwegian", "Norwegian", "🇳🇴"},
+	{"fi", "Finnish", "Finnish", "🇫🇮"},
+	{"el", "Greek", "Greek", "🇬🇷"},
 	{"km", "Khmer", "Khmer", "🇰🇭"},
 	{"my", "Burmese", "Burmese", "🇲🇲"},
 	{"fa", "Persian", "Persian", "🇮🇷"},
@@ -126,6 +131,25 @@ var appStoreLanguageMapping = map[string]string{
 	// 荷兰语
 	"nl":    "nl",
 	"nl-NL": "nl",
+	// 丹麦语
+	"da":    "da",
+	"da-DK": "da",
+	// 瑞典语
+	"sv":    "sv",
+	"sv-SE": "sv",
+	// 挪威语
+	"no":    "no",
+	"nb":    "no",
+	"nn":    "no",
+	"nb-NO": "no",
+	"nn-NO": "no",
+	"no-NO": "no",
+	// 芬兰语
+	"fi":    "fi",
+	"fi-FI": "fi",
+	// 希腊语
+	"el":    "el",
+	"el-GR": "el",
 	// 希伯来语
 	"he":    "he",
 	"he-IL": "he",

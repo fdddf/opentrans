@@ -46,8 +46,6 @@ func (s *AppService) CreateApp(userID uint, name, description, bundleID, appleID
 		BundleID:         bundleID,
 		AppleID:          appleID,
 		PrimaryLocale:    primaryLocale,
-		ShortDescription: "",
-		LongDescription:  "",
 		Keywords:         "",
 		SupportURL:       "",
 		MarketingURL:     "",
@@ -302,10 +300,10 @@ func (s *AppService) GetAppStats(appID uint) (map[string]interface{}, error) {
 		if loc.Subtitle != "" {
 			completedFields++
 		}
-		if loc.ShortDescription != "" {
+		if "" != "" {
 			completedFields++
 		}
-		if loc.LongDescription != "" {
+		if loc.Description != "" {
 			completedFields++
 		}
 		if loc.Keywords != "" {
@@ -385,15 +383,13 @@ func (s *AppService) BulkUpdateAppLocalizations(appID uint, updates []map[string
 				AppID:               appID,
 				LanguageCode:        languageCode,
 				Name:                "",
-				Subtitle:            "",
-				PrivacyURL:          "",
-				MarketingURL:        "",
-				SupportURL:          "",
-				DownloadDescription: "",
-				ShortDescription:    "",
-				LongDescription:     "",
-				Keywords:            "",
-				WhatsNew:            "",
+				Subtitle:        "",
+				PrivacyURL:      "",
+				MarketingURL:    "",
+				SupportURL:      "",
+				Description:     "",
+				Keywords:        "",
+				WhatsNew:        "",
 			}
 
 			// Apply updates
@@ -412,14 +408,8 @@ func (s *AppService) BulkUpdateAppLocalizations(appID uint, updates []map[string
 			if supportURL, ok := update["supportURL"].(string); ok {
 				newLoc.SupportURL = supportURL
 			}
-			if downloadDescription, ok := update["downloadDescription"].(string); ok {
-				newLoc.DownloadDescription = downloadDescription
-			}
-			if shortDescription, ok := update["shortDescription"].(string); ok {
-				newLoc.ShortDescription = shortDescription
-			}
-			if longDescription, ok := update["longDescription"].(string); ok {
-				newLoc.LongDescription = longDescription
+			if description, ok := update["description"].(string); ok {
+				newLoc.Description = description
 			}
 			if keywords, ok := update["keywords"].(string); ok {
 				newLoc.Keywords = keywords
@@ -487,9 +477,9 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 				loc.PrivacyURL,
 				loc.MarketingURL,
 				loc.SupportURL,
-				loc.DownloadDescription,
-				loc.ShortDescription,
-				loc.LongDescription,
+				"",
+				"",
+				loc.Description,
 				loc.Keywords,
 				loc.WhatsNew,
 				loc.PromotionalText,
@@ -514,9 +504,9 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 			loc.PrivacyURL,
 			loc.MarketingURL,
 			loc.SupportURL,
-			loc.DownloadDescription,
-			loc.ShortDescription,
-			loc.LongDescription,
+			"",
+			"",
+			loc.Description,
 			loc.Keywords,
 			loc.WhatsNew,
 			loc.PromotionalText,
@@ -638,8 +628,6 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 			locData.Attributes.PrivacyURL,
 			locData.Attributes.MarketingURL,
 			locData.Attributes.SupportURL,
-			locData.Attributes.DownloadDescription,
-			locData.Attributes.ShortDescription,
 			locData.Attributes.Description,
 			locData.Attributes.Keywords,
 			locData.Attributes.WhatsNew,

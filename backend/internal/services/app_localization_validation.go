@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ type LocalizationValidationError struct {
 type LocalizationValidationResult struct {
 	IsValid bool                           `json:"is_valid"`
 	Errors  []LocalizationValidationError `json:"errors"`
+	Warnings []LocalizationValidationError `json:"warnings"`
 }
 
 // AppLocalizationValidator handles validation rules for app localizations
@@ -39,10 +41,13 @@ const (
 )
 
 // ValidateAppLocalization validates an app localization based on Apple App Store Connect requirements
+// Note: This function now only adds warnings for length violations, allowing database storage
+// The actual truncation happens during sync with Apple
 func (v *AppLocalizationValidator) ValidateAppLocalization(languageCode, name, subtitle, shortDescription, keywords, privacyURL, marketingURL, supportURL, promotionalText, releaseNotes string) *LocalizationValidationResult {
 	result := &LocalizationValidationResult{
-		IsValid: true,
-		Errors:  []LocalizationValidationError{},
+		IsValid:  true,
+		Errors:   []LocalizationValidationError{},
+		Warnings: []LocalizationValidationError{},
 	}
 
 	// Validate name (required for all languages except primary locale might be optional)
@@ -53,84 +58,109 @@ func (v *AppLocalizationValidator) ValidateAppLocalization(languageCode, name, s
 		})
 		result.IsValid = false
 	} else if len(name) > MaxAppNameLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("App name exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxAppNameLength, len(name))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "name",
-			Message: fmt.Sprintf("App name must not exceed %d characters (current: %d)", MaxAppNameLength, len(name)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	// Validate subtitle
 	if len(subtitle) > MaxSubtitleLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Subtitle exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxSubtitleLength, len(subtitle))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "subtitle",
-			Message: fmt.Sprintf("Subtitle must not exceed %d characters (current: %d)", MaxSubtitleLength, len(subtitle)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	// Validate short description
 	if len(shortDescription) > MaxShortDescriptionLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Short description exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxShortDescriptionLength, len(shortDescription))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "shortDescription",
-			Message: fmt.Sprintf("Short description must not exceed %d characters (current: %d)", MaxShortDescriptionLength, len(shortDescription)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	// Validate keywords
 	if len(keywords) > MaxKeywordsLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Keywords exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxKeywordsLength, len(keywords))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "keywords",
-			Message: fmt.Sprintf("Keywords must not exceed %d characters (current: %d)", MaxKeywordsLength, len(keywords)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	// Validate URLs
 	if len(privacyURL) > 0 && len(privacyURL) > MaxPrivacyURLLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Privacy URL exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxPrivacyURLLength, len(privacyURL))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "privacyURL",
-			Message: fmt.Sprintf("Privacy URL must not exceed %d characters (current: %d)", MaxPrivacyURLLength, len(privacyURL)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	if len(marketingURL) > 0 && len(marketingURL) > MaxMarketingURLLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Marketing URL exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxMarketingURLLength, len(marketingURL))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "marketingURL",
-			Message: fmt.Sprintf("Marketing URL must not exceed %d characters (current: %d)", MaxMarketingURLLength, len(marketingURL)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	if len(supportURL) > 0 && len(supportURL) > MaxSupportURLLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Support URL exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxSupportURLLength, len(supportURL))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "supportURL",
-			Message: fmt.Sprintf("Support URL must not exceed %d characters (current: %d)", MaxSupportURLLength, len(supportURL)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	// Validate promotional text
 	if len(promotionalText) > MaxPromotionalTextLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Promotional text exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxPromotionalTextLength, len(promotionalText))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "promotionalText",
-			Message: fmt.Sprintf("Promotional text must not exceed %d characters (current: %d)", MaxPromotionalTextLength, len(promotionalText)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	// Validate release notes
 	if len(releaseNotes) > MaxReleaseNotesLength {
-		result.Errors = append(result.Errors, LocalizationValidationError{
+		warning := fmt.Sprintf("Release notes exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxReleaseNotesLength, len(releaseNotes))
+		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "releaseNotes",
-			Message: fmt.Sprintf("Release notes must not exceed %d characters (current: %d)", MaxReleaseNotesLength, len(releaseNotes)),
+			Message: warning,
 		})
-		result.IsValid = false
+		log.Printf("[Validation Warning] [%s] %s", languageCode, warning)
 	}
 
 	return result
+}
+
+// TruncateField truncates a field to the specified maximum length
+// Used when syncing to Apple App Store Connect
+func TruncateField(field string, maxLength int) string {
+	if len(field) <= maxLength {
+		return field
+	}
+	// Truncate at maxLength, trying to avoid cutting in the middle of a word
+	truncated := field[:maxLength]
+	// Try to find last space or comma to avoid cutting words
+	lastSpace := strings.LastIndexAny(truncated, " ,")
+	if lastSpace > maxLength/2 {
+		truncated = truncated[:lastSpace]
+	}
+	return strings.TrimSpace(truncated)
 }
 
 // ValidateURLFormat validates if a string is a valid URL format

@@ -11,7 +11,9 @@ import (
 	"github.com/fdddf/xcstrings-translator/internal/database"
 	"github.com/fdddf/xcstrings-translator/internal/model"
 	"github.com/fdddf/xcstrings-translator/internal/translator"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // QueueService handles translation queue operations
@@ -183,17 +185,23 @@ func (qs *QueueService) UpdateQueueJob(jobID uint, updates map[string]interface{
 		for key, value := range updates {
 			switch key {
 			case "Status":
-				job.Status = value.(string)
+				if s, ok := value.(string); ok {
+					job.Status = s
+				}
 			case "Progress":
-				job.Progress = int(value.(uint))
+				job.Progress = safeIntConversion(value)
 			case "Total":
-				job.Total = int(value.(uint))
+				job.Total = safeIntConversion(value)
 			case "Done":
-				job.Done = int(value.(uint))
+				job.Done = safeIntConversion(value)
 			case "Error":
-				job.Error = value.(string)
+				if s, ok := value.(string); ok {
+					job.Error = s
+				}
 			case "ResultData":
-				job.ResultData = value.(map[string]interface{})
+				if m, ok := value.(map[string]interface{}); ok {
+					job.ResultData = m
+				}
 			}
 		}
 	}
@@ -202,13 +210,41 @@ func (qs *QueueService) UpdateQueueJob(jobID uint, updates map[string]interface{
 	return nil
 }
 
+// safeIntConversion safely converts various integer types to int
+func safeIntConversion(value interface{}) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int32:
+		return int(v)
+	case int64:
+		return int(v)
+	case uint:
+		return int(v)
+	case uint32:
+		return int(v)
+	case uint64:
+		return int(v)
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	default:
+		return 0
+	}
+}
+
 // ProcessNextJob processes the next available job in the queue
 func (qs *QueueService) ProcessNextJob() error {
 	// Get the next pending job
 	var nextJob database.TranslationQueue
-	result := qs.DB.Where("status = ?", "pending").Order("priority DESC, created_at ASC").First(&nextJob)
+	// Use Session to disable logging for this query to avoid spamming logs
+	result := qs.DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)}).
+		Where("status = ?", "pending").
+		Order("priority DESC, created_at ASC").
+		First(&nextJob)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		// No pending jobs
+		// No pending jobs - this is normal, don't log
 		return nil
 	}
 
@@ -303,8 +339,37 @@ func (qs *QueueService) processXCStringsJob(job *database.TranslationQueue) erro
 
 	service := translator.NewTranslationService(translationProvider, concurrency, timeout)
 
+	// Filter out unsupported languages for Hunyuan provider
+	supportedTargetLanguages := job.TargetLanguages
+	if job.ProviderType == "llama" {
+		supportedTargetLanguages = make([]string, 0, len(job.TargetLanguages))
+		for _, lang := range job.TargetLanguages {
+			if isLanguageSupportedByHunyuan(lang) {
+				// Language is supported
+				supportedTargetLanguages = append(supportedTargetLanguages, lang)
+			} else {
+				// Language not supported, skip it
+				fmt.Printf("Skipping unsupported language: %s (not supported by Hunyuan model)\n", lang)
+			}
+		}
+
+		if len(supportedTargetLanguages) == 0 {
+			// No supported languages to translate
+			fmt.Printf("No supported languages found for xcstrings translation job %d\n", job.ID)
+			err = qs.UpdateQueueJob(job.ID, map[string]interface{}{
+				"Done":     0,
+				"Progress": 100,
+				"Status":   "completed",
+			})
+			if err != nil {
+				return fmt.Errorf("failed to update job progress: %v", err)
+			}
+			return nil
+		}
+	}
+
 	// Create translation requests
-	requests := translator.CreateTranslationRequests(xcstrings, job.TargetLanguages)
+	requests := translator.CreateTranslationRequests(xcstrings, supportedTargetLanguages)
 
 	// Update job with total count
 	err = qs.UpdateQueueJob(job.ID, map[string]interface{}{
@@ -349,7 +414,7 @@ func (qs *QueueService) processXCStringsJob(job *database.TranslationQueue) erro
 	}
 
 	// Execute translation
-	_, translateErr := translator.TranslatePerLanguage(ctx, xcstrings, job.TargetLanguages, service, progressBuilder)
+	_, translateErr := translator.TranslatePerLanguage(ctx, xcstrings, supportedTargetLanguages, service, progressBuilder)
 
 	// Save translations to database
 	if translateErr == nil {
@@ -393,6 +458,8 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 		return errors.New("app ID is required for app localization job")
 	}
 
+	fmt.Printf("Starting app localization translation job %d for app %d\n", job.ID, *job.AppID)
+
 	// Get the app
 	app, err := qs.AppService.GetApp(*job.AppID)
 	if err != nil {
@@ -410,6 +477,11 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 	if err != nil {
 		return fmt.Errorf("failed to get source localization: %v", err)
 	}
+
+	// Log source localization info
+	fmt.Printf("Source localization (%s): Name=%q (%d chars), Description=%d chars, Subtitle=%q (%d chars)\n", 
+		app.PrimaryLocale, sourceLoc.Name, len(sourceLoc.Name), len(sourceLoc.Description), 
+		sourceLoc.Subtitle, len(sourceLoc.Subtitle))
 
 	// Create translation provider
 	provider, err := createProviderFromConfig(job.ProviderType, job.ConfigData)
@@ -436,11 +508,22 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 
 	service := translator.NewTranslationService(translationProvider, concurrency, timeout)
 
-	// Count total fields to translate
-	fieldsToTranslate := []string{
-		"Name", "Subtitle", "ShortDescription", "LongDescription", "Keywords",
-		"WhatsNew", "PromotionalText", "DownloadDescription",
+	// Define fields to translate with their max length for chunking
+	// Note: Apple Connect API supports these fields in appStoreVersionLocalizations
+	fieldsToTranslate := []struct {
+		name       string
+		maxLength  int
+		sourceFunc func(*database.AppLocalization) string
+		targetFunc func(*database.AppLocalization, string)
+	}{
+		{"Name", 30, func(l *database.AppLocalization) string { return l.Name }, func(l *database.AppLocalization, v string) { l.Name = v }},
+		{"Subtitle", 30, func(l *database.AppLocalization) string { return l.Subtitle }, func(l *database.AppLocalization, v string) { l.Subtitle = v }},
+		{"Description", 4000, func(l *database.AppLocalization) string { return l.Description }, func(l *database.AppLocalization, v string) { l.Description = v }},
+		{"Keywords", 100, func(l *database.AppLocalization) string { return l.Keywords }, func(l *database.AppLocalization, v string) { l.Keywords = v }},
+		{"WhatsNew", 4000, func(l *database.AppLocalization) string { return l.WhatsNew }, func(l *database.AppLocalization, v string) { l.WhatsNew = v }},
+		{"PromotionalText", 170, func(l *database.AppLocalization) string { return l.PromotionalText }, func(l *database.AppLocalization, v string) { l.PromotionalText = v }},
 	}
+
 	totalFields := len(job.TargetLanguages) * len(fieldsToTranslate)
 
 	// Update job with total count
@@ -452,155 +535,250 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 	}
 
 	// Process each target language
+	// Use a semaphore to limit concurrency for non-llama providers
+	maxConcurrentLangs := 1 // Default to 1 for llama
+	if job.ProviderType != "llama" {
+		maxConcurrentLangs = 3 // Allow up to 3 languages concurrently for other providers
+	}
+
+	sem := make(chan struct{}, maxConcurrentLangs)
+	var wg sync.WaitGroup
+	var mu sync.Mutex // Protect doneCount, successCount, errorCount
+
 	doneCount := 0
 	ctx := context.Background()
+	successCount := 0
+	errorCount := 0
 
+	// Create a map to store language results
+	type languageResult struct {
+		lang      string
+		targetLoc *database.AppLocalization
+		exists    bool
+		err       error
+	}
+	results := make(chan languageResult, len(job.TargetLanguages))
+
+	// Process languages concurrently (with semaphore limit)
 	for _, targetLang := range job.TargetLanguages {
-		// Check if localization already exists
-		var targetLoc *database.AppLocalization
-		exists := false
-		for _, loc := range localizations {
-			if loc.LanguageCode == targetLang {
-				exists = true
-				targetLoc = &loc
-				break
-			}
-		}
+		wg.Add(1)
+		go func(lang string) {
+			defer wg.Done()
 
-		// If it doesn't exist, create one from source
-		if !exists {
-			targetLoc = &database.AppLocalization{
-				AppID:              *job.AppID,
-				LanguageCode:       targetLang,
-				Name:               sourceLoc.Name,
-				Subtitle:           sourceLoc.Subtitle,
-				PrivacyURL:         sourceLoc.PrivacyURL,
-				MarketingURL:       sourceLoc.MarketingURL,
-				SupportURL:         sourceLoc.SupportURL,
-				DownloadDescription: sourceLoc.DownloadDescription,
-				ShortDescription:   sourceLoc.ShortDescription,
-				LongDescription:    sourceLoc.LongDescription,
-				Keywords:           sourceLoc.Keywords,
-				WhatsNew:           sourceLoc.WhatsNew,
-				PromotionalText:    sourceLoc.PromotionalText,
-			}
-		}
+			// Acquire semaphore
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		// Translate each field
-		for _, field := range fieldsToTranslate {
-			sourceText := ""
-			switch field {
-			case "Name":
-				sourceText = sourceLoc.Name
-			case "Subtitle":
-				sourceText = sourceLoc.Subtitle
-			case "ShortDescription":
-				sourceText = sourceLoc.ShortDescription
-			case "LongDescription":
-				sourceText = sourceLoc.LongDescription
-			case "Keywords":
-				sourceText = sourceLoc.Keywords
-			case "WhatsNew":
-				sourceText = sourceLoc.WhatsNew
-			case "PromotionalText":
-				sourceText = sourceLoc.PromotionalText
-			case "DownloadDescription":
-				sourceText = sourceLoc.DownloadDescription
-			}
+			fmt.Printf("Processing language: %s\n", lang)
 
-			// Skip empty fields
-			if sourceText == "" {
-				doneCount++
-				progress := int(float64(doneCount) / float64(totalFields) * 100)
-				qs.UpdateQueueJob(job.ID, map[string]interface{}{
-					"Done":     doneCount,
-					"Progress": progress,
-				})
-				continue
-			}
-
-			// Create translation request
-			req := model.TranslationRequest{
-				Key:            fmt.Sprintf("%s.%s", targetLang, field),
-				Text:           sourceText,
-				SourceLanguage: job.SourceLanguage,
-				TargetLanguage: targetLang,
-			}
-
-			// Translate using batch method (single item batch)
-			responses, err := service.TranslateBatch(ctx, []model.TranslationRequest{req}, nil)
-			if err != nil || len(responses) == 0 || responses[0].Error != nil {
-				// Log error but continue with other fields
-				if err != nil {
-					fmt.Printf("Error translating %s: %v\n", field, err)
-				} else if len(responses) > 0 && responses[0].Error != nil {
-					fmt.Printf("Error translating %s: %v\n", field, responses[0].Error)
+			// Check if the language is supported by Hunyuan (for llama provider)
+			if job.ProviderType == "llama" && !isLanguageSupportedByHunyuan(lang) {
+				// Language not supported, skip it
+				fmt.Printf("Skipping unsupported language: %s (not supported by Hunyuan model)\n", lang)
+				// Update progress for all fields of this language
+				mu.Lock()
+				for i := 0; i < len(fieldsToTranslate); i++ {
+					doneCount++
+					progress := int(float64(doneCount) / float64(totalFields) * 100)
+					qs.UpdateQueueJob(job.ID, map[string]interface{}{
+						"Done":     doneCount,
+						"Progress": progress,
+					})
 				}
+				mu.Unlock()
+				results <- languageResult{lang: lang, err: errors.New("unsupported language")}
+				return
+			}
+
+			// Check if localization already exists
+			var targetLoc *database.AppLocalization
+			exists := false
+			for _, loc := range localizations {
+				if loc.LanguageCode == lang {
+					exists = true
+					targetLoc = &loc
+					break
+				}
+			}
+
+			// If it doesn't exist, create one from source
+			if !exists {
+				targetLoc = &database.AppLocalization{
+					AppID:           *job.AppID,
+					LanguageCode:    lang,
+					Name:            sourceLoc.Name,
+					Subtitle:        sourceLoc.Subtitle,
+					PrivacyURL:      sourceLoc.PrivacyURL,
+					MarketingURL:    sourceLoc.MarketingURL,
+					SupportURL:      sourceLoc.SupportURL,
+					Description:     sourceLoc.Description,
+					Keywords:        sourceLoc.Keywords,
+					WhatsNew:        sourceLoc.WhatsNew,
+					PromotionalText: sourceLoc.PromotionalText,
+				}
+			}
+
+			// Translate each field (serial within a language to avoid context conflicts)
+			for _, fieldDef := range fieldsToTranslate {
+				sourceText := fieldDef.sourceFunc(sourceLoc)
+
+				// Skip empty fields
+				if sourceText == "" {
+					fmt.Printf("  Field %s is empty, skipping\n", fieldDef.name)
+					mu.Lock()
+					doneCount++
+					progress := int(float64(doneCount) / float64(totalFields) * 100)
+					qs.UpdateQueueJob(job.ID, map[string]interface{}{
+						"Done":     doneCount,
+						"Progress": progress,
+					})
+					mu.Unlock()
+					continue
+				}
+
+				fmt.Printf("  Translating field %s (%d chars)\n", fieldDef.name, len(sourceText))
+
+				// Split long text into chunks if necessary
+				chunks := qs.splitTextForTranslation(sourceText, fieldDef.maxLength, lang)
+
+				var translatedText string
+				translationSuccess := true
+
+				if len(chunks) > 1 {
+					// Translate chunks and concatenate
+					fmt.Printf("    Splitting into %d chunks for translation\n", len(chunks))
+					for i, chunk := range chunks {
+						fmt.Printf("      Chunk %d: %d chars - %q\n", i, len(chunk), truncateStringForLog(chunk, 50))
+					}
+					var translatedChunks []string
+					for i, chunk := range chunks {
+						req := model.TranslationRequest{
+							Key:            fmt.Sprintf("%s.%s.chunk%d", lang, fieldDef.name, i),
+							Text:           chunk,
+							SourceLanguage: job.SourceLanguage,
+							TargetLanguage: lang,
+						}
+
+						responses, err := service.TranslateBatch(ctx, []model.TranslationRequest{req}, nil)
+						if err != nil || len(responses) == 0 || responses[0].Error != nil {
+							fmt.Printf("    Error translating chunk %d: %v\n", i, err)
+							translationSuccess = false
+							break
+						}
+						fmt.Printf("      Chunk %d translated: %d chars - %q\n", i, len(responses[0].TranslatedText), truncateStringForLog(responses[0].TranslatedText, 50))
+						translatedChunks = append(translatedChunks, responses[0].TranslatedText)
+					}
+					if translationSuccess {
+						// Always join with newline to preserve paragraph structure
+						// Each chunk represents a complete thought/paragraph
+						translatedText = strings.Join(translatedChunks, "\n")
+						fmt.Printf("    Merged result: %d chars, %d chunks\n", len(translatedText), len(translatedChunks))
+					}
+				} else {
+					// Single chunk translation
+					req := model.TranslationRequest{
+						Key:            fmt.Sprintf("%s.%s", lang, fieldDef.name),
+						Text:           sourceText,
+						SourceLanguage: job.SourceLanguage,
+						TargetLanguage: lang,
+					}
+
+					responses, err := service.TranslateBatch(ctx, []model.TranslationRequest{req}, nil)
+					if err != nil || len(responses) == 0 || responses[0].Error != nil {
+						var errMsg string
+						if err != nil {
+							errMsg = err.Error()
+						} else if len(responses) > 0 && responses[0].Error != nil {
+							errMsg = responses[0].Error.Error()
+						}
+						fmt.Printf("  Error translating %s: %s\n", fieldDef.name, errMsg)
+						translationSuccess = false
+					} else {
+						translatedText = responses[0].TranslatedText
+						fmt.Printf("  Successfully translated %s\n", fieldDef.name)
+					}
+				}
+
+				// Update the field with translated text if successful
+				mu.Lock()
+				if translationSuccess {
+					fieldDef.targetFunc(targetLoc, translatedText)
+					// Log translated text info for debugging
+					newlineCount := strings.Count(translatedText, "\n")
+					fmt.Printf("  Field %s translation: %d chars, %d newlines\n", fieldDef.name, len(translatedText), newlineCount)
+					if newlineCount > 0 && len(translatedText) < 500 {
+						fmt.Printf("    Sample: %q\n", translatedText)
+					}
+					// Log Name field specifically since it's required
+					if fieldDef.name == "Name" {
+						fmt.Printf("  Name set to: %q\n", translatedText)
+					}
+					successCount++
+				} else {
+					errorCount++
+					// Keep original text if translation failed
+				}
+
 				doneCount++
 				progress := int(float64(doneCount) / float64(totalFields) * 100)
 				qs.UpdateQueueJob(job.ID, map[string]interface{}{
 					"Done":     doneCount,
 					"Progress": progress,
 				})
-				continue
+				mu.Unlock()
 			}
 
-			// Update the field with translated text
-			switch field {
-			case "Name":
-				targetLoc.Name = responses[0].TranslatedText
-			case "Subtitle":
-				targetLoc.Subtitle = responses[0].TranslatedText
-			case "ShortDescription":
-				targetLoc.ShortDescription = responses[0].TranslatedText
-			case "LongDescription":
-				targetLoc.LongDescription = responses[0].TranslatedText
-			case "Keywords":
-				targetLoc.Keywords = responses[0].TranslatedText
-			case "WhatsNew":
-				targetLoc.WhatsNew = responses[0].TranslatedText
-			case "PromotionalText":
-				targetLoc.PromotionalText = responses[0].TranslatedText
-			case "DownloadDescription":
-				targetLoc.DownloadDescription = responses[0].TranslatedText
+			// Send result
+			results <- languageResult{
+				lang:      lang,
+				targetLoc: targetLoc,
+				exists:    exists,
 			}
+		}(targetLang)
+	}
 
-			doneCount++
-			progress := int(float64(doneCount) / float64(totalFields) * 100)
-			qs.UpdateQueueJob(job.ID, map[string]interface{}{
-				"Done":     doneCount,
-				"Progress": progress,
-			})
+	// Wait for all languages to complete
+	wg.Wait()
+	close(results)
+
+	// Process results and save to database
+	for result := range results {
+		if result.err != nil {
+			continue
 		}
 
 		// Save or update the localization
-		updates := map[string]interface{}{
-			"name":                targetLoc.Name,
-			"subtitle":            targetLoc.Subtitle,
-			"privacy_url":         targetLoc.PrivacyURL,
-			"marketing_url":       targetLoc.MarketingURL,
-			"support_url":         targetLoc.SupportURL,
-			"download_description": targetLoc.DownloadDescription,
-			"short_description":   targetLoc.ShortDescription,
-			"long_description":    targetLoc.LongDescription,
-			"keywords":            targetLoc.Keywords,
-			"whats_new":           targetLoc.WhatsNew,
-			"promotional_text":    targetLoc.PromotionalText,
-		}
-
-		if exists {
-			err = qs.AppLocalizationService.UpdateAppLocalizationWithValidation(*job.AppID, targetLang, updates)
-		} else {
-			_, err = qs.AppLocalizationService.CreateAppLocalization(*job.AppID, targetLang,
-				targetLoc.Name, targetLoc.Subtitle, targetLoc.PrivacyURL,
-				targetLoc.MarketingURL, targetLoc.SupportURL, targetLoc.DownloadDescription,
-				targetLoc.ShortDescription, targetLoc.LongDescription, targetLoc.Keywords,
-				targetLoc.WhatsNew, targetLoc.PromotionalText, "",
-			)
-		}
-
+			updates := map[string]interface{}{
+					"name":              result.targetLoc.Name,
+					"subtitle":          result.targetLoc.Subtitle,
+					"privacy_url":       result.targetLoc.PrivacyURL,
+					"marketing_url":     result.targetLoc.MarketingURL,
+					"support_url":       result.targetLoc.SupportURL,
+					"description":  result.targetLoc.Description,
+					"keywords":          result.targetLoc.Keywords,
+					"whats_new":         result.targetLoc.WhatsNew,
+					"promotional_text":  result.targetLoc.PromotionalText,
+				}
+				
+				// Log description before saving
+				descLen := len(result.targetLoc.Description)
+				descNewlines := strings.Count(result.targetLoc.Description, "\n")
+				nameLen := len(result.targetLoc.Name)
+				fmt.Printf("  Saving localization for %s: name=%q (%d chars), description %d chars, %d newlines\n", 
+					result.lang, result.targetLoc.Name, nameLen, descLen, descNewlines)
+		
+				if result.exists {
+					err = qs.AppLocalizationService.UpdateAppLocalizationWithValidation(*job.AppID, result.lang, updates)
+				} else {
+					_, err = qs.AppLocalizationService.CreateAppLocalization(*job.AppID, result.lang,
+						result.targetLoc.Name, result.targetLoc.Subtitle, result.targetLoc.PrivacyURL,
+						result.targetLoc.MarketingURL, result.targetLoc.SupportURL, result.targetLoc.Description,
+						result.targetLoc.Keywords,
+						result.targetLoc.WhatsNew, result.targetLoc.PromotionalText, "",
+					)
+				}
 		if err != nil {
-			return fmt.Errorf("failed to save app localization for %s: %v", targetLang, err)
+			fmt.Printf("Failed to save app localization for %s: %v\n", result.lang, err)
 		}
 	}
 
@@ -613,7 +791,96 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 		return fmt.Errorf("failed to update job progress: %v", err)
 	}
 
+	fmt.Printf("App localization translation job %d completed. Success: %d, Errors: %d\n", job.ID, successCount, errorCount)
 	return nil
+}
+
+// truncateStringForLog truncates a string for logging purposes
+func truncateStringForLog(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
+	}
+	return text[:maxLen] + "..."
+}
+
+// splitTextForTranslation splits text into chunks for translation, respecting paragraph and word boundaries
+func (qs *QueueService) splitTextForTranslation(text string, maxLength int, targetLang string) []string {
+	// If text is short enough, return as single chunk
+	if len(text) <= maxLength {
+		return []string{text}
+	}
+
+	// Split by paragraphs first (preserving paragraph structure)
+	paragraphs := strings.Split(text, "\n")
+
+	var chunks []string
+	var currentChunk strings.Builder
+	currentLength := 0
+
+	for _, paragraph := range paragraphs {
+		// Trim the paragraph to remove leading/trailing whitespace
+		paragraph = strings.TrimSpace(paragraph)
+
+		// Skip empty paragraphs
+		if paragraph == "" {
+			continue
+		}
+
+		// Check if this paragraph alone exceeds the max length
+		if len(paragraph) > maxLength {
+			// Split long paragraph by words
+			words := strings.Fields(paragraph)
+
+			for _, word := range words {
+				wordLen := len(word)
+				newLength := currentLength + wordLen
+
+				// Add space if not the first word in chunk
+				if currentLength > 0 {
+					newLength++
+				}
+
+				if newLength > maxLength && currentLength > 0 {
+					// Add current chunk and start a new one
+					chunks = append(chunks, currentChunk.String())
+					currentChunk.Reset()
+					currentLength = 0
+				}
+
+				// Add word to current chunk
+				if currentLength > 0 {
+					currentChunk.WriteString(" ")
+				}
+				currentChunk.WriteString(word)
+				currentLength += wordLen + 1
+			}
+		} else {
+			// Paragraph fits in a single chunk
+			paragraphLen := len(paragraph)
+
+			// Check if adding this paragraph would exceed the max length
+			if currentLength+paragraphLen > maxLength && currentLength > 0 {
+				// Add current chunk and start a new one with this paragraph
+				chunks = append(chunks, currentChunk.String())
+				currentChunk.Reset()
+				currentLength = 0
+			}
+
+			// Add paragraph to current chunk
+			if currentLength > 0 {
+				currentChunk.WriteString("\n")
+			}
+			currentChunk.WriteString(paragraph)
+			currentLength += paragraphLen + 1
+		}
+	}
+
+	// Add the last chunk
+	if currentChunk.Len() > 0 {
+		chunks = append(chunks, currentChunk.String())
+	}
+
+	return chunks
 }
 
 // CreateTranslationRequestsForLanguages creates translation requests for specific languages
@@ -682,33 +949,43 @@ func createProviderFromConfig(providerType string, configData map[string]interfa
 		return translator.NewOpenAITranslator(apiKey, apiBaseURL, model, temperature, maxTokens), nil
 
 	case "llama":
+		// Get default config paths if not provided in configData
 		modelPath, ok := configData["modelPath"].(string)
 		if !ok || modelPath == "" {
-			return nil, errors.New("modelPath required for Llama provider")
-		}
-		libPath, ok := configData["libPath"].(string)
-		if !ok || libPath == "" {
-			return nil, errors.New("libPath required for Llama provider")
+			// Use default from config.yaml
+			modelPath = getLlamaConfigPath("model_path", "/data/dev/xcstrings-translator/backend/models/HY-MT1.5-1.8B-Q4_K_M.gguf")
+			if modelPath == "" {
+				return nil, errors.New("modelPath required for Llama provider")
+			}
 		}
 
-		// Build Llama options from config data
+		libPath, ok := configData["libPath"].(string)
+		if !ok || libPath == "" {
+			// Use default from config.yaml
+			libPath = getLlamaConfigPath("lib_path", "/data/dev/yzma/lib/")
+			if libPath == "" {
+				return nil, errors.New("libPath required for Llama provider")
+			}
+		}
+
+		// Build Llama options from config data with defaults from config
 		options := translator.LlamaOptions{
 			ModelPath:   modelPath,
 			GrammarPath: "",
-			Threads:     4,
-			Seed:        -1,
-			Tokens:      4096,
-			TopK:        20,
-			Tfs:         1.0,
-			TopP:        0.6,
-			MinP:        0.1,
-			TypicalP:    1.0,
-			RepeatLastN: 64,
-			RepeatPenalty: 1.05,
-			FrequencyPenalty: 0.0,
-			PresencePenalty: 0.0,
-			Temperature: 0.7,
-			Verbose:     false,
+			Threads:     getLlamaConfigInt("threads", 4),
+			Seed:        getLlamaConfigInt("seed", -1),
+			Tokens:      getLlamaConfigInt("tokens", 4096),
+			TopK:        getLlamaConfigInt("top_k", 20),
+			Tfs:         getLlamaConfigFloat("tfs", 1.0),
+			TopP:        getLlamaConfigFloat("top_p", 0.6),
+			MinP:        getLlamaConfigFloat("min_p", 0.1),
+			TypicalP:    getLlamaConfigFloat("typical_p", 1.0),
+			RepeatLastN: getLlamaConfigInt("repeat_last_n", 64),
+			RepeatPenalty: getLlamaConfigFloat("repeat_penalty", 1.05),
+			FrequencyPenalty: getLlamaConfigFloat("frequency_penalty", 0.0),
+			PresencePenalty: getLlamaConfigFloat("presence_penalty", 0.0),
+			Temperature: getLlamaConfigFloat("temperature", 0.7),
+			Verbose:     getLlamaConfigBool("verbose", false),
 		}
 
 		// Override with config values if present
@@ -767,6 +1044,77 @@ func createProviderFromConfig(providerType string, configData map[string]interfa
 	}
 }
 
+// Helper functions to load llama config from config.yaml
+func getLlamaConfigPath(key, defaultValue string) string {
+	// Try to read from config.yaml
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
+	viper.AddConfigPath("../../")
+	viper.AddConfigPath("../../backend/")
+
+	if err := viper.ReadInConfig(); err == nil {
+		path := viper.GetString("llama." + key)
+		if path != "" {
+			return path
+		}
+	}
+	return defaultValue
+}
+
+func getLlamaConfigInt(key string, defaultValue int) int {
+	// Try to read from config.yaml
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
+	viper.AddConfigPath("../../")
+	viper.AddConfigPath("../../backend/")
+
+	if err := viper.ReadInConfig(); err == nil {
+		val := viper.GetInt("llama." + key)
+		if val != 0 {
+			return val
+		}
+	}
+	return defaultValue
+}
+
+func getLlamaConfigFloat(key string, defaultValue float64) float64 {
+	// Try to read from config.yaml
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
+	viper.AddConfigPath("../../")
+	viper.AddConfigPath("../../backend/")
+
+	if err := viper.ReadInConfig(); err == nil {
+		val := viper.GetFloat64("llama." + key)
+		if val != 0 {
+			return val
+		}
+	}
+	return defaultValue
+}
+
+func getLlamaConfigBool(key string, defaultValue bool) bool {
+	// Try to read from config.yaml
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
+	viper.AddConfigPath("../../")
+	viper.AddConfigPath("../../backend/")
+
+	if err := viper.ReadInConfig(); err == nil {
+		val := viper.GetBool("llama." + key)
+		return val
+	}
+	return defaultValue
+}
+
 // PollForNextJob runs continuously to process jobs in the queue
 func (qs *QueueService) PollForNextJob(interval time.Duration) {
 	ticker := time.NewTicker(interval)
@@ -820,4 +1168,71 @@ func SetQueueService(db *database.Database) {
 		ProviderService:          providerServiceInstance,
 		AppProviderConfigService: appProviderConfigServiceInstance,
 	}
+}
+
+// isLanguageSupportedByHunyuan checks if a language is supported by the Hunyuan model
+func isLanguageSupportedByHunyuan(locale string) bool {
+	// Common Hunyuan supported languages (simplified check)
+	supportedCodes := map[string]bool{
+		"zh": true, "zh-Hans": true, "zh-CN": true,
+		"en": true, "en-US": true, "en-GB": true,
+		"fr": true, "fr-FR": true,
+		"pt": true, "pt-PT": true, "pt-BR": true,
+		"es": true, "es-ES": true, "es-MX": true,
+		"ja": true, "ja-JP": true,
+		"tr": true, "tr-TR": true,
+		"ru": true, "ru-RU": true,
+		"ar": true, "ar-SA": true,
+		"ko": true, "ko-KR": true,
+		"th": true, "th-TH": true,
+		"it": true, "it-IT": true,
+		"de": true, "de-DE": true,
+		"vi": true, "vi-VN": true,
+		"ms": true, "ms-MY": true,
+		"id": true, "id-ID": true,
+		"tl": true, "fil": true, "tl-PH": true, "fil-PH": true,
+		"hi": true, "hi-IN": true,
+		"zh-Hant": true, "zh-TW": true, "zh-HK": true,
+		"pl": true, "pl-PL": true,
+		"cs": true, "cs-CZ": true,
+		"nl": true, "nl-NL": true,
+		"da": true, "da-DK": true,
+		"sv": true, "sv-SE": true,
+		"no": true, "nb": true, "nn": true, "nb-NO": true, "nn-NO": true, "no-NO": true,
+		"fi": true, "fi-FI": true,
+		"el": true, "el-GR": true,
+		"he": true, "he-IL": true,
+		"uk": true, "uk-UA": true,
+		"bn": true, "bn-IN": true,
+		"ta": true, "ta-IN": true,
+		"km": true, "km-KH": true,
+		"my": true, "my-MM": true,
+		"fa": true, "fa-IR": true,
+		"gu": true, "gu-IN": true,
+		"ur": true, "ur-PK": true,
+		"te": true, "te-IN": true,
+		"mr": true, "mr-IN": true,
+		"bo": true, "bo-CN": true,
+		"kk": true, "kk-KZ": true,
+		"mn": true, "mn-MN": true,
+		"ug": true, "ug-CN": true,
+		"yue": true, "yue-HK": true,
+	}
+
+	// Normalize locale
+	normalized := strings.ReplaceAll(locale, "_", "-")
+	normalized = strings.TrimSpace(normalized)
+
+	// Check direct match
+	if supportedCodes[normalized] {
+		return true
+	}
+
+	// Check base language code
+	parts := strings.Split(normalized, "-")
+	if len(parts) > 0 && supportedCodes[parts[0]] {
+		return true
+	}
+
+	return false
 }

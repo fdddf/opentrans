@@ -168,6 +168,39 @@ func (l *LlamaTranslator) Translate(ctx context.Context, req model.TranslationRe
 	}, nil
 }
 
+// TranslateStream translates a string using local Llama model with streaming support
+func (l *LlamaTranslator) TranslateStream(ctx context.Context, req model.TranslationRequest, callback func(chunk string) error) (model.TranslationResponse, error) {
+	// Prepare translation prompt
+	prompt := createTranslationPrompt(req)
+
+	messages := make([]llama.ChatMessage, 0)
+	messages = append(messages, llama.NewChatMessage("user", prompt))
+
+	template := llama.ModelChatTemplate(l.Model, "")
+	if template == "" {
+		template = "chatml"
+	}
+	buf := make([]byte, 4096)
+	len := llama.ChatApplyTemplate(template, messages, true, buf)
+	result := string(buf[:len])
+
+	// Generate translation using the Llama model with streaming
+	response, err := l.generateTextStream(ctx, result, callback)
+	if err != nil {
+		return model.TranslationResponse{
+			Key:            req.Key,
+			TargetLanguage: req.TargetLanguage,
+			Error:          fmt.Errorf("llama stream generation failed: %v", err),
+		}, nil
+	}
+
+	return model.TranslationResponse{
+		Key:            req.Key,
+		TargetLanguage: req.TargetLanguage,
+		TranslatedText: cleanLlamaResponse(response),
+	}, nil
+}
+
 // generateText generates text using the Llama model based on the provided prompt
 func (l *LlamaTranslator) generateText(ctx context.Context, prompt string) (string, error) {
 	// Use global mutex to ensure thread safety across all llama operations
@@ -252,13 +285,118 @@ func (l *LlamaTranslator) generateText(ctx context.Context, prompt string) (stri
 	return result.String(), nil
 }
 
+// generateTextStream generates text using the Llama model with streaming support
+func (l *LlamaTranslator) generateTextStream(ctx context.Context, prompt string, callback func(chunk string) error) (string, error) {
+	// Use global mutex to ensure thread safety across all llama operations
+	globalLlamaMutex.Lock()
+	defer globalLlamaMutex.Unlock()
+
+	// Create a new context for this generation
+	llamaContext, err := llama.InitFromModel(l.Model, l.ContextParams)
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize llama context: %v", err)
+	}
+	defer llama.Free(llamaContext)
+
+	// Create sampler params for this request
+	samplerParams := l.SamplerParams
+	// Initialize sampler for this request
+	sampler := llama.NewSampler(l.Model, l.Samplers, &samplerParams)
+	defer llama.SamplerFree(sampler)
+
+	// Get the vocabulary from the model
+	vocab := llama.ModelGetVocab(l.Model)
+
+	// Tokenize the prompt
+	tokens := llama.Tokenize(vocab, prompt, true, true)
+
+	// Check if we have tokens to process
+	if len(tokens) == 0 {
+		return "", fmt.Errorf("no tokens generated from prompt")
+	}
+
+	// Process the prompt tokens
+	batch := llama.BatchGetOne(tokens)
+
+	// Encode the tokens in the batch
+	if llama.ModelHasEncoder(l.Model) {
+		_, err := llama.Encode(llamaContext, batch)
+		if err != nil {
+			return "", fmt.Errorf("failed to encode batch: %v", err)
+		}
+
+		start := llama.ModelDecoderStartToken(l.Model)
+		if start == llama.TokenNull {
+			start = llama.VocabBOS(vocab)
+		}
+
+		batch = llama.BatchGetOne([]llama.Token{start})
+	}
+
+	// Generate tokens with streaming
+	maxTokens := l.Tokens
+	if maxTokens <= 0 {
+		maxTokens = 512 // default
+	}
+
+	var result strings.Builder
+	for pos := int32(0); pos < int32(maxTokens); pos += batch.NTokens {
+		// Decode the current context
+		_, err := llama.Decode(llamaContext, batch)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode: %v", err)
+		}
+
+		// Sample next token
+		nextToken := llama.SamplerSample(sampler, llamaContext, -1)
+
+		// Check if it's an end-of-sequence token
+		if llama.VocabIsEOG(vocab, nextToken) {
+			break
+		}
+
+		// Convert token to text piece
+		buf := make([]byte, 256)
+		l := llama.TokenToPiece(vocab, nextToken, buf, 0, false)
+		nextPiece := string(buf[:l])
+
+		batch = llama.BatchGetOne([]llama.Token{nextToken})
+
+		// Add to result
+		result.WriteString(nextPiece)
+
+		// Call callback with the new chunk
+		if callback != nil {
+			if err := callback(nextPiece); err != nil {
+				return result.String(), err
+			}
+		}
+	}
+
+	return result.String(), nil
+}
+
 // createTranslationPrompt creates a prompt for translating text
 func createTranslationPrompt(req model.TranslationRequest) string {
-	// Create a descriptive prompt for translation task
+	// 使用 hunyuan 标识符（Identifier）而不是显示名称，这样模型更容易理解
+	targetLanguage := hunyuanLang.MapAppStoreLocaleToHunyuan(req.TargetLanguage)
+
+	// 如果映射失败（返回原值），尝试使用显示名称作为降级
+	if targetLanguage == req.TargetLanguage {
+		displayName := hunyuanLang.MapAppStoreLocaleToDisplayName(req.TargetLanguage)
+		if displayName != req.TargetLanguage {
+			targetLanguage = displayName
+		} else {
+			// 如果都不支持，使用原始代码并发出警告
+			log.Warnf("Language '%s' is not supported by Hunyuan model, using raw code", req.TargetLanguage)
+			targetLanguage = req.TargetLanguage
+		}
+	}
+
+	// 创建翻译提示
 	prompt := fmt.Sprintf(
 		"Translate the following segment into %s, without additional explanation.\n\n%s",
-		// languageDisplayName(req.SourceLanguage),
-		languageDisplayName(req.TargetLanguage),
+		targetLanguage,
 		req.Text,
 	)
 	log.Infof("prompt: %s", prompt)
@@ -266,27 +404,10 @@ func createTranslationPrompt(req model.TranslationRequest) string {
 	return prompt
 }
 
-func languageDisplayName(code string) string {
-	if code == "" {
-		return code
-	}
-
-	// 使用 hunyuan 包的语言映射方法
-	displayName := hunyuanLang.MapAppStoreLocaleToDisplayName(code)
-
-	// 如果映射失败（返回原值），尝试使用标识符映射
-	if displayName == code {
-		if identifier := hunyuanLang.MapAppStoreLocaleToHunyuan(code); identifier != code {
-			if lang := hunyuanLang.GetLanguageByIdentifier(identifier); lang != nil {
-				return lang.DisplayName
-			}
-		}
-	}
-
-	return displayName
-}
-
 func cleanLlamaResponse(response string) string {
+	// Normalize line endings first - convert \r\n to \n
+	response = strings.ReplaceAll(response, "\r\n", "\n")
+	
 	trimmed := strings.TrimSpace(response)
 	if trimmed == "" {
 		return trimmed
@@ -301,16 +422,18 @@ func cleanLlamaResponse(response string) string {
 		}
 	}
 
+	// Preserve newlines - just remove leading/trailing whitespace from each line
 	if strings.Contains(trimmed, "\n") {
 		lines := strings.Split(trimmed, "\n")
+		var cleanLines []string
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
+			if line != "" {
+				cleanLines = append(cleanLines, line)
 			}
-			trimmed = line
-			break
 		}
+		// Join lines back with newlines
+		trimmed = strings.Join(cleanLines, "\n")
 	}
 
 	return strings.TrimSpace(trimmed)

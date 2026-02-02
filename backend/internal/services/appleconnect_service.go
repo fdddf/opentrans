@@ -200,8 +200,6 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 			locData.Attributes.PrivacyURL,
 			locData.Attributes.MarketingURL,
 			locData.Attributes.SupportURL,
-			locData.Attributes.DownloadDescription,
-			locData.Attributes.ShortDescription,
 			locData.Attributes.Description,
 			locData.Attributes.Keywords,
 			locData.Attributes.WhatsNew,
@@ -278,9 +276,9 @@ func (s *AppleConnectService) isLocalizationDifferent(localLoc *database.AppLoca
 		localLoc.PrivacyURL != appleLoc.Attributes.PrivacyURL ||
 		localLoc.MarketingURL != appleLoc.Attributes.MarketingURL ||
 		localLoc.SupportURL != appleLoc.Attributes.SupportURL ||
-		localLoc.DownloadDescription != appleLoc.Attributes.DownloadDescription ||
-		localLoc.ShortDescription != appleLoc.Attributes.ShortDescription ||
-		localLoc.LongDescription != appleLoc.Attributes.Description ||
+		localLoc.Description != appleLoc.Attributes.DownloadDescription ||
+		"" != appleLoc.Attributes.ShortDescription ||
+		localLoc.Description != appleLoc.Attributes.Description ||
 		localLoc.Keywords != appleLoc.Attributes.Keywords ||
 		localLoc.WhatsNew != appleLoc.Attributes.WhatsNew
 }
@@ -395,9 +393,9 @@ func (s *AppleConnectService) pushLocalizationToApple(appID uint, languageCode, 
 			localLoc.PrivacyURL,
 			localLoc.MarketingURL,
 			localLoc.SupportURL,
-			localLoc.DownloadDescription,
-			localLoc.ShortDescription,
-			localLoc.LongDescription,
+			localLoc.Description,
+			"",
+			localLoc.Description,
 			localLoc.Keywords,
 			localLoc.WhatsNew,
 			localLoc.PromotionalText,
@@ -414,9 +412,9 @@ func (s *AppleConnectService) pushLocalizationToApple(appID uint, languageCode, 
 			localLoc.PrivacyURL,
 			localLoc.MarketingURL,
 			localLoc.SupportURL,
-			localLoc.DownloadDescription,
-			localLoc.ShortDescription,
-			localLoc.LongDescription,
+			localLoc.Description,
+			"",
+			localLoc.Description,
 			localLoc.Keywords,
 			localLoc.WhatsNew,
 			localLoc.PromotionalText,
@@ -492,8 +490,6 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 					appleLoc.Attributes.PrivacyURL,
 					appleLoc.Attributes.MarketingURL,
 					appleLoc.Attributes.SupportURL,
-					appleLoc.Attributes.DownloadDescription,
-					appleLoc.Attributes.ShortDescription,
 					appleLoc.Attributes.Description,
 					appleLoc.Attributes.Keywords,
 					appleLoc.Attributes.WhatsNew,
@@ -560,9 +556,9 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 					localLoc.PrivacyURL,
 					localLoc.MarketingURL,
 					localLoc.SupportURL,
-					localLoc.DownloadDescription,
-					localLoc.ShortDescription,
-					localLoc.LongDescription,
+					localLoc.Description,
+					"",
+					localLoc.Description,
 					localLoc.Keywords,
 					localLoc.WhatsNew,
 					localLoc.PromotionalText,

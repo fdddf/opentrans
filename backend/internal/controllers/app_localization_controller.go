@@ -16,18 +16,16 @@ func NewAppLocalizationController() *AppLocalizationController {
 
 // CreateAppLocalizationRequest represents the create app localization request
 type CreateAppLocalizationRequest struct {
-	LanguageCode        string `json:"languageCode"`
-	Name                string `json:"name"`
-	Subtitle            string `json:"subtitle"`
-	PrivacyURL          string `json:"privacyUrl"`
-	MarketingURL        string `json:"marketingUrl"`
-	SupportURL          string `json:"supportUrl"`
-	DownloadDescription string `json:"downloadDescription"`
-	ShortDescription    string `json:"shortDescription"`
-	LongDescription     string `json:"longDescription"`
-	Keywords            string `json:"keywords"`
-	WhatsNew            string `json:"whatsNew"`
-	PromotionalText     string `json:"promotionalText"`
+	LanguageCode    string `json:"languageCode"`
+	Name           string `json:"name"`
+	Subtitle       string `json:"subtitle"`
+	PrivacyURL     string `json:"privacyUrl"`
+	MarketingURL   string `json:"marketingUrl"`
+	SupportURL     string `json:"supportUrl"`
+	Description    string `json:"description"`
+	Keywords       string `json:"keywords"`
+	WhatsNew       string `json:"whatsNew"`
+	PromotionalText string `json:"promotionalText"`
 }
 
 // UpdateAppLocalizationRequest represents the update app localization request
@@ -35,14 +33,12 @@ type UpdateAppLocalizationRequest struct {
 	Name                string `json:"name"`
 	Subtitle            string `json:"subtitle"`
 	PrivacyURL          string `json:"privacyUrl"`
-	MarketingURL        string `json:"marketingUrl"`
-	SupportURL          string `json:"supportUrl"`
-	DownloadDescription string `json:"downloadDescription"`
-	ShortDescription    string `json:"shortDescription"`
-	LongDescription     string `json:"longDescription"`
-	Keywords            string `json:"keywords"`
-	WhatsNew            string `json:"whatsNew"`
-	PromotionalText     string `json:"promotionalText"`
+	MarketingURL    string `json:"marketingUrl"`
+	SupportURL      string `json:"supportUrl"`
+	Description     string `json:"description"`
+	Keywords        string `json:"keywords"`
+	WhatsNew        string `json:"whatsNew"`
+	PromotionalText string `json:"promotionalText"`
 }
 
 // AddAppLanguageRequest represents the add app language request
@@ -127,9 +123,7 @@ func (ctrl *AppLocalizationController) CreateAppLocalization(c *fiber.Ctx) error
 		req.PrivacyURL,
 		req.MarketingURL,
 		req.SupportURL,
-		req.DownloadDescription,
-		req.ShortDescription,
-		req.LongDescription,
+		req.Description,
 		req.Keywords,
 		req.WhatsNew,
 		req.PromotionalText,
@@ -220,19 +214,17 @@ func (ctrl *AppLocalizationController) UpdateAppLocalization(c *fiber.Ctx) error
 	}
 
 	updates := map[string]interface{}{
-		"Name":                req.Name,
-		"Subtitle":            req.Subtitle,
-		"PrivacyURL":          req.PrivacyURL,
-		"MarketingURL":        req.MarketingURL,
-		"SupportURL":          req.SupportURL,
-		"DownloadDescription": req.DownloadDescription,
-		"ShortDescription":    req.ShortDescription,
-		"LongDescription":     req.LongDescription,
-		"Keywords":            req.Keywords,
-		"WhatsNew":            req.WhatsNew,
-		"PromotionalText":     req.PromotionalText,
-		"SyncStatus":          "pending",
-		"Source":              "local",
+		"Name":            req.Name,
+		"Subtitle":        req.Subtitle,
+		"PrivacyURL":      req.PrivacyURL,
+		"MarketingURL":    req.MarketingURL,
+		"SupportURL":      req.SupportURL,
+		"Description":     req.Description,
+		"Keywords":        req.Keywords,
+		"WhatsNew":        req.WhatsNew,
+		"PromotionalText": req.PromotionalText,
+		"SyncStatus":      "pending",
+		"Source":          "local",
 	}
 
 	err = services.UpdateAppLocalization(uint(appID), languageCode, updates)
@@ -352,8 +344,6 @@ func (ctrl *AppLocalizationController) AddAppLanguage(c *fiber.Ctx) error {
 	_, err = services.GetOrCreateAppLocalization(
 		uint(appID),
 		req.Language,
-		"",
-		"",
 		"",
 		"",
 		"",

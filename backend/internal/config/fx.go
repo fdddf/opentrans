@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 	"go.uber.org/fx"
 )
 
@@ -55,11 +56,40 @@ func NewConfig() (*FXConfig, error) {
 			BaseURL:      getEnv("BASE_URL", "http://localhost:3000"),
 		},
 		Admin: AdminConfig{
-			Username:     getEnv("ADMIN_USERNAME", "admin"),
-			Email:        getEnv("ADMIN_EMAIL", "admin@example.com"),
-			Password:     getEnv("ADMIN_PASSWORD", "admin123"),
+			Username:         getEnv("ADMIN_USERNAME", "admin"),
+			Email:            getEnv("ADMIN_EMAIL", "admin@example.com"),
+			Password:         getEnv("ADMIN_PASSWORD", "admin123"),
 			CreateIfNotExists: getEnv("ADMIN_CREATE_IF_NOT_EXISTS", "true") == "true",
 		},
+	}
+
+	// Load config.yaml for Llama configuration
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("../")
+	viper.AddConfigPath("../../")
+
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("Warning: Failed to read config.yaml: %v, using defaults\n", err)
+	} else {
+		// Read Llama configuration
+		cfg.Llama.LibPath = viper.GetString("llama.lib_path")
+		cfg.Llama.ModelPath = viper.GetString("llama.model_path")
+		cfg.Llama.Threads = viper.GetInt("llama.threads")
+		cfg.Llama.Seed = viper.GetInt("llama.seed")
+		cfg.Llama.Tokens = viper.GetInt("llama.tokens")
+		cfg.Llama.TopK = viper.GetInt("llama.top_k")
+		cfg.Llama.Tfs = viper.GetFloat64("llama.tfs")
+		cfg.Llama.TopP = viper.GetFloat64("llama.top_p")
+		cfg.Llama.MinP = viper.GetFloat64("llama.min_p")
+		cfg.Llama.TypicalP = viper.GetFloat64("llama.typical_p")
+		cfg.Llama.RepeatLastN = viper.GetInt("llama.repeat_last_n")
+		cfg.Llama.RepeatPenalty = viper.GetFloat64("llama.repeat_penalty")
+		cfg.Llama.FrequencyPenalty = viper.GetFloat64("llama.frequency_penalty")
+		cfg.Llama.PresencePenalty = viper.GetFloat64("llama.presence_penalty")
+		cfg.Llama.Temperature = viper.GetFloat64("llama.temperature")
+		cfg.Llama.Verbose = viper.GetBool("llama.verbose")
 	}
 
 	return cfg, nil
@@ -109,6 +139,7 @@ type FXConfig struct {
 	Stripe   StripeConfig
 	Email    EmailConfig
 	Admin    AdminConfig
+	Llama    LlamaConfig
 }
 
 // getEnv gets an environment variable or returns a default value
