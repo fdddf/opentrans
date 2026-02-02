@@ -230,8 +230,8 @@
             </div>
 
             <div>
-              <label class="text-sm text-slate-400">{{ t('applocalizations.releaseNotes') }}</label>
-              <textarea v-model="editLocalizationData.releaseNotes" rows="4" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.releaseNotesPlaceholder')"></textarea>
+              <label class="text-sm text-slate-400">{{ t('applocalizations.whatsNew') }}</label>
+              <textarea v-model="editLocalizationData.whatsNew" rows="4" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('applocalizations.whatsNewPlaceholder')"></textarea>
             </div>
 
             <div class="grid grid-cols-1 gap-4">
@@ -370,7 +370,7 @@ const editLocalizationData = reactive({
   shortDescription: '',
   longDescription: '',
   keywords: '',
-  releaseNotes: '',
+  whatsNew: '',
   promotionalText: ''
 })
 
@@ -384,7 +384,7 @@ const validationRules = {
   marketingUrl: { maxLength: 255, required: false },
   supportUrl: { maxLength: 255, required: false },
   promotionalText: { maxLength: 170, required: false },
-  releaseNotes: { maxLength: 4000, required: false }
+  whatsNew: { maxLength: 4000, required: false }
 }
 
 function validateField(field: string, value: string): string | null {
@@ -673,7 +673,7 @@ async function updateLocalization() {
         shortDescription: editLocalizationData.shortDescription,
         longDescription: editLocalizationData.longDescription,
         keywords: editLocalizationData.keywords,
-        releaseNotes: editLocalizationData.releaseNotes,
+        whatsNew: editLocalizationData.whatsNew,
         promotionalText: editLocalizationData.promotionalText
       })
     } else {
@@ -687,7 +687,7 @@ async function updateLocalization() {
         shortDescription: editLocalizationData.shortDescription,
         longDescription: editLocalizationData.longDescription,
         keywords: editLocalizationData.keywords,
-        releaseNotes: editLocalizationData.releaseNotes,
+        whatsNew: editLocalizationData.whatsNew,
         promotionalText: editLocalizationData.promotionalText
       })
     }
@@ -822,11 +822,11 @@ async function translateLocalization() {
       }
     }
 
-    // Translate release notes
-    if (editLocalizationData.releaseNotes) {
-      const notesResult = await api.translateText(editLocalizationData.releaseNotes, sourceLanguage, targetLanguage)
+    // Translate what's new
+    if (editLocalizationData.whatsNew) {
+      const notesResult = await api.translateText(editLocalizationData.whatsNew, sourceLanguage, targetLanguage)
       if (notesResult.success) {
-        editLocalizationData.releaseNotes = notesResult.text
+        editLocalizationData.whatsNew = notesResult.text
       }
     }
 
@@ -851,7 +851,7 @@ function editLocalization(localization: AppLocalization) {
   editLocalizationData.shortDescription = localization.shortDescription || ''
   editLocalizationData.longDescription = localization.longDescription || localization.description || ''
   editLocalizationData.keywords = localization.keywords || ''
-  editLocalizationData.releaseNotes = localization.releaseNotes || ''
+  editLocalizationData.whatsNew = localization.whatsNew || ''
   editLocalizationData.promotionalText = localization.promotionalText || ''
 
   clearValidationErrors()
@@ -883,7 +883,7 @@ async function handleLanguageSelect() {
   editLocalizationData.shortDescription = enUsLocalization?.shortDescription || ''
   editLocalizationData.longDescription = enUsLocalization?.longDescription || enUsLocalization?.description || ''
   editLocalizationData.keywords = enUsLocalization?.keywords || ''
-  editLocalizationData.releaseNotes = enUsLocalization?.releaseNotes || ''
+  editLocalizationData.whatsNew = enUsLocalization?.whatsNew || ''
   editLocalizationData.promotionalText = enUsLocalization?.promotionalText || ''
 
   clearValidationErrors()
@@ -905,7 +905,7 @@ async function handleLanguageSelect() {
     marketingUrl: editLocalizationData.marketingUrl,
     supportUrl: editLocalizationData.supportUrl,
     promotionalText: editLocalizationData.promotionalText,
-    releaseNotes: editLocalizationData.releaseNotes,
+    whatsNew: editLocalizationData.whatsNew,
     syncStatus: 'pending',
     version: '',
     createdAt: new Date().toISOString(),

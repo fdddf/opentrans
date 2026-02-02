@@ -256,8 +256,8 @@
     "lockedMessage": "This localization belongs to a published version and cannot be edited",
     "promotionalText": "Promotional text",
     "promotionalTextPlaceholder": "Promotional text in this language",
-    "releaseNotes": "Release notes",
-    "releaseNotesPlaceholder": "Release notes in this language"
+    "whatsNew": "What's new in this version",
+    "whatsNewPlaceholder": "What's new in this version"
   },
   "providerConfigs": {
     "title": "Provider Configurations",

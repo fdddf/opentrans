@@ -40,7 +40,7 @@ export interface AppLocalization {
   shortDescription?: string;
   longDescription?: string;
   keywords?: string;
-  releaseNotes?: string;
+  whatsNew?: string;
   promotionalText?: string;
   syncedAt?: string;
   source?: string;

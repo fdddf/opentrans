@@ -519,6 +519,7 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 			loc.LongDescription,
 			loc.Keywords,
 			loc.ReleaseNotes,
+			loc.PromotionalText,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to update localization for %s: %v", loc.LanguageCode, err)
@@ -619,7 +620,7 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 				"ShortDescription":    locData.Attributes.ShortDescription,
 				"LongDescription":     locData.Attributes.Description,
 				"Keywords":            locData.Attributes.Keywords,
-				"ReleaseNotes":        locData.Attributes.ReleaseNotes,
+				"ReleaseNotes":        locData.Attributes.WhatsNew,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to update localization %s: %v", locData.Attributes.Locale, err)
@@ -641,7 +642,7 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 			locData.Attributes.ShortDescription,
 			locData.Attributes.Description,
 			locData.Attributes.Keywords,
-			locData.Attributes.ReleaseNotes,
+			locData.Attributes.WhatsNew,
 			locData.Attributes.PromotionalText,
 			"", // WhatToTest - not available in Apple Connect API response
 		)

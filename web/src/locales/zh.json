@@ -256,8 +256,8 @@
     "lockedMessage": "此本地化属于已发布版本，无法编辑",
     "promotionalText": "推广文本",
     "promotionalTextPlaceholder": "此语言的推广文本",
-    "releaseNotes": "版本说明",
-    "releaseNotesPlaceholder": "此语言的版本说明"
+    "whatsNew": "此版本的新内容",
+    "whatsNewPlaceholder": "此版本的新内容"
   },
   "providerConfigs": {
     "title": "提供商配置",

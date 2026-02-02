@@ -53,7 +53,7 @@ type AppLocalization struct {
 		Description         string `json:"description"`
 		ShortDescription    string `json:"shortDescription"`
 		Keywords            string `json:"keywords"`
-		ReleaseNotes        string `json:"releaseNotes"`
+		WhatsNew            string `json:"whatsNew"`
 		PromotionalText     string `json:"promotionalText"`
 		Locale              string `json:"locale"`
 	} `json:"attributes"`
@@ -86,6 +86,7 @@ type AppStoreVersion struct {
 		VersionString string `json:"versionString"`
 		Platform      string `json:"platform"`
 		State         string `json:"appStoreState"`
+		WhatsNew      string `json:"whatsNew"`
 	} `json:"attributes"`
 }
 
@@ -97,6 +98,11 @@ type AppsResponse struct {
 // AppLocalizationsResponse represents the response from the app localizations endpoint
 type AppLocalizationsResponse struct {
 	Data []AppLocalization `json:"data"`
+}
+
+// AppLocalizationResponse represents the response for a single app localization
+type AppLocalizationResponse struct {
+	Data AppLocalization `json:"data"`
 }
 
 // AppStoreVersionsResponse represents the response from appStoreVersions endpoint
@@ -335,6 +341,12 @@ func (c *AppleConnectClient) GetAppVersion(appID string) (string, string, error)
 	return versionString, versionState, err
 }
 
+// GetAppVersionID retrieves the latest version ID for an app
+func (c *AppleConnectClient) GetAppVersionID(appID string) (string, error) {
+	versionID, _, _, err := c.getAppLatestVersionID(appID)
+	return versionID, err
+}
+
 // getAppLatestVersionID retrieves the latest version ID, version string, and state for an app
 func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, string, string, error) {
 	jwtToken, err := c.GenerateJWT()
@@ -406,7 +418,7 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 				"shortDescription":    shortDescription,
 				"description":         longDescription,
 				"keywords":            keywords,
-				"releaseNotes":        releaseNotes,
+				"whatsNew":            releaseNotes,
 			},
 			"relationships": map[string]interface{}{
 				"appStoreVersion": map[string]interface{}{
@@ -465,28 +477,56 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 }
 
 // UpdateAppLocalization updates an existing localization in App Store Connect
-func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes string) (*AppLocalization, error) {
+
+// Note: Only fields supported by appStoreVersionLocalizations are included:
+
+// - description (long description)
+// - keywords
+// - marketingUrl
+// - promotionalText
+// - supportUrl
+// - whatsNew (What's new in this version)
+// Other fields like name, subtitle, privacyUrl need to be updated on the app resource
+
+func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText string) (*AppLocalization, error) {
+
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
 
+	// Build attributes map with only supported fields
+	attributes := map[string]interface{}{}
+	if longDescription != "" {
+		attributes["description"] = longDescription
+	}
+
+	if keywords != "" {
+		attributes["keywords"] = keywords
+	}
+
+	if marketingURL != "" {
+		attributes["marketingUrl"] = marketingURL
+	}
+
+	if promotionalText != "" {
+		attributes["promotionalText"] = promotionalText
+	}
+
+	if supportURL != "" {
+		attributes["supportUrl"] = supportURL
+
+	}
+
+	if releaseNotes != "" {
+		attributes["whatsNew"] = releaseNotes
+	}
+
 	payload := map[string]interface{}{
 		"data": map[string]interface{}{
-			"type": "appStoreVersionLocalizations",
-			"id":   localizationID,
-			"attributes": map[string]interface{}{
-				"name":                name,
-				"subtitle":            subtitle,
-				"privacyUrl":          privacyURL,
-				"marketingUrl":        marketingURL,
-				"supportUrl":          supportURL,
-				"downloadDescription": downloadDescription,
-				"shortDescription":    shortDescription,
-				"description":         longDescription,
-				"keywords":            keywords,
-				"releaseNotes":        releaseNotes,
-			},
+			"type":       "appStoreVersionLocalizations",
+			"id":         localizationID,
+			"attributes": attributes,
 		},
 	}
 
@@ -503,7 +543,6 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Body = io.NopCloser(bytes.NewReader(payloadBytes))
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
@@ -515,7 +554,7 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var updated AppLocalizationsResponse
+	var updated AppLocalizationResponse
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
@@ -524,12 +563,7 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 	if err := json.Unmarshal(body, &updated); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-
-	if len(updated.Data) == 0 {
-		return nil, fmt.Errorf("no localization returned from API")
-	}
-
-	return &updated.Data[0], nil
+	return &updated.Data, nil
 }
 
 // DeleteAppLocalization deletes an existing localization in App Store Connect
@@ -561,3 +595,47 @@ func (c *AppleConnectClient) DeleteAppLocalization(localizationID string) error 
 	return nil
 }
 
+// UpdateAppStoreVersionReleaseNotes updates the release notes (whatsNew) for an app store version
+func (c *AppleConnectClient) UpdateAppStoreVersionReleaseNotes(versionID, whatsNew string) error {
+	jwtToken, err := c.GenerateJWT()
+	if err != nil {
+		return fmt.Errorf("failed to generate JWT: %w", err)
+	}
+
+	payload := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "appStoreVersions",
+			"id":   versionID,
+			"attributes": map[string]interface{}{
+				"whatsNew": whatsNew,
+			},
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest("PATCH", fmt.Sprintf("%s/v1/appStoreVersions/%s", c.baseURL, versionID), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = io.NopCloser(bytes.NewReader(payloadBytes))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
