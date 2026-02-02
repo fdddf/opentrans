@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fdddf/xcstrings-translator/internal/dao/query"
@@ -472,20 +473,38 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 			_, err = client.CreateAppLocalization(
 				app.AppleID,
 				loc.LanguageCode,
-				loc.Name,
-				loc.Subtitle,
-				loc.PrivacyURL,
 				loc.MarketingURL,
 				loc.SupportURL,
-				"",
-				"",
 				loc.Description,
 				loc.Keywords,
 				loc.WhatsNew,
 				loc.PromotionalText,
 			)
 			if err != nil {
-				return fmt.Errorf("failed to create localization for %s: %v", loc.LanguageCode, err)
+				// Check if it's a duplicate error (409)
+				errStr := err.Error()
+				if strings.Contains(errStr, "409") && strings.Contains(errStr, "already exists") {
+					// Localization already exists, fetch it and update
+					existing, err = client.GetAppLocalization(app.AppleID, loc.LanguageCode)
+					if err != nil {
+						return fmt.Errorf("failed to fetch existing localization for %s after duplicate error: %v", loc.LanguageCode, err)
+					}
+					// Update the existing localization
+					_, err = client.UpdateAppLocalization(
+						existing.ID,
+						loc.MarketingURL,
+						loc.SupportURL,
+						loc.Description,
+						loc.Keywords,
+						loc.WhatsNew,
+						loc.PromotionalText,
+					)
+					if err != nil {
+						return fmt.Errorf("failed to update existing localization for %s: %v", loc.LanguageCode, err)
+					}
+				} else {
+					return fmt.Errorf("failed to create localization for %s: %v", loc.LanguageCode, err)
+				}
 			}
 
 			updates := map[string]interface{}{
@@ -499,13 +518,8 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 
 		_, err = client.UpdateAppLocalization(
 			existing.ID,
-			loc.Name,
-			loc.Subtitle,
-			loc.PrivacyURL,
 			loc.MarketingURL,
 			loc.SupportURL,
-			"",
-			"",
 			loc.Description,
 			loc.Keywords,
 			loc.WhatsNew,

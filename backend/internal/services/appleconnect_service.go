@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fdddf/xcstrings-translator/internal/database"
@@ -388,32 +389,45 @@ func (s *AppleConnectService) pushLocalizationToApple(appID uint, languageCode, 
 		_, err = client.CreateAppLocalization(
 			app.AppleID,
 			languageCode,
-			localLoc.Name,
-			localLoc.Subtitle,
-			localLoc.PrivacyURL,
 			localLoc.MarketingURL,
 			localLoc.SupportURL,
-			localLoc.Description,
-			"",
 			localLoc.Description,
 			localLoc.Keywords,
 			localLoc.WhatsNew,
 			localLoc.PromotionalText,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to create localization in Apple Connect: %v", err)
+			// Check if it's a duplicate error (409)
+			errStr := err.Error()
+			if strings.Contains(errStr, "409") && strings.Contains(errStr, "already exists") {
+				// Localization already exists, fetch it and update
+				appleLoc, err = client.GetAppLocalization(app.AppleID, languageCode)
+				if err != nil {
+					return fmt.Errorf("failed to fetch existing localization for %s after duplicate error: %v", languageCode, err)
+				}
+				// Update the existing localization
+				_, err = client.UpdateAppLocalization(
+					appleLoc.ID,
+					localLoc.MarketingURL,
+					localLoc.SupportURL,
+					localLoc.Description,
+					localLoc.Keywords,
+					localLoc.WhatsNew,
+					localLoc.PromotionalText,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to update existing localization for %s: %v", languageCode, err)
+				}
+			} else {
+				return fmt.Errorf("failed to create localization in Apple Connect: %v", err)
+			}
 		}
 	} else {
 		// Update existing localization
 		_, err = client.UpdateAppLocalization(
 			appleLoc.ID,
-			localLoc.Name,
-			localLoc.Subtitle,
-			localLoc.PrivacyURL,
 			localLoc.MarketingURL,
 			localLoc.SupportURL,
-			localLoc.Description,
-			"",
 			localLoc.Description,
 			localLoc.Keywords,
 			localLoc.WhatsNew,
@@ -551,20 +565,38 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 				_, err := client.CreateAppLocalization(
 					app.AppleID,
 					locale,
-					localLoc.Name,
-					localLoc.Subtitle,
-					localLoc.PrivacyURL,
 					localLoc.MarketingURL,
 					localLoc.SupportURL,
-					localLoc.Description,
-					"",
 					localLoc.Description,
 					localLoc.Keywords,
 					localLoc.WhatsNew,
 					localLoc.PromotionalText,
 				)
 				if err != nil {
-					return nil, nil, fmt.Errorf("failed to create localization in Apple %s: %v", locale, err)
+					// Check if it's a duplicate error (409)
+					errStr := err.Error()
+					if strings.Contains(errStr, "409") && strings.Contains(errStr, "already exists") {
+						// Localization already exists, fetch it and update
+						appleLoc, err = client.GetAppLocalization(app.AppleID, locale)
+						if err != nil {
+							return nil, nil, fmt.Errorf("failed to fetch existing localization for %s after duplicate error: %v", locale, err)
+						}
+						// Update the existing localization
+						_, err = client.UpdateAppLocalization(
+							appleLoc.ID,
+							localLoc.MarketingURL,
+							localLoc.SupportURL,
+							localLoc.Description,
+							localLoc.Keywords,
+							localLoc.WhatsNew,
+							localLoc.PromotionalText,
+						)
+						if err != nil {
+							return nil, nil, fmt.Errorf("failed to update existing localization for %s: %v", locale, err)
+						}
+					} else {
+						return nil, nil, fmt.Errorf("failed to create localization in Apple %s: %v", locale, err)
+					}
 				}
 
 				_ = s.AppLocalizationService.UpdateAppLocalization(appID, locale, map[string]interface{}{

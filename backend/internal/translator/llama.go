@@ -422,19 +422,36 @@ func cleanLlamaResponse(response string) string {
 		}
 	}
 
-	// Preserve newlines - just remove leading/trailing whitespace from each line
-	if strings.Contains(trimmed, "\n") {
-		lines := strings.Split(trimmed, "\n")
-		var cleanLines []string
+	// Remove markdown formatting that the model might have added
+	// Remove bold markers **
+	trimmed = strings.ReplaceAll(trimmed, "**", "")
+	
+	// Remove list markers at the start of lines (-, *, bullet)
+	paragraphs := strings.Split(trimmed, "\n\n")
+	var cleanedParagraphs []string
+	
+	for _, paragraph := range paragraphs {
+		// Process each paragraph - remove leading/trailing whitespace from each line
+		lines := strings.Split(paragraph, "\n")
+		cleanedLines := make([]string, 0)
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
+			// Remove markdown list markers at the start
+			line = strings.TrimPrefix(line, "- ")
+			line = strings.TrimPrefix(line, "* ")
+			line = strings.TrimPrefix(line, "• ")
 			if line != "" {
-				cleanLines = append(cleanLines, line)
+				cleanedLines = append(cleanedLines, line)
 			}
 		}
-		// Join lines back with newlines
-		trimmed = strings.Join(cleanLines, "\n")
+		// Join lines within paragraph with single newline
+		if len(cleanedLines) > 0 {
+			cleanedParagraphs = append(cleanedParagraphs, strings.Join(cleanedLines, "\n"))
+		}
 	}
+	
+	// Join paragraphs with double newlines to preserve paragraph structure
+	trimmed = strings.Join(cleanedParagraphs, "\n\n")
 
 	return strings.TrimSpace(trimmed)
 }

@@ -294,6 +294,9 @@ func (c *AppleConnectClient) GetAppLocalization(appID, locale string) (*AppLocal
 		return nil, fmt.Errorf("failed to get app version: %w", err)
 	}
 
+	// Map locale to Apple's expected format
+	locale = mapToAppleLocale(locale)
+
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -393,7 +396,15 @@ func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, string
 }
 
 // CreateAppLocalization creates a new localization for an app
-func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, whatsNew, promotionalText string) (*AppLocalization, error) {
+// Note: Only fields supported by appStoreVersionLocalizations are included:
+// - description (long description)
+// - keywords
+// - marketingUrl
+// - promotionalText
+// - supportUrl
+// - whatsNew (What's new in this version)
+// Other fields like name, subtitle, privacyUrl need to be updated on the app resource
+func (c *AppleConnectClient) CreateAppLocalization(appID, locale, marketingURL, supportURL, longDescription, keywords, whatsNew, promotionalText string) (*AppLocalization, error) {
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -405,33 +416,56 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 		return nil, fmt.Errorf("failed to get app version: %w", err)
 	}
 
+	// Map locale to Apple's expected format
+	locale = mapToAppleLocale(locale)
+
+	// Clean text fields to remove invalid characters
+	longDescription = cleanAppleText(longDescription)
+	whatsNew = cleanAppleText(whatsNew)
+	promotionalText = cleanAppleText(promotionalText)
+
+	// Debug logging
+	fmt.Printf("[DEBUG] CreateAppLocalization: locale=%s, promotionalText='%s'\n", locale, promotionalText)
+
 	// Truncate fields to Apple's limits before sending
-	name = truncateString(name, 30)
-	subtitle = truncateString(subtitle, 30)
-	privacyURL = truncateString(privacyURL, 255)
 	marketingURL = truncateString(marketingURL, 255)
 	supportURL = truncateString(supportURL, 255)
-	shortDescription = truncateString(shortDescription, 80)
 	keywords = truncateString(keywords, 100)
 	promotionalText = truncateString(promotionalText, 170)
+
+	// Build attributes map with only supported fields
+	attributes := map[string]interface{}{
+		"locale": locale,
+	}
+
+	if longDescription != "" {
+		attributes["description"] = longDescription
+	}
+
+	if keywords != "" {
+		attributes["keywords"] = keywords
+	}
+
+	if marketingURL != "" {
+		attributes["marketingUrl"] = marketingURL
+	}
+
+	if promotionalText != "" {
+		attributes["promotionalText"] = promotionalText
+	}
+
+	if supportURL != "" {
+		attributes["supportUrl"] = supportURL
+	}
+
+	if whatsNew != "" {
+		attributes["whatsNew"] = whatsNew
+	}
 
 	payload := map[string]interface{}{
 		"data": map[string]interface{}{
 			"type": "appStoreVersionLocalizations",
-			"attributes": map[string]interface{}{
-				"locale":              locale,
-				"name":                name,
-				"subtitle":            subtitle,
-				"privacyUrl":          privacyURL,
-				"marketingUrl":        marketingURL,
-				"supportUrl":          supportURL,
-				"downloadDescription": downloadDescription,
-				"shortDescription":    shortDescription,
-				"description":         longDescription,
-				"keywords":            keywords,
-				"whatsNew":            whatsNew,
-				"promotionalText":     promotionalText,
-			},
+			"attributes": attributes,
 			"relationships": map[string]interface{}{
 				"appStoreVersion": map[string]interface{}{
 					"data": map[string]interface{}{
@@ -470,7 +504,7 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var createdLocalization AppLocalizationsResponse
+	var createdLocalization AppLocalizationResponse
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
@@ -481,17 +515,11 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	if len(createdLocalization.Data) == 0 {
-		return nil, fmt.Errorf("no localization returned from API")
-	}
-
-	return &createdLocalization.Data[0], nil
+	return &createdLocalization.Data, nil
 }
 
 // UpdateAppLocalization updates an existing localization in App Store Connect
-
 // Note: Only fields supported by appStoreVersionLocalizations are included:
-
 // - description (long description)
 // - keywords
 // - marketingUrl
@@ -499,13 +527,20 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 // - supportUrl
 // - whatsNew (What's new in this version)
 // Other fields like name, subtitle, privacyUrl need to be updated on the app resource
-
-func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, whatsNew, promotionalText string) (*AppLocalization, error) {
+func (c *AppleConnectClient) UpdateAppLocalization(localizationID, marketingURL, supportURL, longDescription, keywords, whatsNew, promotionalText string) (*AppLocalization, error) {
 
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
 	}
+
+	// Clean text fields to remove invalid characters
+	longDescription = cleanAppleText(longDescription)
+	whatsNew = cleanAppleText(whatsNew)
+	promotionalText = cleanAppleText(promotionalText)
+
+	// Debug logging
+	fmt.Printf("[DEBUG] UpdateAppLocalization: localizationID=%s, promotionalText='%s'\n", localizationID, promotionalText)
 
 	// Truncate fields to Apple's limits before sending
 	keywords = truncateString(keywords, 100)
@@ -533,7 +568,6 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 
 	if supportURL != "" {
 		attributes["supportUrl"] = supportURL
-
 	}
 
 	if whatsNew != "" {
@@ -615,13 +649,17 @@ func (c *AppleConnectClient) DeleteAppLocalization(localizationID string) error 
 
 // truncateString truncates a string to the specified maximum length
 // It tries to avoid cutting in the middle of a word when possible
+// Handles UTF-8 characters correctly by using runes instead of bytes
 func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	// Convert to runes to handle multi-byte characters
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
 
-	// Truncate to max length
-	truncated := s[:maxLen]
+	// Truncate to max rune length
+	truncatedRunes := runes[:maxLen]
+	truncated := string(truncatedRunes)
 
 	// Try to find last space or comma to avoid cutting words
 	lastSpace := strings.LastIndexAny(truncated, " ,")
@@ -630,4 +668,151 @@ func truncateString(s string, maxLen int) string {
 	}
 
 	return strings.TrimSpace(truncated)
+}
+
+// mapToAppleLocale converts a language code to Apple's expected locale format
+func mapToAppleLocale(locale string) string {
+	// Normalize locale format: replace underscore with hyphen
+	normalized := strings.ReplaceAll(locale, "_", "-")
+	normalized = strings.TrimSpace(normalized)
+
+	// Apple App Store Connect locale mapping (short code to full locale)
+	appleLocaleMap := map[string]string{
+		"ar":    "ar-SA",
+		"ca":    "ca",
+		// Chinese
+		"zh":         "zh-Hans",
+		"zh-CN":      "zh-Hans",
+		"zh-Hans":    "zh-Hans",
+		"zh-Hans-CN": "zh-Hans",
+		"zh-TW":      "zh-Hant",
+		"zh-HK":      "zh-Hant",
+		"zh-Hant":    "zh-Hant",
+		"zh-Hant-TW": "zh-Hant",
+		"zh-Hant-HK": "zh-Hant",
+		"hr":    "hr",   // Croatian
+		"cs":    "cs",
+		"da":    "da",
+		"nl":    "nl-NL",
+		"en":    "en-US",
+		"en-AU": "en-AU",
+		"en-CA": "en-CA",
+		"en-GB": "en-GB",
+		"en-US": "en-US",
+		"fi":    "fi",
+		"fr":    "fr-FR",
+		"fr-CA": "fr-CA",
+		"de":    "de-DE",
+		"el":    "el",
+		"he":    "he",
+		"hi":    "hi",
+		"hu":    "hu",   // Hungarian
+		"id":    "id",
+		"it":    "it",
+		"ja":    "ja",
+		"ko":    "ko",
+		"ms":    "ms",
+		"no":    "no",
+		"pl":    "pl",
+		"pt":    "pt-PT",
+		"pt-BR": "pt-BR",
+		"pt-PT": "pt-PT",
+		"ro":    "ro",   // Romanian
+		"ru":    "ru",
+		"sk":    "sk",
+		"es":    "es-ES",
+		"es-MX": "es-MX",
+		"es-ES": "es-ES",
+		"sv":    "sv",
+		"th":    "th",
+		"tr":    "tr",
+		"uk":    "uk",
+		"vi":    "vi",
+	}
+
+	// Try exact match first
+	if mapped, ok := appleLocaleMap[normalized]; ok {
+		return mapped
+	}
+
+	// Try base language code
+	parts := strings.Split(normalized, "-")
+	if len(parts) > 0 {
+		baseCode := parts[0]
+		if mapped, ok := appleLocaleMap[baseCode]; ok {
+			fmt.Printf("[DEBUG] mapToAppleLocale: %s -> %s (via base code %s)\n", locale, mapped, baseCode)
+			return mapped
+		}
+	}
+
+	// Return normalized version if no mapping found
+	fmt.Printf("[DEBUG] mapToAppleLocale: %s -> %s (no mapping found, returning normalized)\n", locale, normalized)
+	return normalized
+}
+
+// cleanAppleText removes characters that are not allowed by Apple's API
+// This includes characters like em dash (⸻) and other special characters
+// Preserves newlines and normalizes spaces within each line
+func cleanAppleText(text string) string {
+	if text == "" {
+		return text
+	}
+
+	// Characters that Apple doesn't allow in descriptions
+	forbiddenChars := []string{
+		"⸻", // em dash (U+2E3B)
+		"—",  // em dash (U+2014)
+		"–",  // en dash (U+2013)
+		"�",  // replacement character (U+FFFD) - indicates invalid UTF-8
+		"\x00", // null character
+		"\x01", // start of heading
+		"\x02", // start of text
+		"\x03", // end of text
+		"\x04", // end of transmission
+		"\x05", // enquiry
+		"\x06", // acknowledge
+		"\x07", // bell
+		"\x08", // backspace
+		"\x0B", // vertical tab
+		"\x0C", // form feed
+		"\x0E", // shift out
+		"\x0F", // shift in
+		"\x10", // data link escape
+		"\x11", // device control 1
+		"\x12", // device control 2
+		"\x13", // device control 3
+		"\x14", // device control 4
+		"\x15", // negative acknowledge
+		"\x16", // synchronous idle
+		"\x17", // end of transmission block
+		"\x18", // cancel
+		"\x19", // end of medium
+		"\x1A", // substitute
+		"\x1B", // escape
+		"\x1C", // file separator
+		"\x1D", // group separator
+		"\x1E", // record separator
+		"\x1F", // unit separator
+		"\u2028", // line separator
+		"\u2029", // paragraph separator
+	}
+
+	result := text
+	for _, fc := range forbiddenChars {
+		result = strings.ReplaceAll(result, fc, " ")
+	}
+
+	// Normalize spaces within each line while preserving line breaks
+	lines := strings.Split(result, "\n")
+	for i, line := range lines {
+		// Remove multiple consecutive spaces within each line
+		trimmed := strings.Join(strings.Fields(line), " ")
+		lines[i] = trimmed
+	}
+	result = strings.Join(lines, "\n")
+
+	// Normalize consecutive newlines (collapse 3+ newlines to 2)
+	result = strings.ReplaceAll(result, "\n\n\n", "\n\n")
+
+	return result
 }
