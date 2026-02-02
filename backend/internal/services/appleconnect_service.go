@@ -169,7 +169,7 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 				"ShortDescription":    locData.Attributes.ShortDescription,
 				"LongDescription":     locData.Attributes.Description,
 				"Keywords":            locData.Attributes.Keywords,
-				"ReleaseNotes":        locData.Attributes.WhatsNew,
+				"WhatsNew":            locData.Attributes.WhatsNew,
 				"PromotionalText":     locData.Attributes.PromotionalText,
 				"Source":              "apple",
 				"SyncStatus":          "synced",
@@ -205,8 +205,8 @@ func (s *AppleConnectService) SyncLocalizations(appID uint, issuerID, keyID, pri
 			locData.Attributes.Description,
 			locData.Attributes.Keywords,
 			locData.Attributes.WhatsNew,
-			locData.Attributes.PromotionalText, // PromotionalText
-			"",                                 // WhatToTest - not available in Apple Connect API response
+			locData.Attributes.PromotionalText,
+			"", // WhatToTest - not available in Apple Connect API response
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create localization %s: %v", locData.Attributes.Locale, err)
@@ -282,7 +282,7 @@ func (s *AppleConnectService) isLocalizationDifferent(localLoc *database.AppLoca
 		localLoc.ShortDescription != appleLoc.Attributes.ShortDescription ||
 		localLoc.LongDescription != appleLoc.Attributes.Description ||
 		localLoc.Keywords != appleLoc.Attributes.Keywords ||
-		localLoc.ReleaseNotes != appleLoc.Attributes.WhatsNew
+		localLoc.WhatsNew != appleLoc.Attributes.WhatsNew
 }
 
 // GetChangedLocalizations returns localizations that have been changed since the last sync with Apple
@@ -354,7 +354,7 @@ func (s *AppleConnectService) pullLocalizationFromApple(appID uint, languageCode
 		"ShortDescription":    appleLocalization.Attributes.ShortDescription,
 		"LongDescription":     appleLocalization.Attributes.Description,
 		"Keywords":            appleLocalization.Attributes.Keywords,
-		"ReleaseNotes":        appleLocalization.Attributes.WhatsNew,
+		"WhatsNew":            appleLocalization.Attributes.WhatsNew,
 		"PromotionalText":     appleLocalization.Attributes.PromotionalText,
 		"Source":              "apple",
 		"SyncStatus":          "synced",
@@ -399,7 +399,7 @@ func (s *AppleConnectService) pushLocalizationToApple(appID uint, languageCode, 
 			localLoc.ShortDescription,
 			localLoc.LongDescription,
 			localLoc.Keywords,
-			localLoc.ReleaseNotes,
+			localLoc.WhatsNew,
 			localLoc.PromotionalText,
 		)
 		if err != nil {
@@ -418,7 +418,7 @@ func (s *AppleConnectService) pushLocalizationToApple(appID uint, languageCode, 
 			localLoc.ShortDescription,
 			localLoc.LongDescription,
 			localLoc.Keywords,
-			localLoc.ReleaseNotes,
+			localLoc.WhatsNew,
 			localLoc.PromotionalText,
 		)
 		if err != nil {
@@ -564,7 +564,7 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 					localLoc.ShortDescription,
 					localLoc.LongDescription,
 					localLoc.Keywords,
-					localLoc.ReleaseNotes,
+					localLoc.WhatsNew,
 					localLoc.PromotionalText,
 				)
 				if err != nil {

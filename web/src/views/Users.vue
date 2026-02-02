@@ -62,10 +62,12 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
+import { useToast } from '../composables/useToast'
 import type { User } from '../composables/useApi'
 
 const { t } = useI18n()
 const { api } = useApi()
+const toast = useToast()
 
 const users = ref<User[]>([])
 
@@ -75,8 +77,9 @@ async function fetchUsers() {
     if (response.success) {
       users.value = response.users
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to fetch users:', error)
+    toast.error('Failed to fetch users: ' + (error.message || 'Unknown error'))
   }
 }
 
@@ -84,12 +87,15 @@ async function toggleUserStatus(user: User) {
   try {
     if (user.isActive) {
       await api.deactivateUser(user.id)
+      toast.success(`User ${user.username} deactivated`)
     } else {
       await api.activateUser(user.id)
+      toast.success(`User ${user.username} activated`)
     }
     fetchUsers()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to toggle user status:', error)
+    toast.error('Failed to toggle user status: ' + (error.message || 'Unknown error'))
   }
 }
 

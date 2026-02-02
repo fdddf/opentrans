@@ -371,8 +371,8 @@ func (s *AppService) BulkUpdateAppLocalizations(appID uint, updates []map[string
 		if keywords, ok := update["keywords"].(string); ok {
 			updateMap["Keywords"] = keywords
 		}
-		if releaseNotes, ok := update["releaseNotes"].(string); ok {
-			updateMap["ReleaseNotes"] = releaseNotes
+		if whatsNew, ok := update["whatsNew"].(string); ok {
+			updateMap["WhatsNew"] = whatsNew
 		}
 
 		// Check if localization exists
@@ -393,7 +393,7 @@ func (s *AppService) BulkUpdateAppLocalizations(appID uint, updates []map[string
 				ShortDescription:    "",
 				LongDescription:     "",
 				Keywords:            "",
-				ReleaseNotes:        "",
+				WhatsNew:            "",
 			}
 
 			// Apply updates
@@ -424,8 +424,8 @@ func (s *AppService) BulkUpdateAppLocalizations(appID uint, updates []map[string
 			if keywords, ok := update["keywords"].(string); ok {
 				newLoc.Keywords = keywords
 			}
-			if releaseNotes, ok := update["releaseNotes"].(string); ok {
-				newLoc.ReleaseNotes = releaseNotes
+			if whatsNew, ok := update["whatsNew"].(string); ok {
+				newLoc.WhatsNew = whatsNew
 			}
 
 			result = tx.Create(newLoc)
@@ -491,7 +491,7 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 				loc.ShortDescription,
 				loc.LongDescription,
 				loc.Keywords,
-				loc.ReleaseNotes,
+				loc.WhatsNew,
 				loc.PromotionalText,
 			)
 			if err != nil {
@@ -518,7 +518,7 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 			loc.ShortDescription,
 			loc.LongDescription,
 			loc.Keywords,
-			loc.ReleaseNotes,
+			loc.WhatsNew,
 			loc.PromotionalText,
 		)
 		if err != nil {
@@ -620,7 +620,7 @@ func (s *AppService) SyncAppLocalizationsFromAppleConnect(appID uint, issuerID, 
 				"ShortDescription":    locData.Attributes.ShortDescription,
 				"LongDescription":     locData.Attributes.Description,
 				"Keywords":            locData.Attributes.Keywords,
-				"ReleaseNotes":        locData.Attributes.WhatsNew,
+				"WhatsNew":            locData.Attributes.WhatsNew,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to update localization %s: %v", locData.Attributes.Locale, err)

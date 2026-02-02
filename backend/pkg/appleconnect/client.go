@@ -392,7 +392,7 @@ func (c *AppleConnectClient) getAppLatestVersionID(appID string) (string, string
 }
 
 // CreateAppLocalization creates a new localization for an app
-func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText string) (*AppLocalization, error) {
+func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, whatsNew, promotionalText string) (*AppLocalization, error) {
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate JWT: %w", err)
@@ -418,7 +418,8 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 				"shortDescription":    shortDescription,
 				"description":         longDescription,
 				"keywords":            keywords,
-				"whatsNew":            releaseNotes,
+				"whatsNew":            whatsNew,
+				"promotionalText":     promotionalText,
 			},
 			"relationships": map[string]interface{}{
 				"appStoreVersion": map[string]interface{}{
@@ -488,7 +489,7 @@ func (c *AppleConnectClient) CreateAppLocalization(appID, locale, name, subtitle
 // - whatsNew (What's new in this version)
 // Other fields like name, subtitle, privacyUrl need to be updated on the app resource
 
-func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, releaseNotes, promotionalText string) (*AppLocalization, error) {
+func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitle, privacyURL, marketingURL, supportURL, downloadDescription, shortDescription, longDescription, keywords, whatsNew, promotionalText string) (*AppLocalization, error) {
 
 	jwtToken, err := c.GenerateJWT()
 	if err != nil {
@@ -518,8 +519,8 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, name, subtitl
 
 	}
 
-	if releaseNotes != "" {
-		attributes["whatsNew"] = releaseNotes
+	if whatsNew != "" {
+		attributes["whatsNew"] = whatsNew
 	}
 
 	payload := map[string]interface{}{

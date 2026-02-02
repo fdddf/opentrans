@@ -180,7 +180,7 @@ type AppLocalization struct {
 	ShortDescription    string `json:"shortDescription"`    // Short description in this language
 	LongDescription     string `json:"longDescription"`     // Long description in this language
 	Keywords            string `json:"keywords"`             // Keywords in this language (comma-separated)
-	ReleaseNotes        string `json:"releaseNotes"`        // Release notes in this language
+	WhatsNew            string `json:"whatsNew"`             // What's new in this version
 	PromotionalText     string `json:"promotionalText"`     // Promotional text in this language
 	WhatToTest          string `json:"whatToTest"`         // What to test notes for beta testing
 

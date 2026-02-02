@@ -26,7 +26,7 @@ type CreateAppLocalizationRequest struct {
 	ShortDescription    string `json:"shortDescription"`
 	LongDescription     string `json:"longDescription"`
 	Keywords            string `json:"keywords"`
-	ReleaseNotes        string `json:"releaseNotes"`
+	WhatsNew            string `json:"whatsNew"`
 	PromotionalText     string `json:"promotionalText"`
 }
 
@@ -41,7 +41,7 @@ type UpdateAppLocalizationRequest struct {
 	ShortDescription    string `json:"shortDescription"`
 	LongDescription     string `json:"longDescription"`
 	Keywords            string `json:"keywords"`
-	ReleaseNotes        string `json:"releaseNotes"`
+	WhatsNew            string `json:"whatsNew"`
 	PromotionalText     string `json:"promotionalText"`
 }
 
@@ -131,7 +131,7 @@ func (ctrl *AppLocalizationController) CreateAppLocalization(c *fiber.Ctx) error
 		req.ShortDescription,
 		req.LongDescription,
 		req.Keywords,
-		req.ReleaseNotes,
+		req.WhatsNew,
 		req.PromotionalText,
 		"", // WhatToTest
 	)
@@ -229,7 +229,7 @@ func (ctrl *AppLocalizationController) UpdateAppLocalization(c *fiber.Ctx) error
 		"ShortDescription":    req.ShortDescription,
 		"LongDescription":     req.LongDescription,
 		"Keywords":            req.Keywords,
-		"ReleaseNotes":        req.ReleaseNotes,
+		"WhatsNew":            req.WhatsNew,
 		"PromotionalText":     req.PromotionalText,
 		"SyncStatus":          "pending",
 		"Source":              "local",

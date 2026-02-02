@@ -288,11 +288,13 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useApi } from '../composables/useApi'
+import { useToast } from '../composables/useToast'
 import type { AppLocalization, ProviderConfig } from '../composables/useApi'
 
 const { t } = useI18n()
 const route = useRoute()
 const { api } = useApi()
+const toast = useToast()
 
 const appId = computed(() => Number(route.params.id))
 const hasValidAppId = computed(() => Number.isFinite(appId.value) && appId.value > 0)
@@ -526,25 +528,25 @@ async function pullFromApple(localization: AppLocalization) {
   }
   
   if (!selectedConfigId.value || !hasValidAppId.value) {
-    alert('Please select an Apple Connect configuration first.');
+    toast.warning('Please select an Apple Connect configuration first.')
     showSyncModal.value = true
     return;
   }
-  
+
   try {
     const response = await api.syncAppleAppLocalizations(appId.value, {
       configId: selectedConfigId.value
     });
-    
+
     if (response.success) {
       await fetchLocalizations();
-      alert(`Successfully pulled localization for ${localization.languageCode} from Apple.`);
+      toast.success(`Successfully pulled localization for ${localization.languageCode} from Apple.`)
     } else {
-      alert(`Failed to pull localization: ${response.message || 'Unknown error'}`);
+      toast.error(`Failed to pull localization: ${response.message || 'Unknown error'}`)
     }
   } catch (error) {
     console.error('Failed to pull from Apple:', error);
-    alert('Failed to pull localization from Apple. See console for details.');
+    toast.error('Failed to pull localization from Apple. See console for details.')
   }
 }
 
@@ -560,25 +562,25 @@ async function pushToApple(localization: AppLocalization) {
   }
   
   if (!selectedConfigId.value || !hasValidAppId.value) {
-    alert('Please select an Apple Connect configuration first.');
+    toast.warning('Please select an Apple Connect configuration first.')
     showSyncModal.value = true
     return;
   }
-  
+
   try {
     const response = await api.syncAppToApple(appId.value, {
       configId: selectedConfigId.value
     });
-    
+
     if (response.success) {
       await fetchLocalizations();
-      alert(`Successfully pushed localization for ${localization.languageCode} to Apple.`);
+      toast.success(`Successfully pushed localization for ${localization.languageCode} to Apple.`)
     } else {
-      alert(`Failed to push localization: ${response.message || 'Unknown error'}`);
+      toast.error(`Failed to push localization: ${response.message || 'Unknown error'}`)
     }
   } catch (error) {
     console.error('Failed to push to Apple:', error);
-    alert('Failed to push localization to Apple. See console for details.');
+    toast.error('Failed to push localization to Apple. See console for details.')
   }
 }
 
@@ -699,12 +701,13 @@ async function updateLocalization() {
       if (response.localization) {
         selectedLocalizationId.value = response.localization.id
       }
+      toast.success(isNewLocalization.value ? 'Localization added successfully!' : 'Localization updated successfully!')
     } else {
-      alert(response.message || (isNewLocalization.value ? 'Failed to add localization' : 'Failed to update localization'))
+      toast.error(response.message || (isNewLocalization.value ? 'Failed to add localization' : 'Failed to update localization'))
     }
   } catch (error) {
     console.error('Failed to save localization:', error)
-    alert(isNewLocalization.value ? 'Failed to add localization. Please try again.' : 'Failed to update localization. Please try again.')
+    toast.error(isNewLocalization.value ? 'Failed to add localization. Please try again.' : 'Failed to update localization. Please try again.')
   }
 }
 
@@ -737,7 +740,7 @@ async function deleteLocalization(id: number) {
   
   // Check if it's the primary language
   if (localization && app.value?.primaryLocale === localization.languageCode) {
-    alert('Cannot delete the primary language.')
+    toast.warning('Cannot delete the primary language.')
     return
   }
   
@@ -771,7 +774,7 @@ async function deleteLocalization(id: number) {
 
 async function translateLocalization() {
   if (!editLocalizationData.languageCode) {
-    alert('Please select a language first.')
+    toast.warning('Please select a language first.')
     return
   }
 
@@ -830,10 +833,10 @@ async function translateLocalization() {
       }
     }
 
-    alert('Translation completed successfully!')
+    toast.success('Translation completed successfully!')
   } catch (error) {
     console.error('Translation failed:', error)
-    alert('Translation failed. Please try again.')
+    toast.error('Translation failed. Please try again.')
   } finally {
     translating.value = false
   }

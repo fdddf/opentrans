@@ -227,11 +227,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useApi } from '../composables/useApi'
+import { useToast } from '../composables/useToast'
 import type { AppLocalization, ProviderConfig } from '../composables/useApi'
 
 const route = useRoute();
 const { t } = useI18n()
 const { api } = useApi()
+const toast = useToast()
 
 const appId = ref(Number(route.params.id));
 
@@ -335,7 +337,7 @@ async function translateCurrentLanguage() {
       // Check if user has a Llama provider config
       const llamaConfigs = appleConnectConfigs.value.filter(config => config.providerType === 'llama');
       if (llamaConfigs.length === 0) {
-        alert('Please configure a Llama provider first');
+        toast.warning('Please configure a Llama provider first')
         return;
       }
 
@@ -351,11 +353,11 @@ async function translateCurrentLanguage() {
         // Poll for job completion
         pollTranslationJob(response.job.id);
       } else {
-        alert('Failed to start translation: ' + (response.job.error || 'Unknown error'));
+        toast.error('Failed to start translation: ' + (response.job.error || 'Unknown error'))
       }
     } catch (error) {
       console.error('Translation error:', error);
-      alert('Failed to start translation');
+      toast.error('Failed to start translation')
     }
   }
 }
@@ -365,7 +367,7 @@ async function translateAll() {
     // Check if user has a Llama provider config
     const llamaConfigs = appleConnectConfigs.value.filter(config => config.providerType === 'llama');
     if (llamaConfigs.length === 0) {
-      alert('Please configure a Llama provider first');
+      toast.warning('Please configure a Llama provider first')
       return;
     }
 
@@ -373,7 +375,7 @@ async function translateAll() {
     const targetLanguages = translations.value.filter(t => t.code !== sourceLanguage.value).map(t => t.code);
 
     if (targetLanguages.length === 0) {
-      alert('No target languages to translate');
+      toast.warning('No target languages to translate')
       return;
     }
 
@@ -388,11 +390,11 @@ async function translateAll() {
       // Poll for job completion
       pollTranslationJob(response.job.id);
     } else {
-      alert('Failed to start translation: ' + (response.job.error || 'Unknown error'));
+      toast.error('Failed to start translation: ' + (response.job.error || 'Unknown error'))
     }
   } catch (error) {
     console.error('Translation error:', error);
-    alert('Failed to start translation');
+    toast.error('Failed to start translation')
   }
 }
 
@@ -406,12 +408,12 @@ async function pollTranslationJob(jobId: number) {
 
         if (job.status === 'completed') {
           clearInterval(pollInterval);
-          alert('Translation completed successfully!');
+          toast.success('Translation completed successfully!')
           // Refresh localizations
           await fetchAppLocalizations();
         } else if (job.status === 'failed') {
           clearInterval(pollInterval);
-          alert('Translation failed: ' + (job.error || 'Unknown error'));
+          toast.error('Translation failed: ' + (job.error || 'Unknown error'))
         }
       }
     } catch (error) {

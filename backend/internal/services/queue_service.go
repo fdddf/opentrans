@@ -439,7 +439,7 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 	// Count total fields to translate
 	fieldsToTranslate := []string{
 		"Name", "Subtitle", "ShortDescription", "LongDescription", "Keywords",
-		"ReleaseNotes", "PromotionalText", "DownloadDescription",
+		"WhatsNew", "PromotionalText", "DownloadDescription",
 	}
 	totalFields := len(job.TargetLanguages) * len(fieldsToTranslate)
 
@@ -481,7 +481,7 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 				ShortDescription:   sourceLoc.ShortDescription,
 				LongDescription:    sourceLoc.LongDescription,
 				Keywords:           sourceLoc.Keywords,
-				ReleaseNotes:       sourceLoc.ReleaseNotes,
+				WhatsNew:           sourceLoc.WhatsNew,
 				PromotionalText:    sourceLoc.PromotionalText,
 			}
 		}
@@ -500,8 +500,8 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 				sourceText = sourceLoc.LongDescription
 			case "Keywords":
 				sourceText = sourceLoc.Keywords
-			case "ReleaseNotes":
-				sourceText = sourceLoc.ReleaseNotes
+			case "WhatsNew":
+				sourceText = sourceLoc.WhatsNew
 			case "PromotionalText":
 				sourceText = sourceLoc.PromotionalText
 			case "DownloadDescription":
@@ -557,8 +557,8 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 				targetLoc.LongDescription = responses[0].TranslatedText
 			case "Keywords":
 				targetLoc.Keywords = responses[0].TranslatedText
-			case "ReleaseNotes":
-				targetLoc.ReleaseNotes = responses[0].TranslatedText
+			case "WhatsNew":
+				targetLoc.WhatsNew = responses[0].TranslatedText
 			case "PromotionalText":
 				targetLoc.PromotionalText = responses[0].TranslatedText
 			case "DownloadDescription":
@@ -584,7 +584,7 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 			"short_description":   targetLoc.ShortDescription,
 			"long_description":    targetLoc.LongDescription,
 			"keywords":            targetLoc.Keywords,
-			"release_notes":       targetLoc.ReleaseNotes,
+			"whats_new":           targetLoc.WhatsNew,
 			"promotional_text":    targetLoc.PromotionalText,
 		}
 
@@ -595,7 +595,7 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 				targetLoc.Name, targetLoc.Subtitle, targetLoc.PrivacyURL,
 				targetLoc.MarketingURL, targetLoc.SupportURL, targetLoc.DownloadDescription,
 				targetLoc.ShortDescription, targetLoc.LongDescription, targetLoc.Keywords,
-				targetLoc.ReleaseNotes, targetLoc.PromotionalText, "",
+				targetLoc.WhatsNew, targetLoc.PromotionalText, "",
 			)
 		}
 

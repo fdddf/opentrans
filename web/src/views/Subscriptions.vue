@@ -190,10 +190,12 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
+import { useToast } from '../composables/useToast'
 import type { User } from '../composables/useApi'
 
 const { t } = useI18n()
 const { api } = useApi()
+const toast = useToast()
 
 const user = ref<User | null>(null)
 
@@ -214,7 +216,7 @@ async function switchToPlan(planType: string) {
   console.log(`Switching to plan: ${planType}`)
   
   // Show a message to the user
-  alert(`In a real implementation, this would redirect you to the ${planType} plan checkout`)
+  toast.info(`In a real implementation, this would redirect you to the ${planType} plan checkout`)
 }
 
 onMounted(() => {
