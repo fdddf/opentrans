@@ -1,32 +1,67 @@
--- Drop app_provider_configs table
+-- ============================================
+-- Drop all tables and indexes
+-- ============================================
+
+-- Drop indexes (explicitly drop all indexes first)
+DROP INDEX IF EXISTS idx_sync_history_created_at;
+DROP INDEX IF EXISTS idx_sync_history_config_id;
+DROP INDEX IF EXISTS idx_sync_history_app_id;
+DROP INDEX IF EXISTS idx_sync_history_user_id;
+
+DROP INDEX IF EXISTS idx_app_provider_configs_provider_config_id;
+DROP INDEX IF EXISTS idx_app_provider_configs_app_id;
+
+DROP INDEX IF EXISTS idx_translation_queues_created_at;
+DROP INDEX IF EXISTS idx_translation_queues_priority;
+DROP INDEX IF EXISTS idx_translation_queues_status;
+DROP INDEX IF EXISTS idx_translation_queues_app_id;
+DROP INDEX IF EXISTS idx_translation_queues_project_id;
+DROP INDEX IF EXISTS idx_translation_queues_user_id;
+
+DROP INDEX IF EXISTS idx_translation_queue_app_id;
+DROP INDEX IF EXISTS idx_translation_queue_project_id;
+DROP INDEX IF EXISTS idx_translation_queue_user_id;
+
+DROP INDEX IF EXISTS idx_app_users_user_id;
+DROP INDEX IF EXISTS idx_app_users_app_id;
+
+DROP INDEX IF EXISTS idx_subscriptions_user_id;
+
+DROP INDEX IF EXISTS idx_app_localizations_app_id;
+
+DROP INDEX IF EXISTS idx_apps_user_id;
+
+DROP INDEX IF EXISTS idx_user_activities_user_id;
+
+DROP INDEX IF EXISTS idx_provider_configs_user_id;
+
+DROP INDEX IF EXISTS idx_translations_project_id;
+
+DROP INDEX IF EXISTS idx_projects_user_id;
+
+-- Drop tables (in correct order - respecting foreign key dependencies)
+DROP TABLE IF EXISTS sync_history;
+
 DROP TABLE IF EXISTS app_provider_configs;
 
--- Drop translation_queue table
+DROP TABLE IF EXISTS translation_queues;
+
 DROP TABLE IF EXISTS translation_queue;
 
--- Drop app_users table
 DROP TABLE IF EXISTS app_users;
 
--- Drop subscriptions table
 DROP TABLE IF EXISTS subscriptions;
 
--- Drop app_localizations table
 DROP TABLE IF EXISTS app_localizations;
 
--- Drop apps table
 DROP TABLE IF EXISTS apps;
 
--- Drop user_activities table
 DROP TABLE IF EXISTS user_activities;
 
--- Drop provider_configs table
 DROP TABLE IF EXISTS provider_configs;
 
--- Drop translations table
 DROP TABLE IF EXISTS translations;
 
--- Drop projects table
 DROP TABLE IF EXISTS projects;
 
--- Drop users table
 DROP TABLE IF EXISTS users;
