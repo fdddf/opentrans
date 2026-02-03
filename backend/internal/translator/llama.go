@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fdddf/xcstrings-translator/internal/model"
-	hunyuanLang "github.com/fdddf/xcstrings-translator/pkg/hunyuan"
+	"github.com/fdddf/opentrans/internal/model"
+	hunyuanLang "github.com/fdddf/opentrans/pkg/hunyuan"
 	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/hybridgroup/yzma/pkg/llama"

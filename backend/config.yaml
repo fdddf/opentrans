@@ -38,7 +38,7 @@ openai:
 # Llama local model configuration
 llama:
   lib_path: "/data/dev/yzma/lib/"
-  model_path: "/data/dev/xcstrings-translator/backend/models/HY-MT1.5-1.8B-Q4_K_M.gguf"
+  model_path: "/data/dev/opentrans/backend/models/HY-MT1.5-1.8B-Q4_K_M.gguf"
   threads: 4
   seed: -1
   tokens: 4096

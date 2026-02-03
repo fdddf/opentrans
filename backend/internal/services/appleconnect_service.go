@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/pkg/appleconnect"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/pkg/appleconnect"
 )
 
 // SyncDirection represents the direction of synchronization

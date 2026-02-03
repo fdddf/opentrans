@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fdddf/xcstrings-translator/internal/config"
+	"github.com/fdddf/opentrans/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,9 +18,9 @@ var (
 var cfg *config.Config
 
 var rootCmd = &cobra.Command{
-	Use:   "xcstrings-translator",
+	Use:   "opentrans",
 	Short: "A CLI tool to translate Localizable.xcstrings files using multiple translation providers",
-	Long: `xcstrings-translator is a powerful command-line tool that translates Localizable.xcstrings files
+	Long: `opentrans is a powerful command-line tool that translates Localizable.xcstrings files
 using various translation providers including Google Translate, DeepL, Baidu Translate, and OpenAI compatible APIs.
 
 It supports concurrent translation requests for improved performance and allows configuration

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fdddf/xcstrings-translator/internal/model"
+	"github.com/fdddf/opentrans/internal/model"
 )
 
 // TranslationService manages the translation process with concurrency

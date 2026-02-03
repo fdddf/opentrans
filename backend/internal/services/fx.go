@@ -5,8 +5,8 @@ import (
 
 	"go.uber.org/fx"
 
-	"github.com/fdddf/xcstrings-translator/internal/auth"
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/opentrans/internal/auth"
+	"github.com/fdddf/opentrans/internal/database"
 )
 
 // Module is the FX module for services

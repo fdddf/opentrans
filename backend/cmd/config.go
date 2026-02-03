@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fdddf/xcstrings-translator/internal/config"
+	"github.com/fdddf/opentrans/internal/config"
 	"github.com/spf13/cobra"
 )
 

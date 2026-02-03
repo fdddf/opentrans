@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"github.com/fdddf/xcstrings-translator/internal/context"
-	"github.com/fdddf/xcstrings-translator/internal/services"
+	"github.com/fdddf/opentrans/internal/context"
+	"github.com/fdddf/opentrans/internal/services"
 	"github.com/gofiber/fiber/v2"
 )
 

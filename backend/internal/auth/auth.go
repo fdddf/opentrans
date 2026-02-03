@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/opentrans/internal/database"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"

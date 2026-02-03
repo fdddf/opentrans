@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**xcstrings-translator** 是一个现代化的 iOS/macOS 多语言字符串翻译管理平台，支持多种翻译提供商（Google、DeepL、百度、OpenAI、腾讯混元本地模型），提供 CLI 命令行工具和 Web UI 界面。平台包含完整的用户认证、订阅管理、App Store Connect 集成和团队协作功能。
+**OpenTrans** 是一个现代化的 iOS/macOS 多语言字符串翻译管理平台，支持多种翻译提供商（Google、DeepL、百度、OpenAI、腾讯混元本地模型），提供 CLI 命令行工具和 Web UI 界面。平台包含完整的用户认证、订阅管理、App Store Connect 集成和团队协作功能。
 
 ### 核心功能
 - **多提供商翻译**: 支持 Google Translate、DeepL、百度翻译、OpenAI 兼容 API、腾讯混元本地模型
@@ -128,7 +128,7 @@ web/
 ### Backend
 ```bash
 # 从项目根目录运行
-make -C backend binary           # 构建 Go 二进制文件到 backend/xcstrings-translator
+make -C backend binary           # 构建 Go 二进制文件到 backend/opentrans
 make -C backend ui               # 安装前端依赖并构建到 backend/webui/dist
 make -C backend test             # 运行 Go 测试
 make -C backend clean            # 清理构建产物
@@ -140,8 +140,8 @@ bash backend/scripts/db-migrate.sh   # 运行迁移
 bash backend/scripts/db-reset.sh     # 重置数据库
 
 # CLI 使用
-./backend/xcstrings-translator translate -i input.xcstrings -o output.xcstrings
-./backend/xcstrings-translator serve  # 启动 Web 服务器（默认 :3000）
+./backend/opentrans translate -i input.xcstrings -o output.xcstrings
+./backend/opentrans serve  # 启动 Web 服务器（默认 :3000）
 ```
 
 ### Frontend
@@ -169,8 +169,8 @@ cd backend && go test -v ./internal/services/  # 运行特定包测试
 
 ### Docker
 ```bash
-docker build -t xcstrings-translator .  # 构建镜像
-docker run -p 3000:3000 xcstrings-translator  # 运行容器
+docker build -t opentrans .  # 构建镜像
+docker run -p 3000:3000 opentrans  # 运行容器
 ```
 
 ---
@@ -476,8 +476,8 @@ xcstrings 项目
 ### 1. 环境设置
 ```bash
 # 克隆仓库
-git clone https://github.com/fdddf/xcstrings-translator.git
-cd xcstrings-translator
+git clone https://github.com/fdddf/opentrans.git
+cd opentrans
 
 # 配置环境变量
 cp .env.sample .env
@@ -633,7 +633,7 @@ git push origin next
 
 ## Contact & Support
 
-- GitHub Issues: https://github.com/fdddf/xcstrings-translator/issues
+- GitHub Issues: https://github.com/fdddf/opentrans/issues
 - 文档: 查看项目 README.md 和 docs/ 目录
 
 ---

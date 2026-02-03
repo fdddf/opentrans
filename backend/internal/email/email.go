@@ -124,7 +124,7 @@ func SendActivationEmail(toEmail, username, activationCode, activationURL string
 	`, username, fullActivationURL)
 
 	email := Email{
-		From:    "noreply@xcstrings-translator.com",
+		From:    "noreply@opentrans.com",
 		To:      []string{toEmail},
 		Subject: "Activate Your XCStrings Translator Studio Account",
 		HTML:    htmlContent,

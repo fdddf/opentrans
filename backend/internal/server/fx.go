@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fdddf/xcstrings-translator/internal/config"
-	"github.com/fdddf/xcstrings-translator/internal/controllers"
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/opentrans/internal/config"
+	"github.com/fdddf/opentrans/internal/controllers"
+	"github.com/fdddf/opentrans/internal/database"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 )

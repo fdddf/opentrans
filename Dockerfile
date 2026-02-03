@@ -1,4 +1,4 @@
-# Multi-stage build for xcstrings-translator
+# Multi-stage build for opentrans
 
 # UI builder stage
 FROM node:20-alpine AS ui-builder
@@ -10,7 +10,7 @@ RUN apk add --no-cache git
 WORKDIR /app
 
 # Clone the repository
-RUN git clone https://github.com/fdddf/xcstrings-translator.git . && \
+RUN git clone https://github.com/fdddf/opentrans.git . && \
     cd web && npm install && npm run build
 
 # Builder stage
@@ -46,7 +46,7 @@ RUN addgroup -g 65532 --system nonroot && \
     adduser -D -u 65532 -G nonroot --system nonroot
 
 # Copy the binary from builder stage
-COPY --from=builder /app/xcstrings-translator /usr/local/bin/xcstrings-translator
+COPY --from=builder /app/opentrans /usr/local/bin/opentrans
 
 # Create app directory and set permissions
 RUN mkdir -p /app && \
@@ -55,7 +55,7 @@ RUN mkdir -p /app && \
 WORKDIR /app
 
 # Make binary executable
-RUN chmod +x /usr/local/bin/xcstrings-translator
+RUN chmod +x /usr/local/bin/opentrans
 
 # Switch to non-root user
 USER nonroot:nonroot
@@ -65,7 +65,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD nc -z localhost 8080 || exit 1
 
 # Default command
-ENTRYPOINT ["xcstrings-translator"]
+ENTRYPOINT ["opentrans"]
 CMD ["serve"]
 
 # Expose default port

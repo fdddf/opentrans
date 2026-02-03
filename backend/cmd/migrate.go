@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fdddf/xcstrings-translator/internal/config"
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/opentrans/internal/config"
+	"github.com/fdddf/opentrans/internal/database"
 	"github.com/spf13/cobra"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

@@ -7,7 +7,7 @@ import (
 	"gorm.io/gen"
 	"gorm.io/gorm"
 
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/opentrans/internal/database"
 )
 
 func main() {

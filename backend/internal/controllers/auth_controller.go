@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fdddf/xcstrings-translator/internal/auth"
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/internal/email"
+	"github.com/fdddf/opentrans/internal/auth"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/internal/email"
 	"github.com/gofiber/fiber/v2"
 )
 

@@ -3,9 +3,9 @@ package context
 import (
 	"strings"
 
-	"github.com/fdddf/xcstrings-translator/internal/auth"
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/internal/services"
+	"github.com/fdddf/opentrans/internal/auth"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/internal/services"
 	"github.com/gofiber/fiber/v2"
 )
 

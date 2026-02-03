@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/internal/model"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/internal/model"
 	"gorm.io/gorm"
 )
 

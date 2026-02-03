@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fdddf/xcstrings-translator/internal/config"
+	"github.com/fdddf/opentrans/internal/config"
 	"go.uber.org/fx"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

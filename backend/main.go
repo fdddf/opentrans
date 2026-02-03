@@ -7,12 +7,12 @@ import (
 
 	"go.uber.org/fx"
 
-	"github.com/fdddf/xcstrings-translator/internal/auth"
-	"github.com/fdddf/xcstrings-translator/internal/config"
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/internal/server"
-	"github.com/fdddf/xcstrings-translator/internal/services"
-	"github.com/fdddf/xcstrings-translator/internal/translator"
+	"github.com/fdddf/opentrans/internal/auth"
+	"github.com/fdddf/opentrans/internal/config"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/internal/server"
+	"github.com/fdddf/opentrans/internal/services"
+	"github.com/fdddf/opentrans/internal/translator"
 )
 
 func main() {

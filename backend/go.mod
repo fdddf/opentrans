@@ -1,4 +1,4 @@
-module github.com/fdddf/xcstrings-translator
+module github.com/fdddf/opentrans
 
 go 1.24.4
 
@@ -18,6 +18,7 @@ require (
 	gorm.io/driver/postgres v1.5.2
 	gorm.io/gen v0.3.27
 	gorm.io/gorm v1.31.1
+	gorm.io/plugin/dbresolver v1.6.2
 )
 
 require (
@@ -66,5 +67,4 @@ require (
 	gorm.io/datatypes v1.2.4 // indirect
 	gorm.io/driver/mysql v1.5.7 // indirect
 	gorm.io/hints v1.1.0 // indirect
-	gorm.io/plugin/dbresolver v1.6.2 // indirect
 )

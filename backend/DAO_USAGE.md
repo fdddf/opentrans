@@ -34,10 +34,10 @@ After running the generation command, you can use the generated DAOs in your ser
 
 ```go
 import (
-    "github.com/fdddf/xcstrings-translator/internal/dao/query"
-    
+    "github.com/fdddf/opentrans/internal/dao/query"
+
     // Import your models
-    "github.com/fdddf/xcstrings-translator/internal/database"
+    "github.com/fdddf/opentrans/internal/database"
 )
 
 // Initialize the generated query

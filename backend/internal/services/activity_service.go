@@ -3,7 +3,7 @@ package services
 import (
 	"encoding/json"
 
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	"github.com/fdddf/opentrans/internal/database"
 	"github.com/gofiber/fiber/v2"
 )
 

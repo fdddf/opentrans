@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/internal/model"
-	"github.com/fdddf/xcstrings-translator/internal/translator"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/internal/model"
+	"github.com/fdddf/opentrans/internal/translator"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -953,7 +953,7 @@ func createProviderFromConfig(providerType string, configData map[string]interfa
 		modelPath, ok := configData["modelPath"].(string)
 		if !ok || modelPath == "" {
 			// Use default from config.yaml
-			modelPath = getLlamaConfigPath("model_path", "/data/dev/xcstrings-translator/backend/models/HY-MT1.5-1.8B-Q4_K_M.gguf")
+			modelPath = getLlamaConfigPath("model_path", "/data/dev/opentrans/backend/models/HY-MT1.5-1.8B-Q4_K_M.gguf")
 			if modelPath == "" {
 				return nil, errors.New("modelPath required for Llama provider")
 			}

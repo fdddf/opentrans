@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	appcontext "github.com/fdddf/xcstrings-translator/internal/context"
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/internal/model"
-	"github.com/fdddf/xcstrings-translator/internal/services"
-	"github.com/fdddf/xcstrings-translator/internal/translator"
+	appcontext "github.com/fdddf/opentrans/internal/context"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/internal/model"
+	"github.com/fdddf/opentrans/internal/services"
+	"github.com/fdddf/opentrans/internal/translator"
 	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v2"
 )

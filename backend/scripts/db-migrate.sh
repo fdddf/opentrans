@@ -27,7 +27,7 @@ export DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/
 echo "DATABASE_URL: postgres://${DB_USER}:****@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
 # Build and run migration
-go build -o xcstrings-translator main.go
-./xcstrings-translator migrate
+go build -o opentrans main.go
+./opentrans migrate
 
 echo "Migration completed!"

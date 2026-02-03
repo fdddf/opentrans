@@ -3,9 +3,9 @@ package controllers
 import (
 	"fmt"
 
-	appcontext "github.com/fdddf/xcstrings-translator/internal/context"
-	"github.com/fdddf/xcstrings-translator/internal/auth"
-	"github.com/fdddf/xcstrings-translator/internal/database"
+	appcontext "github.com/fdddf/opentrans/internal/context"
+	"github.com/fdddf/opentrans/internal/auth"
+	"github.com/fdddf/opentrans/internal/database"
 	"github.com/gofiber/fiber/v2"
 )
 

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fdddf/xcstrings-translator/internal/dao/query"
-	"github.com/fdddf/xcstrings-translator/internal/database"
-	"github.com/fdddf/xcstrings-translator/pkg/appleconnect"
+	"github.com/fdddf/opentrans/internal/dao/query"
+	"github.com/fdddf/opentrans/internal/database"
+	"github.com/fdddf/opentrans/pkg/appleconnect"
 	"gorm.io/gorm"
 )
 
