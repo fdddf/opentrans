@@ -533,7 +533,8 @@ func (ctrl *AppController) SyncAppToApple(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		ConfigID uint `json:"configId"`
+		ConfigID    uint   `json:"configId"`
+		LanguageCode string `json:"languageCode"` // Optional: if provided, only sync this language
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -571,6 +572,7 @@ func (ctrl *AppController) SyncAppToApple(c *fiber.Ctx) error {
 		config.ConfigData["issuerID"].(string),
 		config.ConfigData["keyID"].(string),
 		config.ConfigData["privateKey"].(string),
+		req.LanguageCode,
 	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())

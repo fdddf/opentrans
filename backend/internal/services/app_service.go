@@ -445,7 +445,8 @@ func (s *AppService) BulkUpdateAppLocalizations(appID uint, updates []map[string
 }
 
 // SyncAppToAppleConnect syncs app localizations to Apple Connect
-func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateKey string) error {
+// If languageCode is provided, only sync that specific language; otherwise sync all languages
+func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateKey string, languageCode string) error {
 	app, err := s.GetApp(appID)
 	if err != nil {
 		return err
@@ -457,10 +458,20 @@ func (s *AppService) SyncAppToAppleConnect(appID uint, issuerID, keyID, privateK
 		return fmt.Errorf("failed to create Apple Connect client: %v", err)
 	}
 
-	// Get all localizations
-	localizations, err := s.AppLocalizationService.GetAppLocalizations(appID)
-	if err != nil {
-		return err
+	var localizations []database.AppLocalization
+	if languageCode != "" {
+		// Get only the specified localization
+		loc, err := s.AppLocalizationService.GetAppLocalization(appID, languageCode)
+		if err != nil {
+			return fmt.Errorf("failed to get localization for %s: %v", languageCode, err)
+		}
+		localizations = []database.AppLocalization{*loc}
+	} else {
+		// Get all localizations
+		localizations, err = s.AppLocalizationService.GetAppLocalizations(appID)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Sync each localization
@@ -724,8 +735,8 @@ func BulkUpdateAppLocalizations(appID uint, updates []map[string]interface{}) er
 	return appServiceInstance.BulkUpdateAppLocalizations(appID, updates)
 }
 
-func SyncAppToAppleConnect(appID uint, issuerID, keyID, privateKey string) error {
-	return appServiceInstance.SyncAppToAppleConnect(appID, issuerID, keyID, privateKey)
+func SyncAppToAppleConnect(appID uint, issuerID, keyID, privateKey, languageCode string) error {
+	return appServiceInstance.SyncAppToAppleConnect(appID, issuerID, keyID, privateKey, languageCode)
 }
 
 func SyncAppsFromAppleConnect(userID uint, issuerID, keyID, privateKey string) ([]database.App, error) {

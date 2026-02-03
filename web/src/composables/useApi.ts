@@ -774,7 +774,7 @@ class ApiClient {
     });
   }
 
-  async syncAppToApple(appId: number, payload: { configId: number }): Promise<any> {
+  async syncAppToApple(appId: number, payload: { configId: number; languageCode?: string }): Promise<any> {
     return this.request(`/protected/apps/${appId}/sync-to-apple`, {
       method: 'POST',
       body: JSON.stringify(payload),

@@ -702,7 +702,8 @@ async function pushToApple(localization: AppLocalization) {
 
   try {
     const response = await api.syncAppToApple(appId.value, {
-      configId: selectedConfigId.value
+      configId: selectedConfigId.value,
+      languageCode: localization.languageCode
     });
 
     if (response.success) {
