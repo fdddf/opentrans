@@ -47,8 +47,69 @@ A modern iOS/macOS multilingual string translation management platform supportin
 ### Quick Start with Docker
 
 ```bash
+# Build the Docker image
 docker build -t opentrans .
+
+# Run with default configuration
 docker run -p 3000:3000 opentrans
+
+# Run with environment variables
+docker run -d \
+  -p 3000:3000 \
+  -e DB_HOST=your-db-host \
+  -e DB_PORT=5432 \
+  -e DB_USER=your-db-user \
+  -e DB_PASSWORD=your-db-password \
+  -e DB_NAME=xcstrings_translator \
+  -e JWT_SECRET=your-jwt-secret \
+  -e GOOGLE_API_KEY=your-google-api-key \
+  -e DEEPL_API_KEY=your-deepl-api-key \
+  -e BAIDU_APP_ID=your-baidu-app-id \
+  -e BAIDU_APP_SECRET=your-baidu-app-secret \
+  -e OPENAI_API_KEY=your-openai-api-key \
+  -e ADMIN_USERNAME=admin \
+  -e ADMIN_EMAIL=admin@example.com \
+  -e ADMIN_PASSWORD=admin123 \
+  --name opentrans \
+  opentrans
+
+# Run with environment file
+docker run -d \
+  -p 3000:3000 \
+  --env-file .env \
+  --name opentrans \
+  opentrans
+
+# Run with config file mount and environment variables
+docker run -d \
+  -p 3000:3000 \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/models:/app/models \
+  -e DB_HOST=your-db-host \
+  -e DB_PORT=5432 \
+  -e DB_USER=your-db-user \
+  -e DB_PASSWORD=your-db-password \
+  -e DB_NAME=xcstrings_translator \
+  -e JWT_SECRET=your-jwt-secret \
+  --name opentrans \
+  opentrans
+
+# Run with persistent volume for local Llama models
+docker run -d \
+  -p 3000:3000 \
+  -v opentrans-models:/app/models \
+  --env-file .env \
+  --name opentrans \
+  opentrans
+
+# Check logs
+docker logs -f opentrans
+
+# Stop the container
+docker stop opentrans
+
+# Remove the container
+docker rm opentrans
 ```
 
 ### Manual Installation

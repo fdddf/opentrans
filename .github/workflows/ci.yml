@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ next ]
   pull_request:
 
 jobs:
@@ -87,7 +87,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p dist
-          go build -o dist/xcstrings-translator-${{ matrix.suffix }} .
+          go build -o dist/opentrans-${{ matrix.suffix }} .
 
   gui-build:
     runs-on: ${{ matrix.os }}
@@ -154,4 +154,4 @@ jobs:
           CGO_ENABLED: 1
         run: |
           mkdir -p dist
-          go build -tags gui -o dist/xcstrings-translator-${{ matrix.suffix }} .
+          go build -tags gui -o dist/opentrans-${{ matrix.suffix }} .

@@ -1,5 +1,5 @@
 -- ============================================
--- xcstrings-translator Database Schema
+-- opentrans Database Schema
 -- Combined migration - all tables and fields
 -- ============================================
 

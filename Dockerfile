@@ -16,15 +16,24 @@ RUN git clone https://github.com/fdddf/opentrans.git . && \
 # Builder stage
 FROM golang:1.25-alpine AS builder
 
-RUN apk update && apk add --no-cache make gcc musl-dev
+RUN apk update && apk add --no-cache make gcc musl-dev git
 
-# Set working directory
+# Set working directory to backend where go.mod is located
 WORKDIR /app
 
-COPY . .
+COPY backend/ .
 
 # Install Go dependencies
 RUN go env -w GOPROXY='https://goproxy.cn,direct' && go mod tidy
+
+# Install yzma CLI tool to download llama.cpp libraries
+RUN go install github.com/hybridgroup/yzma/cmd/yzma@latest
+
+# Download llama.cpp precompiled libraries for Linux (will be placed in ./lib by default)
+RUN yzma lib get || true
+
+# Ensure lib directory exists (even if yzma lib get fails)
+RUN mkdir -p /app/lib
 
 # Copy built UI assets from ui-builder stage
 COPY --from=ui-builder /app/webui/dist ./webui/dist
@@ -35,10 +44,13 @@ RUN make
 # Final stage - minimal Alpine image
 FROM alpine:latest
 
-# Install runtime dependencies
+# Install runtime dependencies including libyzma support
 RUN apk --no-cache add \
     ca-certificates \
     tzdata \
+    libstdc++ \
+    libgcc \
+    libffi \
     && update-ca-certificates
 
 # Create non-root user
@@ -48,9 +60,17 @@ RUN addgroup -g 65532 --system nonroot && \
 # Copy the binary from builder stage
 COPY --from=builder /app/opentrans /usr/local/bin/opentrans
 
-# Create app directory and set permissions
-RUN mkdir -p /app && \
-    chown -R nonroot:nonroot /app
+# Copy yzma/llama.cpp libraries from builder stage
+COPY --from=builder --chown=nonroot:nonroot /app/lib /usr/local/lib/yzma
+
+# Create app directory, models directory for local Llama models, library directory, and set permissions
+RUN mkdir -p /app /app/models /usr/local/lib/yzma && \
+    chown -R nonroot:nonroot /app && \
+    chmod -R 755 /usr/local/lib/yzma
+
+# Set yzma library path
+ENV LD_LIBRARY_PATH=/usr/local/lib/yzma
+ENV YZMA_LIB=/usr/local/lib/yzma
 
 WORKDIR /app
 
