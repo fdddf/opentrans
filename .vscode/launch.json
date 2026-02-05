@@ -11,13 +11,7 @@
             "mode": "auto",
             "program": "${workspaceFolder}/backend/main.go",
             "args": [
-                "baidu",
-                "-i", "${workspaceFolder}/example2.xcstrings",
-                "--app-id", "${env:BAIDU_APP_ID}",
-                "--app-secret", "${env:BAIDU_APP_SECRET}",
-                "-s", "en",
-                "-t", "fr",
-                "-t", "de"
+                "serve"
             ],
             "envFile": [
                 "${workspaceFolder}/.env"
@@ -26,7 +20,7 @@
         },
         {
             "name": "Run Frontend",
-            "type": "pwa-node",
+            "type": "node",
             "request": "launch",
             "runtimeExecutable": "npm",
             "runtimeArgs": [

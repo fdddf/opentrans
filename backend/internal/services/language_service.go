@@ -18,7 +18,7 @@ var SupportedLanguages = map[string]struct{}{
 	"da": {}, "uk": {}, "ru": {}, "hr": {}, "ca": {}, "hu": {}, "hi": {},
 	"id": {}, "tr": {}, "he": {}, "el": {}, "de": {}, "it": {}, "no": {}, "cs": {},
 	"sk": {}, "ja": {}, "fr": {}, "fr-CA": {}, "pl": {}, "th": {}, "sv": {},
-	"zh-Hans": {}, "zh-Hant": {}, "ro": {}, "fi": {}, "en-CA": {}, "en-AU": {}, "en-GB": {},
+	"zh-Hans": {}, "zh-Hant": {}, "ro": {}, "fi": {}, "en-US": {}, "en-CA": {}, "en-AU": {}, "en-GB": {},
 	"nl": {}, "pt-BR": {}, "pt-PT": {}, "es-MX": {}, "es-ES": {}, "vi": {},
 	"ar": {}, "ko": {}, "ms": {},
 }
