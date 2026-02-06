@@ -34,7 +34,7 @@ type User struct {
 	CurrentAppCount int `json:"currentAppCount"` // Current number of apps
 }
 
-// Project represents an xcstrings project
+// Project represents a project (xcstrings or app group)
 type Project struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time      `json:"createdAt"`
@@ -45,6 +45,9 @@ type Project struct {
 	Description string `json:"description"`
 	UserID      uint   `gorm:"not null" json:"userId"` // Foreign key to User
 	User        User   `json:"user"`
+
+	// Project type: xcstrings or app_group
+	ProjectType string `gorm:"type:varchar(20);default:'xcstrings'" json:"projectType"`
 
 	// Store the original xcstrings file content
 	FileContent string `gorm:"type:text" json:"fileContent"`
@@ -136,6 +139,9 @@ type App struct {
 	Description string `json:"description"`
 	UserID      uint   `gorm:"not null" json:"userId"` // Foreign key to User
 	User        User   `json:"user"`
+
+	ProjectID *uint    `json:"projectId,omitempty"`
+	Project   *Project `json:"project,omitempty"`
 
 	BundleID          string `gorm:"not null;uniqueIndex" json:"bundleId"`           // App's bundle identifier
 	AppleID           string `json:"appleId"`                                        // App's Apple ID

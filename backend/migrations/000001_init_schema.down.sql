@@ -37,6 +37,7 @@ DROP INDEX IF EXISTS idx_provider_configs_user_id;
 
 DROP INDEX IF EXISTS idx_translations_project_id;
 
+DROP INDEX IF EXISTS idx_apps_project_id;
 DROP INDEX IF EXISTS idx_projects_user_id;
 
 -- Drop tables (in correct order - respecting foreign key dependencies)

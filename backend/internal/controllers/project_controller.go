@@ -29,6 +29,7 @@ func NewProjectController() *ProjectController {
 type CreateProjectRequest struct {
 	Name             string                 `json:"name"`
 	Description      string                 `json:"description"`
+	ProjectType      string                 `json:"projectType"`
 	FileName         string                 `json:"fileName"`
 	FileContent      string                 `json:"fileContent"`
 	SourceLanguage   string                 `json:"sourceLanguage"`
@@ -40,6 +41,7 @@ type CreateProjectRequest struct {
 type UpdateProjectRequest struct {
 	Name             *string                `json:"name"`
 	Description      *string                `json:"description"`
+	ProjectType      *string                `json:"projectType"`
 	SourceLanguage   *string                `json:"sourceLanguage"`
 	ContentStructure map[string]interface{} `json:"contentStructure"`
 	Settings         map[string]interface{} `json:"settings"`
@@ -52,7 +54,16 @@ func (ctrl *ProjectController) GetProjects(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
 	}
 
-	projects, err := services.GetProjectsByUser(userID)
+	projectType := c.Query("type")
+	var (
+		projects []database.Project
+		err      error
+	)
+	if projectType != "" {
+		projects, err = services.GetProjectsByUserAndType(userID, projectType)
+	} else {
+		projects, err = services.GetProjectsByUser(userID)
+	}
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -75,13 +86,25 @@ func (ctrl *ProjectController) CreateProject(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
 	}
 
+	if req.ProjectType == "" {
+		req.ProjectType = "xcstrings"
+	}
+
+	if req.ProjectType != "xcstrings" && req.ProjectType != "app_group" {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid project type")
+	}
+
+	if req.ProjectType == "xcstrings" && req.FileContent == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "fileContent is required for xcstrings project")
+	}
+
 	if req.SourceLanguage != "" {
 		if err := services.ValidateLanguages([]string{req.SourceLanguage}); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 	}
 
-	project, err := services.CreateProject(userID, req.Name, req.Description, req.FileName, req.FileContent, req.SourceLanguage)
+	project, err := services.CreateProjectWithType(userID, req.Name, req.Description, req.FileName, req.FileContent, req.SourceLanguage, req.ProjectType)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -114,6 +137,14 @@ func (ctrl *ProjectController) GetProject(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "Access denied to this project")
 	}
 
+	if project.ProjectType == "app_group" {
+		return fiber.NewError(fiber.StatusBadRequest, "app_group projects cannot be translated")
+	}
+
+	if project.ProjectType == "app_group" {
+		return fiber.NewError(fiber.StatusBadRequest, "app_group projects cannot be translated")
+	}
+
 	return c.JSON(fiber.Map{
 		"success": true,
 		"project": project,
@@ -143,6 +174,12 @@ func (ctrl *ProjectController) UpdateProject(c *fiber.Ctx) error {
 	}
 	if req.Description != nil {
 		updates["Description"] = *req.Description
+	}
+	if req.ProjectType != nil {
+		if *req.ProjectType != "xcstrings" && *req.ProjectType != "app_group" {
+			return fiber.NewError(fiber.StatusBadRequest, "Invalid project type")
+		}
+		updates["ProjectType"] = *req.ProjectType
 	}
 	if req.SourceLanguage != nil {
 		updates["SourceLanguage"] = *req.SourceLanguage
@@ -312,6 +349,10 @@ func (ctrl *ProjectController) TranslateProject(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusForbidden, "Access denied to this project")
 	}
 
+	if project.ProjectType == "app_group" {
+		return fiber.NewError(fiber.StatusBadRequest, "app_group projects cannot be translated")
+	}
+
 	var req TranslateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
@@ -426,6 +467,10 @@ func (ctrl *ProjectController) ExportProject(c *fiber.Ctx) error {
 
 	if project.UserID != userID {
 		return fiber.NewError(fiber.StatusForbidden, "Access denied to this project")
+	}
+
+	if project.ProjectType == "app_group" {
+		return fiber.NewError(fiber.StatusBadRequest, "app_group projects cannot be exported")
 	}
 
 	// Get project content and apply stored translations
@@ -764,6 +809,16 @@ func (ctrl *ProjectController) buildProvider(provider string, cfg ProviderConfig
 			return nil, fmt.Errorf("appId and appSecret are required for Baidu provider")
 		}
 		return translator.NewBaiduTranslator(cfg.AppID, cfg.AppSecret), nil
+	case "llama", "hunyuan":
+		if globalLlamaTranslator == nil {
+			if err := initLlamaTranslator(&ServerState{}); err != nil {
+				return nil, fmt.Errorf("failed to initialize hunyuan model: %v", err)
+			}
+		}
+		if globalLlamaTranslator == nil {
+			return nil, fmt.Errorf("hunyuan model not available")
+		}
+		return globalLlamaTranslator, nil
 	default:
 		if cfg.APIKey == "" {
 			return nil, fmt.Errorf("apiKey required for OpenAI provider")

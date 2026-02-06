@@ -491,6 +491,16 @@ func buildProvider(provider string, cfg ProviderConfig) (model.TranslationProvid
 			return nil, fmt.Errorf("appId and appSecret are required for Baidu provider")
 		}
 		return translator.NewBaiduTranslator(cfg.AppID, cfg.AppSecret), nil
+	case "llama", "hunyuan":
+		if globalLlamaTranslator == nil {
+			if err := initLlamaTranslator(&ServerState{}); err != nil {
+				return nil, fmt.Errorf("failed to initialize hunyuan model: %v", err)
+			}
+		}
+		if globalLlamaTranslator == nil {
+			return nil, fmt.Errorf("hunyuan model not available")
+		}
+		return globalLlamaTranslator, nil
 	default:
 		if cfg.APIKey == "" {
 			return nil, fmt.Errorf("apiKey required for OpenAI provider")

@@ -33,6 +33,7 @@
               <option value="deepl">DeepL</option>
               <option value="baidu">Baidu</option>
               <option value="appleconnect">Apple Connect</option>
+              <option value="llama">Hunyuan (Llama)</option>
             </select>
           </div>
 
@@ -163,6 +164,11 @@
             </div>
           </div>
 
+          <!-- Hunyuan/Llama Specific Fields -->
+          <div v-if="form.providerType === 'llama'">
+            <p class="text-xs text-slate-400">{{ t('providerConfigs.hunyuanHint') }}</p>
+          </div>
+
           <div class="flex items-center">
             <label class="flex items-center">
               <input 
@@ -286,7 +292,8 @@ function getProviderDisplayName(providerType: string): string {
     'google': 'Google',
     'deepl': 'DeepL',
     'baidu': 'Baidu',
-    'appleconnect': 'Apple Connect'
+    'appleconnect': 'Apple Connect',
+    'llama': 'Hunyuan (Llama)'
   }
   return names[providerType] || providerType
 }

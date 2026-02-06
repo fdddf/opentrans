@@ -24,6 +24,7 @@ export interface App {
   origin?: string; // 'manual' or 'synced'
   synced?: boolean;
   sourceLanguage?: string;
+  projectId?: number;
 }
 
 export interface AppLocalization {
@@ -71,6 +72,7 @@ export interface Project {
   id: number;
   name: string;
   description?: string;
+  projectType?: string;
   fileName?: string;
   fileContent?: string;
   sourceLanguage?: string;
@@ -369,6 +371,10 @@ class ApiClient {
     return this.request<AppsResponse>('/protected/apps');
   }
 
+  async getAppsByProject(projectId: number): Promise<AppsResponse> {
+    return this.request<AppsResponse>(`/protected/apps?projectId=${projectId}`);
+  }
+
   async createApp(appData: Partial<App>): Promise<AppResponse> {
     return this.request<AppResponse>('/protected/apps', {
       method: 'POST',
@@ -465,8 +471,9 @@ class ApiClient {
   }
 
   // Project methods
-  async getProjects(): Promise<ProjectsResponse> {
-    return this.request<ProjectsResponse>('/protected/projects');
+  async getProjects(projectType?: string): Promise<ProjectsResponse> {
+    const query = projectType ? `?type=${encodeURIComponent(projectType)}` : '';
+    return this.request<ProjectsResponse>(`/protected/projects${query}`);
   }
 
   async createProject(projectData: Partial<Project>): Promise<ProjectResponse> {
@@ -503,6 +510,18 @@ class ApiClient {
     return this.request(`/protected/projects/${projectId}/upload`, {
       method: 'POST',
       body: formData,
+    });
+  }
+
+  async createProjectFromFile(file: File, sourceLanguage?: string): Promise<ProjectResponse> {
+    const fileContent = await file.text();
+    return this.createProject({
+      name: file.name,
+      description: '',
+      fileName: file.name,
+      fileContent,
+      sourceLanguage,
+      projectType: 'xcstrings'
     });
   }
 

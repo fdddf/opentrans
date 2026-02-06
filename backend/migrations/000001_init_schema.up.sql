@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS projects (
 	name VARCHAR(255) NOT NULL,
 	description TEXT,
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	project_type VARCHAR(20) NOT NULL DEFAULT 'xcstrings',
 	file_content TEXT,
 	file_name VARCHAR(255),
 	source_language VARCHAR(50),
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS apps (
 	name VARCHAR(255) NOT NULL,
 	description TEXT,
 	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
 	bundle_id VARCHAR(255) UNIQUE NOT NULL,
 	apple_id VARCHAR(255),
 	primary_locale VARCHAR(50),
@@ -252,6 +254,7 @@ CREATE TABLE IF NOT EXISTS sync_history (
 
 -- projects indexes
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_apps_project_id ON apps(project_id);
 
 -- translations indexes
 CREATE INDEX IF NOT EXISTS idx_translations_project_id ON translations(project_id);

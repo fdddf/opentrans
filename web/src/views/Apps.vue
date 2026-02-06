@@ -123,6 +123,18 @@
             <label class="text-sm text-slate-400">{{ t('apps.appleId') }}</label>
             <input v-model="form.appleId" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint" :placeholder="t('apps.appleIdPlaceholder')" />
           </div>
+          <div>
+            <label class="text-sm text-slate-400">{{ t('apps.projectGroup') }}</label>
+            <select
+              v-model="form.projectId"
+              class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 focus:ring-2 focus:ring-mint"
+            >
+              <option :value="null">{{ t('apps.noGroup') }}</option>
+              <option v-for="project in projectGroups" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
+          </div>
 
           <div class="flex justify-end gap-2 pt-2">
             <button type="button" class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint" @click="closeModal">{{ t('common.cancel') || 'Cancel' }}</button>
@@ -166,7 +178,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
-import type { App, ProviderConfig } from '../composables/useApi'
+import type { App, ProviderConfig, Project } from '../composables/useApi'
 
 const { t } = useI18n()
 const { api } = useApi()
@@ -178,13 +190,15 @@ const syncing = ref(false)
 const syncResult = ref<{ message: string; count?: number } | null>(null)
 const selectedConfigId = ref<number | null>(null)
 const appleConnectConfigs = ref<ProviderConfig[]>([])
+const projectGroups = ref<Project[]>([])
 
 const form = reactive({
   name: '',
   platform: 'iOS',
   bundleId: '',
   sourceLanguage: 'en',
-  appleId: ''
+  appleId: '',
+  projectId: null as number | null
 })
 
 const hasAppleConnectConfig = computed(() => appleConnectConfigs.value.length > 0)
@@ -197,6 +211,7 @@ function resetForm() {
   form.bundleId = ''
   form.sourceLanguage = 'en'
   form.appleId = ''
+  form.projectId = null
 }
 
 function closeModal() {
@@ -218,6 +233,17 @@ async function fetchProviderConfigs() {
     }
   } catch (error) {
     console.error('Failed to fetch Apple Connect configs:', error)
+  }
+}
+
+async function fetchProjectGroups() {
+  try {
+    const response = await api.getProjects('app_group')
+    if (response.success) {
+      projectGroups.value = response.projects
+    }
+  } catch (error) {
+    console.error('Failed to fetch project groups:', error)
   }
 }
 
@@ -268,34 +294,12 @@ async function createApp() {
       name: form.name.trim(),
       bundleId: form.bundleId.trim(),
       appleId: form.appleId,
-      primaryLocale: form.sourceLanguage || 'en'
+      primaryLocale: form.sourceLanguage || 'en',
+      projectId: form.projectId || undefined
     })
     
     if (response.success) {
-      apps.value.unshift({
-        id: response.app.id,
-        name: form.name.trim(),
-        platform: form.platform,
-        origin: 'manual',
-        synced: false,
-        bundleId: form.bundleId.trim(),
-        sourceLanguage: form.sourceLanguage || 'en',
-        appleId: form.appleId,
-        userId: response.app.userId,
-        createdAt: response.app.createdAt,
-        updatedAt: response.app.updatedAt,
-        description: response.app.description || '',
-        isReadyForReview: response.app.isReadyForReview || false,
-        primaryLocale: form.sourceLanguage || 'en',
-        shortDescription: response.app.shortDescription || '',
-        longDescription: response.app.longDescription || '',
-        keywords: response.app.keywords || '',
-        supportUrl: response.app.supportUrl || '',
-        marketingUrl: response.app.marketingUrl || '',
-        privacyUrl: response.app.privacyUrl || '',
-        version: response.app.version || '',
-        appCategory: response.app.appCategory || ''
-      })
+      await fetchApps()
       closeModal()
     }
   } catch (error) {
@@ -330,5 +334,6 @@ async function fetchApps() {
 onMounted(() => {
   fetchApps()
   fetchProviderConfigs()
+  fetchProjectGroups()
 })
 </script>

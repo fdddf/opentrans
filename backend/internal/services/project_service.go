@@ -18,7 +18,28 @@ type ProjectService struct {
 }
 
 // CreateProject creates a new project with the provided xcstrings content
-func (s *ProjectService) CreateProject(userID uint, name, description, fileName, fileContent, sourceLanguage string) (*database.Project, error) {
+func (s *ProjectService) CreateProject(userID uint, name, description, fileName, fileContent, sourceLanguage, projectType string) (*database.Project, error) {
+	if projectType == "" {
+		projectType = "xcstrings"
+	}
+
+	if projectType == "app_group" {
+		project := &database.Project{
+			Name:        name,
+			Description: description,
+			UserID:      userID,
+			ProjectType: projectType,
+			Settings:    make(map[string]interface{}),
+		}
+
+		result := s.DB.Create(project)
+		if result.Error != nil {
+			return nil, fmt.Errorf("failed to create project: %v", result.Error)
+		}
+
+		return project, nil
+	}
+
 	// Parse the xcstrings content to extract structure
 	var xcstrings model.XCStrings
 	if err := json.Unmarshal([]byte(fileContent), &xcstrings); err != nil {
@@ -41,6 +62,7 @@ func (s *ProjectService) CreateProject(userID uint, name, description, fileName,
 		Name:             name,
 		Description:      description,
 		UserID:           userID,
+		ProjectType:      projectType,
 		FileContent:      fileContent,
 		FileName:         fileName,
 		SourceLanguage:   sourceLanguage,
@@ -82,6 +104,17 @@ func (s *ProjectService) GetProject(projectID uint) (*database.Project, error) {
 func (s *ProjectService) GetProjectsByUser(userID uint) ([]database.Project, error) {
 	var projects []database.Project
 	result := s.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&projects)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to retrieve projects: %v", result.Error)
+	}
+
+	return projects, nil
+}
+
+// GetProjectsByUserAndType retrieves projects for a user filtered by type
+func (s *ProjectService) GetProjectsByUserAndType(userID uint, projectType string) ([]database.Project, error) {
+	var projects []database.Project
+	result := s.DB.Where("user_id = ? AND project_type = ?", userID, projectType).Order("created_at DESC").Find(&projects)
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to retrieve projects: %v", result.Error)
 	}
@@ -657,7 +690,11 @@ func SetProjectService(db *database.Database, translationService *TranslationSer
 }
 
 func CreateProject(userID uint, name, description, fileName, fileContent, sourceLanguage string) (*database.Project, error) {
-	return projectServiceInstance.CreateProject(userID, name, description, fileName, fileContent, sourceLanguage)
+	return projectServiceInstance.CreateProject(userID, name, description, fileName, fileContent, sourceLanguage, "xcstrings")
+}
+
+func CreateProjectWithType(userID uint, name, description, fileName, fileContent, sourceLanguage, projectType string) (*database.Project, error) {
+	return projectServiceInstance.CreateProject(userID, name, description, fileName, fileContent, sourceLanguage, projectType)
 }
 
 func GetProject(projectID uint) (*database.Project, error) {
@@ -666,6 +703,10 @@ func GetProject(projectID uint) (*database.Project, error) {
 
 func GetProjectsByUser(userID uint) ([]database.Project, error) {
 	return projectServiceInstance.GetProjectsByUser(userID)
+}
+
+func GetProjectsByUserAndType(userID uint, projectType string) ([]database.Project, error) {
+	return projectServiceInstance.GetProjectsByUserAndType(userID, projectType)
 }
 
 func UpdateProject(projectID uint, updates map[string]interface{}) error {

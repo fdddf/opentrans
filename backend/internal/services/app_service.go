@@ -20,13 +20,15 @@ type AppService struct {
 }
 
 // CreateApp creates a new app with the provided details
-func (s *AppService) CreateApp(userID uint, name, description, bundleID, appleID, primaryLocale string) (*database.App, error) {
-	// Check if bundle ID already exists
-	existingApp, err := s.Query.App.Where(s.Query.App.BundleID.Eq(bundleID)).First()
-	if err == nil && existingApp != nil {
-		return nil, errors.New("bundle ID already exists")
-	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("failed to check bundle ID: %v", err)
+func (s *AppService) CreateApp(userID uint, name, description, bundleID, appleID, primaryLocale string, projectID *uint) (*database.App, error) {
+	if bundleID != "" {
+		// Check if bundle ID already exists
+		existingApp, err := s.Query.App.Where(s.Query.App.BundleID.Eq(bundleID)).First()
+		if err == nil && existingApp != nil {
+			return nil, errors.New("bundle ID already exists")
+		} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("failed to check bundle ID: %v", err)
+		}
 	}
 
 	// Check user's subscription limit
@@ -40,10 +42,15 @@ func (s *AppService) CreateApp(userID uint, name, description, bundleID, appleID
 		return nil, errors.New("app limit reached for your subscription")
 	}
 
+	if bundleID == "" {
+		bundleID = fmt.Sprintf("group:%d:%d", userID, time.Now().UnixNano())
+	}
+
 	app := &database.App{
 		Name:             name,
 		Description:      description,
 		UserID:           userID,
+		ProjectID:        projectID,
 		BundleID:         bundleID,
 		AppleID:          appleID,
 		PrimaryLocale:    primaryLocale,
@@ -117,6 +124,21 @@ func (s *AppService) GetAppsByUser(userID uint) ([]database.App, error) {
 	}
 
 	return appSlice, nil
+}
+
+// GetAppsByProject retrieves apps for a specific project
+func (s *AppService) GetAppsByProject(projectID uint) ([]database.App, error) {
+	var apps []database.App
+	result := s.DB.Where("project_id = ?", projectID).Order("created_at DESC").Find(&apps)
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to retrieve apps: %v", result.Error)
+	}
+
+	for i := range apps {
+		apps[i].User = database.User{}
+	}
+
+	return apps, nil
 }
 
 // UpdateApp updates an existing app
@@ -587,7 +609,7 @@ func (s *AppService) SyncAppsFromAppleConnect(userID uint, issuerID, keyID, priv
 		}
 
 		// Create new app
-		newApp, err := s.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
+		newApp, err := s.CreateApp(userID, appData.Attributes.Name, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create app %s: %v", appData.Attributes.BundleID, err)
 		}
@@ -679,8 +701,8 @@ func SetAppService(db *database.Database, appLocalizationService *AppLocalizatio
 	}
 }
 
-func CreateApp(userID uint, name, description, bundleID, appleID, primaryLocale string) (*database.App, error) {
-	return appServiceInstance.CreateApp(userID, name, description, bundleID, appleID, primaryLocale)
+func CreateApp(userID uint, name, description, bundleID, appleID, primaryLocale string, projectID *uint) (*database.App, error) {
+	return appServiceInstance.CreateApp(userID, name, description, bundleID, appleID, primaryLocale, projectID)
 }
 
 func GetApp(appID uint) (*database.App, error) {
@@ -693,6 +715,10 @@ func GetAppByBundleID(bundleID string) (*database.App, error) {
 
 func GetAppsByUser(userID uint) ([]database.App, error) {
 	return appServiceInstance.GetAppsByUser(userID)
+}
+
+func GetAppsByProject(projectID uint) ([]database.App, error) {
+	return appServiceInstance.GetAppsByProject(projectID)
 }
 
 func UpdateApp(appID uint, updates map[string]interface{}) error {

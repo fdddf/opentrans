@@ -2,6 +2,8 @@
 "nav": {
     "dashboard": "仪表板",
     "apps": "应用",
+    "projects": "项目分组",
+    "translator": "翻译器",
     "applocalizations": "应用本地化",
     "languages": "语言",
     "users": "用户",
@@ -192,11 +194,46 @@
     "platform": "平台",
     "appleId": "Apple ID",
     "appleIdPlaceholder": "123456789",
+    "projectGroup": "项目分组",
+    "noGroup": "不分组",
     "noConfig": {
       "title": "没有Apple Connect配置",
       "message": "您需要先配置Apple Connect凭据才能同步应用。"
     },
     "setupConfig": "配置"
+  },
+  "projects": {
+    "title": "项目分组",
+    "subtitle": "将应用分组管理，方便协作与整理。",
+    "add": "新增项目",
+    "edit": "编辑项目",
+    "name": "名称",
+    "description": "描述",
+    "noDescription": "暂无描述",
+    "appGroup": "应用分组",
+    "appsCount": "应用数量：{count}",
+    "confirmDelete": "确定要删除该项目吗？"
+  },
+  "translator": {
+    "title": "XCStrings 翻译器",
+    "subtitle": "上传 xcstrings 并使用 OpenAI 或混元翻译。",
+    "file": "XCStrings 文件",
+    "noFile": "未选择文件",
+    "sourceLanguage": "源语言",
+    "targetLanguages": "目标语言",
+    "targetPlaceholder": "zh-Hans,ja,ko",
+    "provider": "翻译提供商",
+    "concurrency": "并发",
+    "timeout": "超时（秒）",
+    "apiKey": "API 密钥",
+    "model": "模型",
+    "translate": "开始翻译",
+    "translating": "翻译中...",
+    "export": "导出",
+    "uploading": "正在上传文件...",
+    "translateSubmitted": "已提交翻译任务。",
+    "translateError": "翻译失败。",
+    "jobId": "任务"
   },
   "applocalizations": {
     "title": "应用本地化",
@@ -277,6 +314,7 @@
     "add": "添加提供商",
     "edit": "编辑提供商",
     "providerType": "提供商类型",
+    "hunyuanHint": "混元使用后端 config.yaml 的模型配置。",
     "default": "默认",
     "yes": "是",
     "no": "否",

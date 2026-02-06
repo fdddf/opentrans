@@ -101,7 +101,7 @@ func (s *AppleConnectService) SyncApps(userID uint, issuerID, keyID, privateKeyP
 			continue
 		}
 
-		newApp, err := s.AppService.CreateApp(userID, appName, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale)
+		newApp, err := s.AppService.CreateApp(userID, appName, "", appData.Attributes.BundleID, appData.ID, appData.Attributes.PrimaryLocale, nil)
 		if err != nil {
 			failedApps = append(failedApps, fmt.Sprintf("%s: %v", appData.Attributes.BundleID, err))
 			continue

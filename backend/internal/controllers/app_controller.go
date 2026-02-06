@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/fdddf/opentrans/internal/context"
+	"github.com/fdddf/opentrans/internal/database"
 	"github.com/fdddf/opentrans/internal/services"
 	"github.com/gofiber/fiber/v2"
 )
@@ -21,6 +22,7 @@ type CreateAppRequest struct {
 	BundleID         string `json:"bundleId"`
 	AppleID          string `json:"appleId"`
 	PrimaryLocale    string `json:"primaryLocale"`
+	ProjectID        *uint  `json:"projectId"`
 	ShortDescription string `json:"shortDescription"`
 	LongDescription  string `json:"longDescription"`
 	Keywords         string `json:"keywords"`
@@ -38,6 +40,7 @@ type UpdateAppRequest struct {
 	BundleID         *string `json:"bundleId"`
 	AppleID          *string `json:"appleId"`
 	PrimaryLocale    *string `json:"primaryLocale"`
+	ProjectID        *uint   `json:"projectId"`
 	ShortDescription *string `json:"shortDescription"`
 	LongDescription  *string `json:"longDescription"`
 	Keywords         *string `json:"keywords"`
@@ -67,7 +70,23 @@ func (ctrl *AppController) GetApps(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
 	}
 
-	apps, err := services.GetAppsByUser(userID)
+	projectID := c.QueryInt("projectId", 0)
+	var (
+		apps []database.App
+		err  error
+	)
+	if projectID > 0 {
+		project, err := services.GetProject(uint(projectID))
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, "Project not found")
+		}
+		if project.UserID != userID {
+			return fiber.NewError(fiber.StatusForbidden, "Access denied to this project")
+		}
+		apps, err = services.GetAppsByProject(uint(projectID))
+	} else {
+		apps, err = services.GetAppsByUser(userID)
+	}
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -90,7 +109,20 @@ func (ctrl *AppController) CreateApp(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
 	}
 
-	app, err := services.CreateApp(userID, req.Name, req.Description, req.BundleID, req.AppleID, req.PrimaryLocale)
+	if req.ProjectID != nil {
+		project, err := services.GetProject(*req.ProjectID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, "Project not found")
+		}
+		if project.UserID != userID {
+			return fiber.NewError(fiber.StatusForbidden, "Access denied to this project")
+		}
+		if project.ProjectType != "app_group" {
+			return fiber.NewError(fiber.StatusBadRequest, "Project must be of type app_group")
+		}
+	}
+
+	app, err := services.CreateApp(userID, req.Name, req.Description, req.BundleID, req.AppleID, req.PrimaryLocale, req.ProjectID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -204,9 +236,25 @@ func (ctrl *AppController) UpdateApp(c *fiber.Ctx) error {
 	if req.IsReadyForReview != nil {
 		updates["IsReadyForReview"] = *req.IsReadyForReview
 	}
+	if req.ProjectID != nil {
+		updates["ProjectID"] = req.ProjectID
+	}
 
 	if len(updates) == 0 {
 		return fiber.NewError(fiber.StatusBadRequest, "No fields to update")
+	}
+
+	if req.ProjectID != nil {
+		project, err := services.GetProject(*req.ProjectID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, "Project not found")
+		}
+		if project.UserID != userID {
+			return fiber.NewError(fiber.StatusForbidden, "Access denied to this project")
+		}
+		if project.ProjectType != "app_group" {
+			return fiber.NewError(fiber.StatusBadRequest, "Project must be of type app_group")
+		}
 	}
 
 	err = services.UpdateApp(uint(appID), updates)
