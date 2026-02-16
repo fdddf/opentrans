@@ -6,6 +6,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/fdddf/opentrans/internal/auth"
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 )
 
@@ -70,6 +71,7 @@ type QueueServiceDeps struct {
 func NewAppService(deps AppServiceDeps) *AppService {
 	return &AppService{
 		DB:                     deps.DB,
+		Query:                  query.Use(deps.DB.DB),
 		AppLocalizationService: deps.AppLocalizationService,
 	}
 }
