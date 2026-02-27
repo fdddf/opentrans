@@ -524,6 +524,25 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 		{"PromotionalText", 170, func(l *database.AppLocalization) string { return l.PromotionalText }, func(l *database.AppLocalization, v string) { l.PromotionalText = v }},
 	}
 
+	// Check if onlyTranslateWhatsNew option is set
+	if onlyWhatsNew, ok := job.ConfigData["onlyTranslateWhatsNew"].(bool); ok && onlyWhatsNew {
+		fmt.Printf("Only translating What's New field as requested\n")
+		// Filter to only include WhatsNew field
+		filteredFields := make([]struct {
+			name       string
+			maxLength  int
+			sourceFunc func(*database.AppLocalization) string
+			targetFunc func(*database.AppLocalization, string)
+		}, 0)
+		for _, f := range fieldsToTranslate {
+			if f.name == "WhatsNew" {
+				filteredFields = append(filteredFields, f)
+				break
+			}
+		}
+		fieldsToTranslate = filteredFields
+	}
+
 	totalFields := len(job.TargetLanguages) * len(fieldsToTranslate)
 
 	// Update job with total count

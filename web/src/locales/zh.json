@@ -306,7 +306,9 @@
     "translateAllSubmitted": "翻译任务已提交",
     "translateAllProgress": "翻译进度: {progress}%",
     "translateAllCompleted": "翻译已完成",
-    "translateAllError": "翻译出错: {error}"
+    "translateAllError": "翻译出错: {error}",
+    "onlyTranslateWhatsNew": "仅翻译 What's New",
+    "onlyTranslateWhatsNewDesc": "只翻译更新日志字段，跳过其他字段"
   },
   "providerConfigs": {
     "title": "提供商配置",

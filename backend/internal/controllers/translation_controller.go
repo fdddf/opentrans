@@ -16,13 +16,14 @@ func NewTranslationController() *TranslationController {
 
 // QueueTranslationJobRequest represents the queue translation job request
 type QueueTranslationJobRequest struct {
-	JobType         string                 `json:"jobType"`
-	ProjectID       *uint                  `json:"projectId"`
-	AppID           *uint                  `json:"appId"`
-	ProviderType    string                 `json:"providerType"`
-	SourceLanguage  string                 `json:"sourceLanguage"`
-	TargetLanguages []string               `json:"targetLanguages"`
-	ConfigData      map[string]interface{} `json:"configData"`
+	JobType                string                 `json:"jobType"`
+	ProjectID              *uint                  `json:"projectId"`
+	AppID                  *uint                  `json:"appId"`
+	ProviderType           string                 `json:"providerType"`
+	SourceLanguage         string                 `json:"sourceLanguage"`
+	TargetLanguages        []string               `json:"targetLanguages"`
+	OnlyTranslateWhatsNew  bool                   `json:"onlyTranslateWhatsNew"`
+	ConfigData             map[string]interface{} `json:"configData"`
 }
 
 // QueueTranslationJob queues a translation job
@@ -57,6 +58,14 @@ func (ctrl *TranslationController) QueueTranslationJob(c *fiber.Ctx) error {
 		if err != nil || !hasAccess {
 			return fiber.NewError(fiber.StatusForbidden, "Access denied to this app")
 		}
+	}
+
+	// Add OnlyTranslateWhatsNew to ConfigData if specified
+	if req.ConfigData == nil {
+		req.ConfigData = make(map[string]interface{})
+	}
+	if req.OnlyTranslateWhatsNew {
+		req.ConfigData["onlyTranslateWhatsNew"] = true
 	}
 
 	queueService := services.GetQueueService()

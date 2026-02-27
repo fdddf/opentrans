@@ -689,6 +689,7 @@ class ApiClient {
     providerType: string;
     sourceLanguage: string;
     targetLanguages: string[];
+    onlyTranslateWhatsNew?: boolean;
     configData: any;
   }): Promise<QueueJobResponse> {
     return this.request<QueueJobResponse>('/protected/queue/translate', {

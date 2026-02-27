@@ -227,6 +227,19 @@
             <p class="text-xs text-slate-500 mt-1">{{ t('applocalizations.selectTargetLanguagesDesc') }}</p>
           </div>
 
+          <!-- Only Translate What's New Option -->
+          <div class="p-3 rounded-lg bg-white/5 border border-white/10">
+            <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-mint text-slate-300">
+              <input
+                type="checkbox"
+                v-model="onlyTranslateWhatsNew"
+                class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+              />
+              <span>{{ t('applocalizations.onlyTranslateWhatsNew') || '仅翻译 What\'s New' }}</span>
+            </label>
+            <p class="text-xs text-slate-500 mt-1 ml-6">{{ t('applocalizations.onlyTranslateWhatsNewDesc') || '只翻译更新日志字段，跳过其他字段' }}</p>
+          </div>
+
           <div v-if="batchTranslateResult" class="p-3 rounded-lg bg-white/5 border border-white/10">
             <p class="text-sm">{{ batchTranslateResult.message }}</p>
             <div v-if="batchTranslateResult.progress !== undefined" class="mt-2">
@@ -427,6 +440,7 @@ const selectedBatchTranslateLanguages = ref<string[]>([])
 const batchTranslating = ref(false)
 const batchTranslateProgress = ref(0)
 const batchTranslateResult = ref<{ message: string; progress?: number; done?: number; total?: number } | null>(null)
+const onlyTranslateWhatsNew = ref(false)
 
 // Computed property for selected localization
 const selectedLocalization = computed(() => {
@@ -1009,6 +1023,7 @@ function closeBatchTranslateModal() {
   selectedBatchTranslateLanguages.value = []
   batchTranslateResult.value = null
   batchTranslateProgress.value = 0
+  onlyTranslateWhatsNew.value = false
 }
 
 async function submitBatchTranslate() {
@@ -1037,6 +1052,7 @@ async function submitBatchTranslate() {
       providerType: 'llama',
       sourceLanguage: sourceLanguage,
       targetLanguages: selectedBatchTranslateLanguages.value,
+      onlyTranslateWhatsNew: onlyTranslateWhatsNew.value,
       configData: {
         // Hunyuan model generation parameters
         threads: 4,

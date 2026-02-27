@@ -306,7 +306,9 @@
     "translateAllSubmitted": "Translation task submitted",
     "translateAllProgress": "Translation progress: {progress}%",
     "translateAllCompleted": "Translation completed",
-    "translateAllError": "Translation error: {error}"
+    "translateAllError": "Translation error: {error}",
+    "onlyTranslateWhatsNew": "Only translate What's New",
+    "onlyTranslateWhatsNewDesc": "Only translate the release notes field, skip other fields"
   },
   "providerConfigs": {
     "title": "Provider Configurations",
