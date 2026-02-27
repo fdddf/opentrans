@@ -10,13 +10,19 @@ import (
 	"github.com/fdddf/opentrans/internal/database"
 )
 
+// NewQuery provides the query.Query instance for type-safe database operations
+func NewQuery(db *database.Database) *query.Query {
+	return query.Use(db.DB)
+}
+
 // Module is the FX module for services
 var Module = fx.Module("services",
+	fx.Provide(NewQuery),
 	fx.Provide(NewAppService),
 	fx.Provide(NewAppLocalizationService),
 	fx.Provide(NewAppleConnectService),
 	fx.Provide(NewAppProviderConfigService),
-	fx.Provide(NewActivityService),
+	fx.Provide(NewActivityServiceFromDeps),
 	fx.Provide(NewProjectService),
 	fx.Provide(NewProviderService),
 	fx.Provide(NewQueueService),
@@ -29,7 +35,20 @@ var Module = fx.Module("services",
 type ServiceParams struct {
 	fx.In
 
-	DB *database.Database
+	DB    *database.Database
+	Query *query.Query
+}
+
+// ActivityServiceDeps holds dependencies for ActivityService
+type ActivityServiceDeps struct {
+	fx.In
+	DB    *database.Database
+	Query *query.Query
+}
+
+// NewActivityServiceFromDeps creates a new ActivityService with database dependency
+func NewActivityServiceFromDeps(deps ActivityServiceDeps) *ActivityService {
+	return NewActivityService(deps.DB, deps.Query)
 }
 
 // AppleConnectServiceDeps holds dependencies for AppleConnectService
@@ -50,6 +69,7 @@ type AppServiceDeps struct {
 type ProjectServiceDeps struct {
 	fx.In
 	DB                     *database.Database
+	Query                  *query.Query
 	TranslationService     *TranslationService
 	AppLocalizationService *AppLocalizationService
 }
@@ -57,13 +77,14 @@ type ProjectServiceDeps struct {
 // QueueServiceDeps holds dependencies for QueueService
 type QueueServiceDeps struct {
 	fx.In
-	DB                     *database.Database
-	AppService             *AppService
-	AppLocalizationService *AppLocalizationService
-	ProjectService         *ProjectService
-	TranslationService     *TranslationService
-	SubscriptionService    *SubscriptionService
-	ProviderService        *ProviderService
+	DB                       *database.Database
+	Query                    *query.Query
+	AppService               *AppService
+	AppLocalizationService   *AppLocalizationService
+	ProjectService           *ProjectService
+	TranslationService       *TranslationService
+	SubscriptionService      *SubscriptionService
+	ProviderService          *ProviderService
 	AppProviderConfigService *AppProviderConfigService
 }
 
@@ -79,7 +100,8 @@ func NewAppService(deps AppServiceDeps) *AppService {
 // NewAppLocalizationService creates a new AppLocalizationService with database dependency
 func NewAppLocalizationService(p ServiceParams) *AppLocalizationService {
 	return &AppLocalizationService{
-		DB: p.DB,
+		DB:    p.DB,
+		Query: p.Query,
 	}
 }
 
@@ -95,6 +117,7 @@ func NewAppleConnectService(deps AppleConnectServiceDeps) *AppleConnectService {
 func NewProjectService(deps ProjectServiceDeps) *ProjectService {
 	return &ProjectService{
 		DB:                     deps.DB,
+		Query:                  deps.Query,
 		TranslationService:     deps.TranslationService,
 		AppLocalizationService: deps.AppLocalizationService,
 	}
@@ -103,43 +126,50 @@ func NewProjectService(deps ProjectServiceDeps) *ProjectService {
 // NewProviderService creates a new ProviderService with database dependency
 func NewProviderService(p ServiceParams) *ProviderService {
 	return &ProviderService{
-		DB: p.DB,
+		DB:    p.DB,
+		Query: p.Query,
 	}
 }
 
 // NewQueueService creates a new QueueService with database dependency
 func NewQueueService(deps QueueServiceDeps) *QueueService {
 	return &QueueService{
-		DB:                     deps.DB,
-		AppService:             deps.AppService,
-		AppLocalizationService: deps.AppLocalizationService,
-		ProjectService:         deps.ProjectService,
-		TranslationService:     deps.TranslationService,
-		SubscriptionService:    deps.SubscriptionService,
-		ProviderService:        deps.ProviderService,
+		DB:                       deps.DB,
+		Query:                    deps.Query,
+		AppService:               deps.AppService,
+		AppLocalizationService:   deps.AppLocalizationService,
+		ProjectService:           deps.ProjectService,
+		TranslationService:       deps.TranslationService,
+		SubscriptionService:      deps.SubscriptionService,
+		ProviderService:          deps.ProviderService,
 		AppProviderConfigService: deps.AppProviderConfigService,
-		mu:                     sync.RWMutex{},
-		queue:                  make(map[uint]*database.TranslationQueue),
+		mu:                       sync.RWMutex{},
+		queue:                    make(map[uint]*database.TranslationQueue),
 	}
 }
 
 // NewSubscriptionService creates a new SubscriptionService with database dependency
 func NewSubscriptionService(p ServiceParams) *SubscriptionService {
 	return &SubscriptionService{
-		DB: p.DB,
+		DB:    p.DB,
+		Query: p.Query,
 	}
 }
 
 // NewTranslationService creates a new TranslationService with database dependency
 func NewTranslationService(p ServiceParams) *TranslationService {
 	return &TranslationService{
-		DB: p.DB,
+		DB:    p.DB,
+		Query: p.Query,
 	}
 }
 
 // NewAppProviderConfigService creates a new AppProviderConfigService with database dependency
 func NewAppProviderConfigService(p ServiceParams) *AppProviderConfigService {
-	return &AppProviderConfigService{DB: p.DB}
+	return &AppProviderConfigService{
+		DB:    p.DB,
+		Query: p.Query,
+	}
 }
 
 // InitializeServices sets up the global service instances for backward compatibility

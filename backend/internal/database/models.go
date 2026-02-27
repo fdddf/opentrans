@@ -57,10 +57,10 @@ type Project struct {
 	SourceLanguage string `json:"sourceLanguage"`
 
 	// JSON field to store the parsed content structure
-	ContentStructure map[string]interface{} `gorm:"type:jsonb" json:"contentStructure"`
+	ContentStructure map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"contentStructure"`
 
 	// Store project settings
-	Settings map[string]interface{} `gorm:"type:jsonb" json:"settings"`
+	Settings map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"settings"`
 }
 
 // Translation represents a translated string
@@ -278,7 +278,7 @@ type TranslationQueue struct {
 	ConfigData      map[string]interface{} `gorm:"serializer:json" json:"configData"`      // Provider-specific config
 
 	// Result data
-	ResultData map[string]interface{} `gorm:"type:jsonb" json:"resultData"` // Result of translation job
+	ResultData map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"resultData"` // Result of translation job
 }
 
 // SyncHistory represents synchronization history for app localizations
@@ -309,7 +309,7 @@ type SyncHistory struct {
 	Error string `gorm:"type:text" json:"error,omitempty"` // Error message if failed
 
 	// Snapshot data (for rollback capability)
-	SnapshotData map[string]interface{} `gorm:"type:jsonb" json:"snapshotData,omitempty"` // Before/after snapshot
+	SnapshotData map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"snapshotData,omitempty"` // Before/after snapshot
 
 	// Metadata
 	IPAddress string `gorm:"type:varchar(45)" json:"ipAddress,omitempty"` // IP address of the requester

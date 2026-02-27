@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 	"gorm.io/gorm"
 )
 
 // SubscriptionService handles subscription-related operations
 type SubscriptionService struct {
-	DB *database.Database
+	DB    *database.Database
+	Query *query.Query
 }
 
 // Subscription tiers with their limits
@@ -34,12 +36,14 @@ var SubscriptionLimits = map[string]struct {
 // CreateSubscription creates a new subscription for a user
 func (s *SubscriptionService) CreateSubscription(userID uint, stripeSubscriptionID, stripeCustomerID, subscriptionType string, currentPeriodStart, currentPeriodEnd time.Time, trialEnd *time.Time, cancelAtPeriodEnd bool) (*database.Subscription, error) {
 	// Check if user already has an active subscription
-	var existingSubscription database.Subscription
-	result := s.DB.Where("user_id = ? AND subscription_status != ?", userID, "canceled").First(&existingSubscription)
-	if result.Error == nil {
+	existingSubscription, err := s.Query.Subscription.Where(
+		s.Query.Subscription.UserID.Eq(userID),
+		s.Query.Subscription.SubscriptionStatus.Neq("canceled"),
+	).First()
+	if err == nil && existingSubscription != nil {
 		return nil, errors.New("user already has an active subscription")
-	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("failed to check existing subscription: %v", result.Error)
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check existing subscription: %v", err)
 	}
 
 	subscription := &database.Subscription{
@@ -54,22 +58,20 @@ func (s *SubscriptionService) CreateSubscription(userID uint, stripeSubscription
 		CancelAtPeriodEnd:    cancelAtPeriodEnd,
 	}
 
-	result = s.DB.Create(subscription)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create subscription: %v", result.Error)
+	if err := s.Query.Subscription.Create(subscription); err != nil {
+		return nil, fmt.Errorf("failed to create subscription: %v", err)
 	}
 
 	// Update user's subscription info
 	limits := SubscriptionLimits[subscriptionType]
-	err := s.DB.Model(&database.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+	_, err = s.Query.User.Where(s.Query.User.ID.Eq(userID)).Updates(map[string]interface{}{
 		"is_subscribed":     true,
 		"subscription_type": subscriptionType,
 		"max_apps":          limits.MaxApps,
 		"max_translations":  limits.MaxTranslations,
 		"current_usage":     0, // Reset usage to 0
 		"subscription_end":  &currentPeriodEnd,
-	}).Error
-
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update user subscription info: %v", err)
 	}
@@ -79,54 +81,58 @@ func (s *SubscriptionService) CreateSubscription(userID uint, stripeSubscription
 
 // GetSubscription retrieves a subscription by ID
 func (s *SubscriptionService) GetSubscription(subscriptionID uint) (*database.Subscription, error) {
-	var subscription database.Subscription
-	result := s.DB.Preload("User").First(&subscription, subscriptionID)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	subscription, err := s.Query.Subscription.Preload(s.Query.Subscription.User).Where(
+		s.Query.Subscription.ID.Eq(subscriptionID),
+	).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("subscription not found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &subscription, nil
+	return subscription, nil
 }
 
 // GetSubscriptionByUser retrieves a user's active subscription
 func (s *SubscriptionService) GetSubscriptionByUser(userID uint) (*database.Subscription, error) {
-	var subscription database.Subscription
-	result := s.DB.Where("user_id = ? AND subscription_status != ?", userID, "canceled").First(&subscription)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	subscription, err := s.Query.Subscription.Where(
+		s.Query.Subscription.UserID.Eq(userID),
+		s.Query.Subscription.SubscriptionStatus.Neq("canceled"),
+	).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("no active subscription found for user")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &subscription, nil
+	return subscription, nil
 }
 
 // GetSubscriptionByStripeID retrieves a subscription by Stripe subscription ID
 func (s *SubscriptionService) GetSubscriptionByStripeID(stripeSubscriptionID string) (*database.Subscription, error) {
-	var subscription database.Subscription
-	result := s.DB.Preload("User").Where("stripe_subscription_id = ?", stripeSubscriptionID).First(&subscription)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	subscription, err := s.Query.Subscription.Preload(s.Query.Subscription.User).Where(
+		s.Query.Subscription.StripeSubscriptionID.Eq(stripeSubscriptionID),
+	).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("subscription not found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &subscription, nil
+	return subscription, nil
 }
 
 // UpdateSubscription updates an existing subscription
 func (s *SubscriptionService) UpdateSubscription(subscriptionID uint, updates map[string]interface{}) error {
-	result := s.DB.Model(&database.Subscription{}).Where("id = ?", subscriptionID).Updates(updates)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update subscription: %v", result.Error)
+	result, err := s.Query.Subscription.Where(s.Query.Subscription.ID.Eq(subscriptionID)).Updates(updates)
+	if err != nil {
+		return fmt.Errorf("failed to update subscription: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -138,9 +144,11 @@ func (s *SubscriptionService) UpdateSubscription(subscriptionID uint, updates ma
 
 // UpdateSubscriptionByStripeID updates a subscription by Stripe subscription ID
 func (s *SubscriptionService) UpdateSubscriptionByStripeID(stripeSubscriptionID string, updates map[string]interface{}) error {
-	result := s.DB.Model(&database.Subscription{}).Where("stripe_subscription_id = ?", stripeSubscriptionID).Updates(updates)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update subscription: %v", result.Error)
+	result, err := s.Query.Subscription.Where(
+		s.Query.Subscription.StripeSubscriptionID.Eq(stripeSubscriptionID),
+	).Updates(updates)
+	if err != nil {
+		return fmt.Errorf("failed to update subscription: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -157,24 +165,23 @@ func (s *SubscriptionService) CancelSubscription(subscriptionID uint) error {
 		return err
 	}
 
-	result := s.DB.Model(&database.Subscription{}).Where("id = ?", subscriptionID).Updates(map[string]interface{}{
+	_, err = s.Query.Subscription.Where(s.Query.Subscription.ID.Eq(subscriptionID)).Updates(map[string]interface{}{
 		"subscription_status": "canceled",
 	})
-	if result.Error != nil {
-		return fmt.Errorf("failed to cancel subscription: %v", result.Error)
+	if err != nil {
+		return fmt.Errorf("failed to cancel subscription: %v", err)
 	}
 
 	// If it was the active subscription, update user's subscription info
 	if subscription.SubscriptionStatus != "canceled" {
 		// Reset to free tier
-		err = s.DB.Model(&database.User{}).Where("id = ?", subscription.UserID).Updates(map[string]interface{}{
+		_, err = s.Query.User.Where(s.Query.User.ID.Eq(subscription.UserID)).Updates(map[string]interface{}{
 			"is_subscribed":     false,
 			"subscription_type": FreeTier,
 			"max_apps":          SubscriptionLimits[FreeTier].MaxApps,
 			"max_translations":  SubscriptionLimits[FreeTier].MaxTranslations,
 			"subscription_end":  nil,
-		}).Error
-
+		})
 		if err != nil {
 			return fmt.Errorf("failed to update user subscription info: %v", err)
 		}
@@ -185,10 +192,9 @@ func (s *SubscriptionService) CancelSubscription(subscriptionID uint) error {
 
 // CheckUserUsage checks if a user has exceeded their translation limit
 func (s *SubscriptionService) CheckUserUsage(userID uint) (bool, int, int, error) {
-	var user database.User
-	result := s.DB.First(&user, userID)
-	if result.Error != nil {
-		return false, 0, 0, fmt.Errorf("failed to get user: %v", result.Error)
+	user, err := s.Query.User.Where(s.Query.User.ID.Eq(userID)).First()
+	if err != nil {
+		return false, 0, 0, fmt.Errorf("failed to get user: %v", err)
 	}
 
 	return user.CurrentUsage >= user.MaxTranslations, user.CurrentUsage, user.MaxTranslations, nil
@@ -208,7 +214,7 @@ func (s *SubscriptionService) RequireActiveSubscriptionAndQuota(userID uint) err
 
 // ResetMonthlyUsage resets the monthly usage for all users (typically called by a cron job)
 func (s *SubscriptionService) ResetMonthlyUsage() error {
-	err := s.DB.Model(&database.User{}).UpdateColumn("current_usage", 0).Error
+	_, err := s.Query.User.UpdateSimple(s.Query.User.CurrentUsage.Value(0))
 	if err != nil {
 		return fmt.Errorf("failed to reset monthly usage: %v", err)
 	}
@@ -218,13 +224,12 @@ func (s *SubscriptionService) ResetMonthlyUsage() error {
 
 // GetUserSubscriptionInfo returns detailed subscription information for a user
 func (s *SubscriptionService) GetUserSubscriptionInfo(userID uint) (*database.User, error) {
-	var user database.User
-	result := s.DB.First(&user, userID)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to get user: %v", result.Error)
+	user, err := s.Query.User.Where(s.Query.User.ID.Eq(userID)).First()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // ProcessSubscriptionWebhook processes a subscription update from Stripe webhook
@@ -258,7 +263,7 @@ func (s *SubscriptionService) ProcessSubscriptionWebhook(stripeSubscriptionID, s
 		"subscription_end":  &currentPeriodEnd,
 	}
 
-	err = s.DB.Model(&database.User{}).Where("id = ?", subscription.UserID).Updates(userUpdates).Error
+	_, err = s.Query.User.Where(s.Query.User.ID.Eq(subscription.UserID)).Updates(userUpdates)
 	if err != nil {
 		return fmt.Errorf("failed to update user subscription info: %v", err)
 	}
@@ -270,7 +275,10 @@ func (s *SubscriptionService) ProcessSubscriptionWebhook(stripeSubscriptionID, s
 var subscriptionServiceInstance *SubscriptionService
 
 func SetSubscriptionService(db *database.Database) {
-	subscriptionServiceInstance = &SubscriptionService{DB: db}
+	subscriptionServiceInstance = &SubscriptionService{
+		DB:    db,
+		Query: query.Use(db.DB),
+	}
 }
 
 func CreateSubscription(userID uint, stripeSubscriptionID, stripeCustomerID, subscriptionType string, currentPeriodStart, currentPeriodEnd time.Time, trialEnd *time.Time, cancelAtPeriodEnd bool) (*database.Subscription, error) {

@@ -6,13 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 	"gorm.io/gorm"
 )
 
 // AppLocalizationService handles app localization operations
 type AppLocalizationService struct {
-	DB *database.Database
+	DB    *database.Database
+	Query *query.Query
 }
 
 // CreateAppLocalization creates a new localization for an app
@@ -32,12 +34,14 @@ func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode,
 	}
 
 	// Check if localization already exists for this app and language
-	var existingLocalization database.AppLocalization
-	result := s.DB.Where("app_id = ? AND language_code = ?", appID, languageCode).First(&existingLocalization)
-	if result.Error == nil {
+	existingLocalization, err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.AppID.Eq(appID),
+		s.Query.AppLocalization.LanguageCode.Eq(languageCode),
+	).First()
+	if err == nil && existingLocalization != nil {
 		return nil, errors.New("localization already exists for this language and app")
-	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("failed to check existing localization: %v", result.Error)
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check existing localization: %v", err)
 	}
 
 	now := time.Now()
@@ -60,9 +64,8 @@ func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode,
 		SyncStatus:      "pending",
 	}
 
-	result = s.DB.Create(localization)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create app localization: %v", result.Error)
+	if err := s.Query.AppLocalization.Create(localization); err != nil {
+		return nil, fmt.Errorf("failed to create app localization: %v", err)
 	}
 
 	return localization, nil
@@ -70,39 +73,55 @@ func (s *AppLocalizationService) CreateAppLocalization(appID uint, languageCode,
 
 // GetAppLocalization retrieves a specific localization for an app
 func (s *AppLocalizationService) GetAppLocalization(appID uint, languageCode string) (*database.AppLocalization, error) {
-	var localization database.AppLocalization
-	result := s.DB.Preload("App").Where("app_id = ? AND language_code = ?", appID, languageCode).First(&localization)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	localization, err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.AppID.Eq(appID),
+		s.Query.AppLocalization.LanguageCode.Eq(languageCode),
+	).Preload(s.Query.AppLocalization.App).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("app localization not found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &localization, nil
+	return localization, nil
 }
 
 // GetAppLocalizations retrieves all localizations for an app
 func (s *AppLocalizationService) GetAppLocalizations(appID uint) ([]database.AppLocalization, error) {
-	var localizations []database.AppLocalization
-	result := s.DB.Where("app_id = ?", appID).Order("language_code ASC").Find(&localizations)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve app localizations: %v", result.Error)
+	localizations, err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.AppID.Eq(appID),
+	).Order(s.Query.AppLocalization.LanguageCode.Asc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve app localizations: %v", err)
 	}
 
-	return localizations, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.AppLocalization, len(localizations))
+	for i, loc := range localizations {
+		result[i] = *loc
+	}
+
+	return result, nil
 }
 
 // GetAppLocalizationByLanguageCode retrieves a localization by language code only
 func (s *AppLocalizationService) GetAppLocalizationByLanguageCode(languageCode string) ([]database.AppLocalization, error) {
-	var localizations []database.AppLocalization
-	result := s.DB.Preload("App").Where("language_code = ?", languageCode).Find(&localizations)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve app localizations by language code: %v", result.Error)
+	localizations, err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.LanguageCode.Eq(languageCode),
+	).Preload(s.Query.AppLocalization.App).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve app localizations by language code: %v", err)
 	}
 
-	return localizations, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.AppLocalization, len(localizations))
+	for i, loc := range localizations {
+		result[i] = *loc
+	}
+
+	return result, nil
 }
 
 // UpdateAppLocalization updates an existing localization
@@ -118,9 +137,12 @@ func (s *AppLocalizationService) UpdateAppLocalization(appID uint, languageCode 
 		fmt.Printf("[UpdateAppLocalization] Updating %s: description %d chars, %d newlines\n", languageCode, len(descStr), newlineCount)
 	}
 	
-	result := s.DB.Model(&database.AppLocalization{}).Where("app_id = ? AND language_code = ?", appID, languageCode).Updates(updates)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update app localization: %v", result.Error)
+	result, err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.AppID.Eq(appID),
+		s.Query.AppLocalization.LanguageCode.Eq(languageCode),
+	).Updates(updates)
+	if err != nil {
+		return fmt.Errorf("failed to update app localization: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -168,9 +190,12 @@ func getStringFromMap(m map[string]interface{}, key string) string {
 
 // DeleteAppLocalization soft deletes an app localization
 func (s *AppLocalizationService) DeleteAppLocalization(appID uint, languageCode string) error {
-	result := s.DB.Where("app_id = ? AND language_code = ?", appID, languageCode).Delete(&database.AppLocalization{})
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete app localization: %v", result.Error)
+	result, err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.AppID.Eq(appID),
+		s.Query.AppLocalization.LanguageCode.Eq(languageCode),
+	).Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete app localization: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -191,51 +216,43 @@ func (s *AppLocalizationService) BulkCreateAppLocalizations(appID uint, localiza
 	}
 
 	// Use a transaction to ensure all localizations are created together
-	tx := s.DB.Begin()
-	defer tx.Rollback()
+	return s.Query.Transaction(func(tx *query.Query) error {
+		for _, localization := range localizations {
+			// Check if localization already exists for this app and language
+			existing, err := tx.AppLocalization.Where(
+				tx.AppLocalization.AppID.Eq(localization.AppID),
+				tx.AppLocalization.LanguageCode.Eq(localization.LanguageCode),
+			).First()
 
-	for _, localization := range localizations {
-		// Check if localization already exists for this app and language
-		var existing database.AppLocalization
-		result := tx.Where("app_id = ? AND language_code = ?",
-			localization.AppID, localization.LanguageCode).First(&existing)
-
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			// Create new localization if it doesn't exist
-			result = tx.Create(&localization)
-			if result.Error != nil {
-				return fmt.Errorf("failed to create localization: %v", result.Error)
-			}
-		} else if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
-		} else {
-			// Update existing localization
-			result = tx.Model(&database.AppLocalization{}).
-				Where("app_id = ? AND language_code = ?",
-					localization.AppID, localization.LanguageCode).
-				Updates(map[string]interface{}{
-					"Name":                localization.Name,
-					"Subtitle":            localization.Subtitle,
-					"PrivacyURL":      localization.PrivacyURL,
-					"MarketingURL":    localization.MarketingURL,
-					"SupportURL":      localization.SupportURL,
-					"Description":     localization.Description,
-					"Keywords":        localization.Keywords,
-					"WhatsNew":        localization.WhatsNew,
-					"PromotionalText": localization.PromotionalText,
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new localization if it doesn't exist
+				if err := tx.AppLocalization.Create(&localization); err != nil {
+					return fmt.Errorf("failed to create localization: %v", err)
+				}
+			} else if err != nil {
+				return fmt.Errorf("database error: %v", err)
+			} else {
+				// Update existing localization
+				_, err = tx.AppLocalization.Where(
+					tx.AppLocalization.ID.Eq(existing.ID),
+				).Updates(map[string]interface{}{
+					"Name":             localization.Name,
+					"Subtitle":         localization.Subtitle,
+					"PrivacyURL":       localization.PrivacyURL,
+					"MarketingURL":     localization.MarketingURL,
+					"SupportURL":       localization.SupportURL,
+					"Description":      localization.Description,
+					"Keywords":         localization.Keywords,
+					"WhatsNew":         localization.WhatsNew,
+					"PromotionalText":  localization.PromotionalText,
 				})
-			if result.Error != nil {
-				return fmt.Errorf("failed to update localization: %v", result.Error)
+				if err != nil {
+					return fmt.Errorf("failed to update localization: %v", err)
+				}
 			}
 		}
-	}
-
-	// Commit the transaction
-	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("failed to commit localizations: %v", err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // GetOrCreateAppLocalization gets an existing localization or creates a new one
@@ -259,9 +276,11 @@ func (s *AppLocalizationService) GetOrCreateAppLocalization(appID uint, language
 // GetAppSupportedLanguages retrieves all languages supported by an app
 func (s *AppLocalizationService) GetAppSupportedLanguages(appID uint) ([]string, error) {
 	var localizationCodes []string
-	result := s.DB.Model(&database.AppLocalization{}).Where("app_id = ?", appID).Pluck("language_code", &localizationCodes)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve supported languages: %v", result.Error)
+	err := s.Query.AppLocalization.Where(
+		s.Query.AppLocalization.AppID.Eq(appID),
+	).Pluck(s.Query.AppLocalization.LanguageCode, &localizationCodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve supported languages: %v", err)
 	}
 
 	// Also add the app's primary locale if not already included
@@ -291,7 +310,10 @@ func (s *AppLocalizationService) GetAppSupportedLanguages(appID uint) ([]string,
 var appLocalizationServiceInstance *AppLocalizationService
 
 func SetAppLocalizationService(db *database.Database) {
-	appLocalizationServiceInstance = &AppLocalizationService{DB: db}
+	appLocalizationServiceInstance = &AppLocalizationService{
+		DB:    db,
+		Query: query.Use(db.DB),
+	}
 }
 
 func CreateAppLocalization(appID uint, languageCode, name, subtitle, privacyURL, marketingURL, supportURL, description, keywords, whatsNew, promotionalText, whatToTest string) (*database.AppLocalization, error) {

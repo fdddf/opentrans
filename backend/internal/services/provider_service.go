@@ -4,13 +4,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 	"gorm.io/gorm"
 )
 
 // ProviderService handles provider configuration operations
 type ProviderService struct {
-	DB *database.Database
+	DB    *database.Database
+	Query *query.Query
 }
 
 // CreateProviderConfig creates a new provider configuration for a user
@@ -30,9 +32,8 @@ func (s *ProviderService) CreateProviderConfig(userID uint, providerType string,
 		IsDefault:    isDefault,
 	}
 
-	result := s.DB.Create(config)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create provider config: %v", result.Error)
+	if err := s.Query.ProviderConfig.Create(config); err != nil {
+		return nil, fmt.Errorf("failed to create provider config: %v", err)
 	}
 
 	return config, nil
@@ -40,67 +41,93 @@ func (s *ProviderService) CreateProviderConfig(userID uint, providerType string,
 
 // GetProviderConfig retrieves a specific provider configuration by ID
 func (s *ProviderService) GetProviderConfig(configID uint) (*database.ProviderConfig, error) {
-	var config database.ProviderConfig
-	result := s.DB.First(&config, configID)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	config, err := s.Query.ProviderConfig.First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("provider configuration not found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &config, nil
+	// Get by ID
+	config, err = s.Query.ProviderConfig.Where(s.Query.ProviderConfig.ID.Eq(configID)).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("provider configuration not found")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
+	}
+
+	return config, nil
 }
 
 // GetProviderConfigsByUser retrieves all provider configurations for a user
 func (s *ProviderService) GetProviderConfigsByUser(userID uint) ([]database.ProviderConfig, error) {
-	var configs []database.ProviderConfig
-	result := s.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&configs)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve provider configs: %v", result.Error)
+	configs, err := s.Query.ProviderConfig.Where(
+		s.Query.ProviderConfig.UserID.Eq(userID),
+	).Order(s.Query.ProviderConfig.CreatedAt.Desc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve provider configs: %v", err)
 	}
 
-	return configs, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.ProviderConfig, len(configs))
+	for i, config := range configs {
+		result[i] = *config
+	}
+
+	return result, nil
 }
 
 // GetProviderConfigsByUserAndType retrieves provider configurations for a user filtered by provider type
 func (s *ProviderService) GetProviderConfigsByUserAndType(userID uint, providerType string) ([]database.ProviderConfig, error) {
-	var configs []database.ProviderConfig
-	result := s.DB.Where("user_id = ? AND provider_type = ?", userID, providerType).Order("created_at DESC").Find(&configs)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve provider configs: %v", result.Error)
+	configs, err := s.Query.ProviderConfig.Where(
+		s.Query.ProviderConfig.UserID.Eq(userID),
+		s.Query.ProviderConfig.ProviderType.Eq(providerType),
+	).Order(s.Query.ProviderConfig.CreatedAt.Desc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve provider configs: %v", err)
 	}
 
-	return configs, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.ProviderConfig, len(configs))
+	for i, config := range configs {
+		result[i] = *config
+	}
+
+	return result, nil
 }
 
 // GetDefaultProviderConfig retrieves the default provider configuration for a user and provider type
 func (s *ProviderService) GetDefaultProviderConfig(userID uint, providerType string) (*database.ProviderConfig, error) {
-	var config database.ProviderConfig
-	result := s.DB.Where("user_id = ? AND provider_type = ? AND is_default = ?", userID, providerType, true).First(&config)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	config, err := s.Query.ProviderConfig.Where(
+		s.Query.ProviderConfig.UserID.Eq(userID),
+		s.Query.ProviderConfig.ProviderType.Eq(providerType),
+		s.Query.ProviderConfig.IsDefault.Is(true),
+	).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("no default provider configuration found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 // UpdateProviderConfig updates an existing provider configuration
 func (s *ProviderService) UpdateProviderConfig(configID uint, updates map[string]interface{}) error {
 	// Check if the config ID exists
-	var existing database.ProviderConfig
-	result := s.DB.First(&existing, configID)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	existing, err := s.Query.ProviderConfig.Where(s.Query.ProviderConfig.ID.Eq(configID)).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return errors.New("provider configuration not found")
 	}
 
-	if result.Error != nil {
-		return fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return fmt.Errorf("database error: %v", err)
 	}
 
 	// If updating IsDefault to true, unset any existing default for this provider type
@@ -111,9 +138,9 @@ func (s *ProviderService) UpdateProviderConfig(configID uint, updates map[string
 		}
 	}
 
-	result = s.DB.Model(&database.ProviderConfig{}).Where("id = ?", configID).Updates(updates)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update provider config: %v", result.Error)
+	_, err = s.Query.ProviderConfig.Where(s.Query.ProviderConfig.ID.Eq(configID)).Updates(updates)
+	if err != nil {
+		return fmt.Errorf("failed to update provider config: %v", err)
 	}
 
 	return nil
@@ -121,9 +148,9 @@ func (s *ProviderService) UpdateProviderConfig(configID uint, updates map[string
 
 // DeleteProviderConfig deletes a provider configuration
 func (s *ProviderService) DeleteProviderConfig(configID uint) error {
-	result := s.DB.Delete(&database.ProviderConfig{}, configID)
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete provider config: %v", result.Error)
+	result, err := s.Query.ProviderConfig.Where(s.Query.ProviderConfig.ID.Eq(configID)).Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete provider config: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -135,12 +162,14 @@ func (s *ProviderService) DeleteProviderConfig(configID uint) error {
 
 // UnsetDefaultProviderConfig sets all configurations of a specific type for a user to not be default
 func (s *ProviderService) UnsetDefaultProviderConfig(userID uint, providerType string) error {
-	result := s.DB.Model(&database.ProviderConfig{}).
-		Where("user_id = ? AND provider_type = ? AND is_default = ?", userID, providerType, true).
-		Updates(map[string]interface{}{"is_default": false})
+	_, err := s.Query.ProviderConfig.Where(
+		s.Query.ProviderConfig.UserID.Eq(userID),
+		s.Query.ProviderConfig.ProviderType.Eq(providerType),
+		s.Query.ProviderConfig.IsDefault.Is(true),
+	).Update(s.Query.ProviderConfig.IsDefault, false)
 
-	if result.Error != nil {
-		return fmt.Errorf("failed to unset default provider config: %v", result.Error)
+	if err != nil {
+		return fmt.Errorf("failed to unset default provider config: %v", err)
 	}
 
 	return nil
@@ -244,7 +273,10 @@ func (s *ProviderService) GetProviderConfigForTranslation(config *database.Provi
 var providerServiceInstance *ProviderService
 
 func SetProviderService(db *database.Database) {
-	providerServiceInstance = &ProviderService{DB: db}
+	providerServiceInstance = &ProviderService{
+		DB:    db,
+		Query: query.Use(db.DB),
+	}
 }
 
 func CreateProviderConfig(userID uint, providerType string, configData map[string]interface{}, isDefault bool) (*database.ProviderConfig, error) {

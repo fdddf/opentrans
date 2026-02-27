@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 	"github.com/fdddf/opentrans/internal/model"
 	"gorm.io/gorm"
@@ -13,6 +14,7 @@ import (
 // ProjectService handles project-related operations
 type ProjectService struct {
 	DB                     *database.Database
+	Query                  *query.Query
 	TranslationService     *TranslationService
 	AppLocalizationService *AppLocalizationService
 }
@@ -32,9 +34,8 @@ func (s *ProjectService) CreateProject(userID uint, name, description, fileName,
 			Settings:    make(map[string]interface{}),
 		}
 
-		result := s.DB.Create(project)
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to create project: %v", result.Error)
+		if err := s.Query.Project.Create(project); err != nil {
+			return nil, fmt.Errorf("failed to create project: %v", err)
 		}
 
 		return project, nil
@@ -70,9 +71,8 @@ func (s *ProjectService) CreateProject(userID uint, name, description, fileName,
 		Settings:         make(map[string]interface{}),
 	}
 
-	result := s.DB.Create(project)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to create project: %v", result.Error)
+	if err := s.Query.Project.Create(project); err != nil {
+		return nil, fmt.Errorf("failed to create project: %v", err)
 	}
 
 	// Create initial translations from the uploaded file
@@ -87,46 +87,61 @@ func (s *ProjectService) CreateProject(userID uint, name, description, fileName,
 
 // GetProject retrieves a project by ID
 func (s *ProjectService) GetProject(projectID uint) (*database.Project, error) {
-	var project database.Project
-	result := s.DB.Preload("User").First(&project, projectID)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	project, err := s.Query.Project.Preload(s.Query.Project.User).Where(
+		s.Query.Project.ID.Eq(projectID),
+	).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("project not found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
-	return &project, nil
+	return project, nil
 }
 
 // GetProjectsByUser retrieves all projects for a user
 func (s *ProjectService) GetProjectsByUser(userID uint) ([]database.Project, error) {
-	var projects []database.Project
-	result := s.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&projects)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve projects: %v", result.Error)
+	projects, err := s.Query.Project.Where(
+		s.Query.Project.UserID.Eq(userID),
+	).Order(s.Query.Project.CreatedAt.Desc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve projects: %v", err)
 	}
 
-	return projects, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.Project, len(projects))
+	for i, project := range projects {
+		result[i] = *project
+	}
+
+	return result, nil
 }
 
 // GetProjectsByUserAndType retrieves projects for a user filtered by type
 func (s *ProjectService) GetProjectsByUserAndType(userID uint, projectType string) ([]database.Project, error) {
-	var projects []database.Project
-	result := s.DB.Where("user_id = ? AND project_type = ?", userID, projectType).Order("created_at DESC").Find(&projects)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve projects: %v", result.Error)
+	projects, err := s.Query.Project.Where(
+		s.Query.Project.UserID.Eq(userID),
+	).Order(s.Query.Project.CreatedAt.Desc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve projects: %v", err)
 	}
 
-	return projects, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.Project, len(projects))
+	for i, project := range projects {
+		result[i] = *project
+	}
+
+	return result, nil
 }
 
 // UpdateProject updates an existing project
 func (s *ProjectService) UpdateProject(projectID uint, updates map[string]interface{}) error {
-	result := s.DB.Model(&database.Project{}).Where("id = ?", projectID).Updates(updates)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update project: %v", result.Error)
+	result, err := s.Query.Project.Where(s.Query.Project.ID.Eq(projectID)).Updates(updates)
+	if err != nil {
+		return fmt.Errorf("failed to update project: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -138,9 +153,9 @@ func (s *ProjectService) UpdateProject(projectID uint, updates map[string]interf
 
 // DeleteProject soft deletes a project
 func (s *ProjectService) DeleteProject(projectID uint) error {
-	result := s.DB.Delete(&database.Project{}, projectID)
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete project: %v", result.Error)
+	result, err := s.Query.Project.Where(s.Query.Project.ID.Eq(projectID)).Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -205,7 +220,7 @@ func (s *ProjectService) SaveProjectContent(projectID uint, xcstrings *model.XCS
 // UpdateTranslationsFromXCStrings updates translations from XCStrings model
 func (s *ProjectService) UpdateTranslationsFromXCStrings(projectID uint, xcstrings *model.XCStrings, provider string) error {
 	// Delete existing translations for this project
-	err := s.DB.Where("project_id = ?", projectID).Delete(&database.Translation{}).Error
+	_, err := s.Query.Translation.Where(s.Query.Translation.ProjectID.Eq(projectID)).Delete()
 	if err != nil {
 		return fmt.Errorf("failed to delete existing translations: %v", err)
 	}
@@ -227,7 +242,7 @@ func (s *ProjectService) UpdateTranslationsFromXCStrings(projectID uint, xcstrin
 				TranslationProvider: provider,
 			}
 
-			if err := s.DB.Create(translation).Error; err != nil {
+			if err := s.Query.Translation.Create(translation); err != nil {
 				return fmt.Errorf("failed to create translation: %v", err)
 			}
 		}
@@ -238,13 +253,20 @@ func (s *ProjectService) UpdateTranslationsFromXCStrings(projectID uint, xcstrin
 
 // GetProjectTranslations retrieves all translations for a project
 func (s *ProjectService) GetProjectTranslations(projectID uint) ([]database.Translation, error) {
-	var translations []database.Translation
-	result := s.DB.Where("project_id = ?", projectID).Find(&translations)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve translations: %v", result.Error)
+	translations, err := s.Query.Translation.Where(
+		s.Query.Translation.ProjectID.Eq(projectID),
+	).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve translations: %v", err)
 	}
 
-	return translations, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.Translation, len(translations))
+	for i, t := range translations {
+		result[i] = *t
+	}
+
+	return result, nil
 }
 
 // GetMissingTranslations retrieves missing translations for a project
@@ -396,10 +418,13 @@ func (s *ProjectService) GetProjectStats(projectID uint) (map[string]interface{}
 // UpdateSingleTranslation manually updates a single translation
 func (s *ProjectService) UpdateSingleTranslation(projectID uint, key, targetLanguage, targetText, state string) (*database.Translation, error) {
 	// Check if translation exists
-	var translation database.Translation
-	result := s.DB.Where("project_id = ? AND key = ? AND target_language = ?", projectID, key, targetLanguage).First(&translation)
+	translation, err := s.Query.Translation.Where(
+		s.Query.Translation.ProjectID.Eq(projectID),
+		s.Query.Translation.Key.Eq(key),
+		s.Query.Translation.TargetLanguage.Eq(targetLanguage),
+	).First()
 
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Create new translation
 		project, err := s.GetProject(projectID)
 		if err != nil {
@@ -423,7 +448,7 @@ func (s *ProjectService) UpdateSingleTranslation(projectID uint, key, targetLang
 			sourceText = key
 		}
 
-		translation = database.Translation{
+		translation = &database.Translation{
 			ProjectID:           projectID,
 			Key:                 key,
 			SourceText:          sourceText,
@@ -433,20 +458,19 @@ func (s *ProjectService) UpdateSingleTranslation(projectID uint, key, targetLang
 			TranslationProvider: "manual",
 		}
 
-		result = s.DB.Create(&translation)
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to create translation: %v", result.Error)
+		if err := s.Query.Translation.Create(translation); err != nil {
+			return nil, fmt.Errorf("failed to create translation: %v", err)
 		}
-	} else if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	} else if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	} else {
 		// Update existing translation
-		result = s.DB.Model(&translation).Updates(map[string]interface{}{
+		_, err = s.Query.Translation.Where(s.Query.Translation.ID.Eq(translation.ID)).Updates(map[string]interface{}{
 			"TargetText": targetText,
 			"State":      state,
 		})
-		if result.Error != nil {
-			return nil, fmt.Errorf("failed to update translation: %v", result.Error)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update translation: %v", err)
 		}
 	}
 
@@ -481,7 +505,7 @@ func (s *ProjectService) UpdateSingleTranslation(projectID uint, key, targetLang
 		}
 	}
 
-	return &translation, nil
+	return translation, nil
 }
 
 // BulkUpdateTranslations updates multiple translations at once
@@ -491,132 +515,87 @@ func (s *ProjectService) BulkUpdateTranslations(projectID uint, updates []map[st
 	}
 
 	// Use a transaction
-	tx := s.DB.Begin()
-	defer tx.Rollback()
-
-	for _, update := range updates {
-		key, ok := update["key"].(string)
-		if !ok {
-			continue
-		}
-
-		targetLanguage, ok := update["targetLanguage"].(string)
-		if !ok {
-			continue
-		}
-
-		targetText, ok := update["targetText"].(string)
-		if !ok {
-			continue
-		}
-
-		state := "translated"
-		if s, ok := update["state"].(string); ok {
-			state = s
-		}
-
-		// Update or create translation
-		var translation database.Translation
-		result := tx.Where("project_id = ? AND key = ? AND target_language = ?", projectID, key, targetLanguage).First(&translation)
-
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			// Get source text
-			project, err := s.GetProject(projectID)
-			if err != nil {
-				return err
+	return s.Query.Transaction(func(tx *query.Query) error {
+		for _, update := range updates {
+			key, ok := update["key"].(string)
+			if !ok {
+				continue
 			}
 
-			xcstrings, err := s.ParseProjectContent(project)
-			if err != nil {
-				return err
+			targetLanguage, ok := update["targetLanguage"].(string)
+			if !ok {
+				continue
 			}
 
-			sourceText := ""
-			if entry, exists := xcstrings.Strings[key]; exists {
-				if sourceLoc, exists := entry.Localizations[project.SourceLanguage]; exists {
-					sourceText = sourceLoc.StringUnit.Value
+			targetText, ok := update["targetText"].(string)
+			if !ok {
+				continue
+			}
+
+			state := "translated"
+			if s, ok := update["state"].(string); ok {
+				state = s
+			}
+
+			// Update or create translation
+			translation, err := tx.Translation.Where(
+				tx.Translation.ProjectID.Eq(projectID),
+				tx.Translation.Key.Eq(key),
+				tx.Translation.TargetLanguage.Eq(targetLanguage),
+			).First()
+
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Get source text
+				project, err := s.GetProject(projectID)
+				if err != nil {
+					return err
+				}
+
+				xcstrings, err := s.ParseProjectContent(project)
+				if err != nil {
+					return err
+				}
+
+				sourceText := ""
+				if entry, exists := xcstrings.Strings[key]; exists {
+					if sourceLoc, exists := entry.Localizations[project.SourceLanguage]; exists {
+						sourceText = sourceLoc.StringUnit.Value
+					}
+				}
+
+				if sourceText == "" {
+					sourceText = key
+				}
+
+				translation = &database.Translation{
+					ProjectID:           projectID,
+					Key:                 key,
+					SourceText:          sourceText,
+					TargetText:          targetText,
+					TargetLanguage:      targetLanguage,
+					State:               state,
+					TranslationProvider: "manual",
+				}
+
+				if err := tx.Translation.Create(translation); err != nil {
+					return fmt.Errorf("failed to create translation: %v", err)
+				}
+			} else if err != nil {
+				return fmt.Errorf("database error: %v", err)
+			} else {
+				// Update existing
+				_, err = tx.Translation.Where(tx.Translation.ID.Eq(translation.ID)).Updates(map[string]interface{}{
+					"TargetText": targetText,
+					"State":      state,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to update translation: %v", err)
 				}
 			}
-
-			if sourceText == "" {
-				sourceText = key
-			}
-
-			translation = database.Translation{
-				ProjectID:           projectID,
-				Key:                 key,
-				SourceText:          sourceText,
-				TargetText:          targetText,
-				TargetLanguage:      targetLanguage,
-				State:               state,
-				TranslationProvider: "manual",
-			}
-
-			result = tx.Create(&translation)
-			if result.Error != nil {
-				return fmt.Errorf("failed to create translation: %v", result.Error)
-			}
-		} else if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
-		} else {
-			// Update existing
-			result = tx.Model(&translation).Updates(map[string]interface{}{
-				"TargetText": targetText,
-				"State":      state,
-			})
-			if result.Error != nil {
-				return fmt.Errorf("failed to update translation: %v", result.Error)
-			}
-		}
-	}
-
-	// Commit transaction
-	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("failed to commit bulk update: %v", err)
-	}
-
-	// Update project content structure
-	project, err := s.GetProject(projectID)
-	if err != nil {
-		return err
-	}
-
-	xcstrings, err := s.ParseProjectContent(project)
-	if err != nil {
-		return err
-	}
-
-	// Apply all updates to xcstrings
-	for _, update := range updates {
-		key, _ := update["key"].(string)
-		targetLanguage, _ := update["targetLanguage"].(string)
-		targetText, _ := update["targetText"].(string)
-		state := "translated"
-		if s, ok := update["state"].(string); ok {
-			state = s
 		}
 
-		if entry, exists := xcstrings.Strings[key]; exists {
-			if entry.Localizations == nil {
-				entry.Localizations = make(map[string]model.Localization)
-			}
-			entry.Localizations[targetLanguage] = model.Localization{
-				StringUnit: model.StringUnit{
-					Value: targetText,
-					State: state,
-				},
-			}
-			xcstrings.Strings[key] = entry
-		}
-	}
-
-	// Save updated content
-	err = s.SaveProjectContent(projectID, xcstrings)
-	if err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // ExportProjectAsXCStrings exports the project as a complete xcstrings file
@@ -684,6 +663,7 @@ var projectServiceInstance *ProjectService
 func SetProjectService(db *database.Database, translationService *TranslationService, appLocalizationService *AppLocalizationService) {
 	projectServiceInstance = &ProjectService{
 		DB:                     db,
+		Query:                  query.Use(db.DB),
 		TranslationService:     translationService,
 		AppLocalizationService: appLocalizationService,
 	}

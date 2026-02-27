@@ -3,18 +3,23 @@ package services
 import (
 	"encoding/json"
 
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 	"github.com/gofiber/fiber/v2"
 )
 
 // ActivityService handles user activity logging
 type ActivityService struct {
-	db *database.Database
+	db    *database.Database
+	Query *query.Query
 }
 
 // NewActivityService creates a new activity service
-func NewActivityService(db *database.Database) *ActivityService {
-	return &ActivityService{db: db}
+func NewActivityService(db *database.Database, q *query.Query) *ActivityService {
+	return &ActivityService{
+		db:    db,
+		Query: q,
+	}
 }
 
 // LogActivity records a user activity
@@ -24,7 +29,7 @@ func (s *ActivityService) LogActivity(ctx *fiber.Ctx, userID uint, action string
 		detailsJSON = []byte("{}")
 	}
 
-	activity := database.UserActivity{
+	activity := &database.UserActivity{
 		UserID:    userID,
 		Action:    action,
 		Details:   string(detailsJSON),
@@ -32,7 +37,7 @@ func (s *ActivityService) LogActivity(ctx *fiber.Ctx, userID uint, action string
 		UserAgent: ctx.Get("User-Agent"),
 	}
 
-	return s.db.Create(&activity).Error
+	return s.Query.UserActivity.Create(activity)
 }
 
 // Helper functions for logging common activities

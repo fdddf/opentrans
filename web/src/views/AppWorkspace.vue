@@ -243,7 +243,7 @@ const app = ref<any>(null);
 // State for language management
 const sourceLanguage = ref('en');
 const sourceLanguageName = computed(() => {
-  const lang = availableLanguages.find(l => l.code === sourceLanguage.value);
+  const lang = availableLanguages.value.find(l => l.code === sourceLanguage.value);
   return lang ? lang.name : sourceLanguage.value;
 });
 const translations = ref([
@@ -317,7 +317,7 @@ async function addLanguage() {
   
   // Check if language already exists
   if (!translations.value.some(lang => lang.code === selectedAddLanguage.value)) {
-    const lang = availableLanguages.find(l => l.code === selectedAddLanguage.value);
+    const lang = availableLanguages.value.find(l => l.code === selectedAddLanguage.value);
     if (lang) {
       translations.value.push({
         code: selectedAddLanguage.value,

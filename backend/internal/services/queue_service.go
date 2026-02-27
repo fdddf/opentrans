@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fdddf/opentrans/internal/dao/query"
 	"github.com/fdddf/opentrans/internal/database"
 	"github.com/fdddf/opentrans/internal/model"
 	"github.com/fdddf/opentrans/internal/translator"
@@ -19,6 +20,7 @@ import (
 // QueueService handles translation queue operations
 type QueueService struct {
 	DB                     *database.Database
+	Query                  *query.Query
 	AppService             *AppService
 	AppLocalizationService *AppLocalizationService
 	ProjectService         *ProjectService
@@ -89,9 +91,8 @@ func (qs *QueueService) SubmitTranslationJob(userID uint, projectID *uint, appID
 		Done:            0,
 	}
 
-	result := qs.DB.Create(queueEntry)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to submit job to queue: %v", result.Error)
+	if err := qs.Query.TranslationQueue.Create(queueEntry); err != nil {
+		return nil, fmt.Errorf("failed to submit job to queue: %v", err)
 	}
 
 	// Add to in-memory cache
@@ -114,65 +115,82 @@ func (qs *QueueService) GetQueueJob(jobID uint) (*database.TranslationQueue, err
 	}
 
 	// If not in cache, fetch from database
-	var queueJob database.TranslationQueue
-	result := qs.DB.First(&queueJob, jobID)
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	queueJob, err := qs.Query.TranslationQueue.Where(
+		qs.Query.TranslationQueue.ID.Eq(jobID),
+	).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("queue job not found")
 	}
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %v", err)
 	}
 
 	// Add to cache
 	qs.mu.Lock()
-	qs.queue[jobID] = &queueJob
+	qs.queue[jobID] = queueJob
 	qs.mu.Unlock()
 
-	return &queueJob, nil
+	return queueJob, nil
 }
 
 // GetQueueJobsByUser retrieves all queue jobs for a user
 func (qs *QueueService) GetQueueJobsByUser(userID uint) ([]database.TranslationQueue, error) {
-	var queueJobs []database.TranslationQueue
-	result := qs.DB.Where("user_id = ?", userID).Order("created_at DESC").Find(&queueJobs)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve queue jobs: %v", result.Error)
+	queueJobs, err := qs.Query.TranslationQueue.Where(
+		qs.Query.TranslationQueue.UserID.Eq(userID),
+	).Order(qs.Query.TranslationQueue.CreatedAt.Desc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve queue jobs: %v", err)
 	}
 
 	// Update cache with these jobs
 	qs.mu.Lock()
 	for _, job := range queueJobs {
-		qs.queue[job.ID] = &job
+		qs.queue[job.ID] = job
 	}
 	qs.mu.Unlock()
 
-	return queueJobs, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.TranslationQueue, len(queueJobs))
+	for i, job := range queueJobs {
+		result[i] = *job
+	}
+
+	return result, nil
 }
 
 // GetPendingJobs retrieves all pending jobs that need processing
 func (qs *QueueService) GetPendingJobs() ([]database.TranslationQueue, error) {
-	var queueJobs []database.TranslationQueue
-	result := qs.DB.Where("status = ?", "pending").Order("priority DESC, created_at ASC").Find(&queueJobs)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to retrieve pending jobs: %v", result.Error)
+	queueJobs, err := qs.Query.TranslationQueue.Where(
+		qs.Query.TranslationQueue.Status.Eq("pending"),
+	).Order(qs.Query.TranslationQueue.Priority.Desc(), qs.Query.TranslationQueue.CreatedAt.Asc()).Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve pending jobs: %v", err)
 	}
 
 	// Update cache with these jobs
 	qs.mu.Lock()
 	for _, job := range queueJobs {
-		qs.queue[job.ID] = &job
+		qs.queue[job.ID] = job
 	}
 	qs.mu.Unlock()
 
-	return queueJobs, nil
+	// Convert slice of pointers to slice of values
+	result := make([]database.TranslationQueue, len(queueJobs))
+	for i, job := range queueJobs {
+		result[i] = *job
+	}
+
+	return result, nil
 }
 
 // UpdateQueueJob updates a queue job
 func (qs *QueueService) UpdateQueueJob(jobID uint, updates map[string]interface{}) error {
-	result := qs.DB.Model(&database.TranslationQueue{}).Where("id = ?", jobID).Updates(updates)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update queue job: %v", result.Error)
+	result, err := qs.Query.TranslationQueue.Where(
+		qs.Query.TranslationQueue.ID.Eq(jobID),
+	).Updates(updates)
+	if err != nil {
+		return fmt.Errorf("failed to update queue job: %v", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -236,9 +254,8 @@ func safeIntConversion(value interface{}) int {
 
 // ProcessNextJob processes the next available job in the queue
 func (qs *QueueService) ProcessNextJob() error {
-	// Get the next pending job
+	// Get the next pending job - use raw DB session to avoid logging spam
 	var nextJob database.TranslationQueue
-	// Use Session to disable logging for this query to avoid spamming logs
 	result := qs.DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)}).
 		Where("status = ?", "pending").
 		Order("priority DESC, created_at ASC").
@@ -1154,10 +1171,9 @@ func (qs *QueueService) PollForNextJob(interval time.Duration) {
 // UpdateUserUsage updates the user's monthly translation usage
 func (qs *QueueService) UpdateUserUsage(userID uint, count int) error {
 	// Get the user
-	var user database.User
-	result := qs.DB.First(&user, userID)
-	if result.Error != nil {
-		return fmt.Errorf("failed to get user: %v", result.Error)
+	user, err := qs.Query.User.Where(qs.Query.User.ID.Eq(userID)).First()
+	if err != nil {
+		return fmt.Errorf("failed to get user: %v", err)
 	}
 
 	// Check if user has reached the limit
@@ -1165,10 +1181,13 @@ func (qs *QueueService) UpdateUserUsage(userID uint, count int) error {
 		return errors.New("translation limit reached for this month")
 	}
 
-	// Update usage
-	result = qs.DB.Model(&database.User{}).Where("id = ?", userID).UpdateColumn("current_usage", gorm.Expr("current_usage + ?", count))
-	if result.Error != nil {
-		return fmt.Errorf("failed to update user usage: %v", result.Error)
+	// Update usage - using GORM Expr for increment
+	_, err = qs.Query.User.Where(qs.Query.User.ID.Eq(userID)).Update(
+		qs.Query.User.CurrentUsage,
+		gorm.Expr("current_usage + ?", count),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update user usage: %v", err)
 	}
 
 	return nil
@@ -1178,13 +1197,14 @@ func (qs *QueueService) UpdateUserUsage(userID uint, count int) error {
 func SetQueueService(db *database.Database) {
 	queueServiceInstance = &QueueService{
 		DB:                     db,
-		queue:                    make(map[uint]*database.TranslationQueue),
-		AppService:               appServiceInstance,
-		AppLocalizationService:   appLocalizationServiceInstance,
-		ProjectService:           projectServiceInstance,
-		TranslationService:       translationServiceInstance,
-		SubscriptionService:      subscriptionServiceInstance,
-		ProviderService:          providerServiceInstance,
+		Query:                  query.Use(db.DB),
+		queue:                  make(map[uint]*database.TranslationQueue),
+		AppService:             appServiceInstance,
+		AppLocalizationService: appLocalizationServiceInstance,
+		ProjectService:         projectServiceInstance,
+		TranslationService:     translationServiceInstance,
+		SubscriptionService:    subscriptionServiceInstance,
+		ProviderService:        providerServiceInstance,
 		AppProviderConfigService: appProviderConfigServiceInstance,
 	}
 }
