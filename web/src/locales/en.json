@@ -14,7 +14,7 @@
   },
   "common": {
     "appleConnectConfig": "Apple Connect Configuration",
-    "brand": "XCStrings Translator",
+    "brand": "OpenTrans",
     "login": "Login",
     "register": "Register",
     "username": "Username",
@@ -215,8 +215,7 @@
     "confirmDelete": "Are you sure you want to delete this project?"
   },
   "translator": {
-    "title": "XCStrings Translator",
-    "subtitle": "Upload xcstrings and translate with OpenAI or Hunyuan.",
+          "title": "OpenTrans",    "subtitle": "Upload xcstrings and translate with OpenAI or Hunyuan.",
     "file": "XCStrings file",
     "noFile": "No file selected",
     "sourceLanguage": "Source language",
