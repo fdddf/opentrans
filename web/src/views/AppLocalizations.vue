@@ -876,7 +876,15 @@ async function fetchLocalizations() {
   try {
     const response = await api.getAppLocalizations(appId.value)
     if (response.success) {
-      localizations.value = response.localizations
+      // 去重：按 languageCode 去重，保留 ID 最大的（最新的记录）
+      const seen = new Map<string, AppLocalization>()
+      for (const loc of response.localizations) {
+        const existing = seen.get(loc.languageCode)
+        if (!existing || loc.id > existing.id) {
+          seen.set(loc.languageCode, loc)
+        }
+      }
+      localizations.value = Array.from(seen.values())
     }
   } catch (error) {
     console.error('Failed to fetch localizations:', error)

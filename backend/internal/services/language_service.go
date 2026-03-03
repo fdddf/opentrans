@@ -14,68 +14,68 @@ type LanguageMetadata struct {
 
 // SupportedLanguages is a curated list of allowed language codes
 var SupportedLanguages = map[string]struct{}{
-	// Apple App Store Connect locale codes
-	"da": {}, "uk": {}, "ru": {}, "hr": {}, "ca": {}, "hu": {}, "hi": {},
-	"id": {}, "tr": {}, "he": {}, "el": {}, "de": {}, "it": {}, "no": {}, "cs": {},
-	"sk": {}, "ja": {}, "fr": {}, "fr-CA": {}, "pl": {}, "th": {}, "sv": {},
-	"zh-Hans": {}, "zh-Hant": {}, "ro": {}, "fi": {}, "en-US": {}, "en-CA": {}, "en-AU": {}, "en-GB": {},
-	"nl": {}, "pt-BR": {}, "pt-PT": {}, "es-MX": {}, "es-ES": {}, "vi": {},
-	"ar": {}, "ko": {}, "ms": {},
+	// Apple App Store Connect locale codes (41 languages)
+	"ar-SA": {}, "ca": {}, "zh-Hans": {}, "zh-Hant": {}, "hr": {}, "cs": {}, "da": {},
+	"nl-NL": {}, "en-AU": {}, "en-CA": {}, "en-GB": {}, "en-US": {}, "fi": {},
+	"fr-CA": {}, "fr-FR": {}, "de-DE": {}, "el": {}, "he": {}, "hi": {}, "hu": {},
+	"id": {}, "it": {}, "ja": {}, "ko": {}, "ms": {}, "no": {}, "pl": {},
+	"pt-BR": {}, "pt-PT": {}, "ro": {}, "ru": {}, "sk": {}, "es-MX": {}, "es-ES": {},
+	"sv": {}, "th": {}, "tr": {}, "uk": {}, "vi": {},
 }
 
 // AppleConnectLanguage is the enum from Apple App Store Connect
 type AppleConnectLanguage string
 
 const (
-	danish         AppleConnectLanguage = "da"
-	ukrainian      AppleConnectLanguage = "uk"
-	russian        AppleConnectLanguage = "ru"
-	croatian       AppleConnectLanguage = "hr"
-	catalan        AppleConnectLanguage = "ca"
-	hungarian      AppleConnectLanguage = "hu"
-	hindiNorth     AppleConnectLanguage = "hi"
-	indonesian     AppleConnectLanguage = "id"
-	turkish        AppleConnectLanguage = "tr"
-	hebrew         AppleConnectLanguage = "he"
-	greek          AppleConnectLanguage = "el"
-	german         AppleConnectLanguage = "de"
-	italian        AppleConnectLanguage = "it"
-	norwegian      AppleConnectLanguage = "no"
-	czech          AppleConnectLanguage = "cs"
-	slovak         AppleConnectLanguage = "sk"
-	japanese       AppleConnectLanguage = "ja"
-	french         AppleConnectLanguage = "fr"
-	frenchCanada    AppleConnectLanguage = "fr-CA"
-	polish         AppleConnectLanguage = "pl"
-	thai           AppleConnectLanguage = "th"
-	swedish        AppleConnectLanguage = "sv"
+	arabic            AppleConnectLanguage = "ar-SA"
+	catalan           AppleConnectLanguage = "ca"
 	chineseSimplified AppleConnectLanguage = "zh-Hans"
 	chineseTraditional AppleConnectLanguage = "zh-Hant"
-	romanian       AppleConnectLanguage = "ro"
-	finnish        AppleConnectLanguage = "fi"
-	englishUS      AppleConnectLanguage = "en-US"
-	englishCanada   AppleConnectLanguage = "en-CA"
-	englishAustralia AppleConnectLanguage = "en-AU"
-	englishUK      AppleConnectLanguage = "en-GB"
-	dutch          AppleConnectLanguage = "nl"
-	portugueseBrazil AppleConnectLanguage = "pt-BR"
+	croatian          AppleConnectLanguage = "hr"
+	czech             AppleConnectLanguage = "cs"
+	danish            AppleConnectLanguage = "da"
+	dutch             AppleConnectLanguage = "nl-NL"
+	englishAustralia  AppleConnectLanguage = "en-AU"
+	englishCanada     AppleConnectLanguage = "en-CA"
+	englishUK         AppleConnectLanguage = "en-GB"
+	englishUS         AppleConnectLanguage = "en-US"
+	finnish           AppleConnectLanguage = "fi"
+	frenchCanada      AppleConnectLanguage = "fr-CA"
+	frenchFrance      AppleConnectLanguage = "fr-FR"
+	german            AppleConnectLanguage = "de-DE"
+	greek             AppleConnectLanguage = "el"
+	hebrew            AppleConnectLanguage = "he"
+	hindi             AppleConnectLanguage = "hi"
+	hungarian         AppleConnectLanguage = "hu"
+	indonesian        AppleConnectLanguage = "id"
+	italian           AppleConnectLanguage = "it"
+	japanese          AppleConnectLanguage = "ja"
+	korean            AppleConnectLanguage = "ko"
+	malay             AppleConnectLanguage = "ms"
+	norwegian         AppleConnectLanguage = "no"
+	polish            AppleConnectLanguage = "pl"
+	portugueseBrazil  AppleConnectLanguage = "pt-BR"
 	portuguesePortugal AppleConnectLanguage = "pt-PT"
-	spanishMexico   AppleConnectLanguage = "es-MX"
-	spanishSpain    AppleConnectLanguage = "es-ES"
-	vietnamese     AppleConnectLanguage = "vi"
-	arabic         AppleConnectLanguage = "ar"
-	korean         AppleConnectLanguage = "ko"
-	malay          AppleConnectLanguage = "ms"
+	romanian          AppleConnectLanguage = "ro"
+	russian           AppleConnectLanguage = "ru"
+	slovak            AppleConnectLanguage = "sk"
+	spanishMexico     AppleConnectLanguage = "es-MX"
+	spanishSpain      AppleConnectLanguage = "es-ES"
+	swedish           AppleConnectLanguage = "sv"
+	thai              AppleConnectLanguage = "th"
+	turkish           AppleConnectLanguage = "tr"
+	ukrainian         AppleConnectLanguage = "uk"
+	vietnamese        AppleConnectLanguage = "vi"
 )
 
-// AppleConnectLanguages is the list of all Apple Store Connect supported languages
+// AppleConnectLanguages is the list of all Apple Store Connect supported languages (41 languages)
 var AppleConnectLanguages = []AppleConnectLanguage{
-	danish, ukrainian, russian, croatian, catalan, hungarian, hindiNorth, indonesian,
-	turkish, hebrew, greek, german, italian, norwegian, czech, slovak, japanese,
-	french, frenchCanada, polish, thai, swedish, chineseSimplified, chineseTraditional,
-	romanian, finnish, englishUS, englishCanada, englishAustralia, englishUK, dutch,
-	portugueseBrazil, portuguesePortugal, spanishMexico, spanishSpain, vietnamese,
-	arabic, korean, malay,
+	arabic, catalan, chineseSimplified, chineseTraditional, croatian, czech, danish,
+	dutch, englishAustralia, englishCanada, englishUK, englishUS, finnish,
+	frenchCanada, frenchFrance, german, greek, hebrew, hindi, hungarian,
+	indonesian, italian, japanese, korean, malay, norwegian, polish,
+	portugueseBrazil, portuguesePortugal, romanian, russian, slovak, spanishMexico, spanishSpain,
+	swedish, thai, turkish, ukrainian, vietnamese,
 }
 
 // GetAppleConnectLanguages returns the list of Apple Connect languages with metadata
@@ -91,17 +91,24 @@ func GetAppleConnectLanguages() []LanguageMetadata {
 
 // GetAppleConnectLanguageMetadata returns metadata for a specific Apple Connect language
 func GetAppleConnectLanguageMetadata(code string) (LanguageMetadata, bool) {
-	// Map basic language codes to full Apple Connect codes
+	// Map alternative language codes to Apple Connect codes
 	appleConnectMap := map[string]string{
-		"da": "da", "uk": "uk", "ru": "ru", "hr": "hr", "ca": "ca", "hu": "hu",
-		"hi": "hi", "id": "id", "tr": "tr", "he": "he", "el": "el", "de": "de", "it": "it",
-		"no": "no", "cs": "cs", "sk": "sk", "ja": "ja", "fr": "fr", "fr-CA": "fr-CA", "pl": "pl",
-		"th": "th", "sv": "sv", "zh-Hans": "zh-Hans", "zh-Hant": "zh-Hant", "ro": "ro",
-		"fi": "fi", "en-CA": "en-CA", "en-AU": "en-AU", "en-GB": "en-GB", "nl": "nl",
-		"pt-BR": "pt-BR", "pt-PT": "pt-PT", "es-MX": "es-MX", "es-ES": "es-ES", "vi": "vi",
-		"ar": "ar", "ko": "ko", "ms": "ms",
+		"ar": "ar-SA", "ar-SA": "ar-SA",
+		"ca": "ca",
+		"zh-CN": "zh-Hans", "zh-Hans": "zh-Hans", "zh-Hans-CN": "zh-Hans",
+		"zh-TW": "zh-Hant", "zh-Hant": "zh-Hant", "zh-Hant-TW": "zh-Hant",
+		"hr": "hr", "cs": "cs", "da": "da",
+		"nl": "nl-NL", "nl-NL": "nl-NL",
+		"en-AU": "en-AU", "en-CA": "en-CA", "en-GB": "en-GB", "en-US": "en-US",
+		"fi": "fi", "fr-CA": "fr-CA", "fr-FR": "fr-FR", "fr": "fr-FR",
+		"de-DE": "de-DE", "de": "de-DE",
+		"el": "el", "he": "he", "hi": "hi", "hu": "hu", "id": "id",
+		"it": "it", "ja": "ja", "ko": "ko", "ms": "ms", "no": "no",
+		"pl": "pl", "pt-BR": "pt-BR", "pt-PT": "pt-PT", "ro": "ro",
+		"ru": "ru", "sk": "sk", "es-MX": "es-MX", "es-ES": "es-ES", "es": "es-ES",
+		"sv": "sv", "th": "th", "tr": "tr", "uk": "uk", "vi": "vi",
 	}
-	
+
 	if mappedCode, ok := appleConnectMap[code]; ok {
 		if meta, ok := LanguageMetadataMap[mappedCode]; ok {
 			return meta, true
@@ -112,46 +119,46 @@ func GetAppleConnectLanguageMetadata(code string) (LanguageMetadata, bool) {
 
 // LanguageMetadataMap contains detailed information about each language
 var LanguageMetadataMap = map[string]LanguageMetadata{
-	// Apple App Store Connect languages (37 languages)
-	"da":      {Code: "da", Name: "Danish", NativeName: "Dansk", Region: "Europe", Direction: "ltr", Emoji: "🇩🇰"},
-	"uk":      {Code: "uk", Name: "Ukrainian", NativeName: "Українська", Region: "Europe", Direction: "ltr", Emoji: "🇺🇦"},
-	"ru":      {Code: "ru", Name: "Russian", NativeName: "Русский", Region: "Europe", Direction: "ltr", Emoji: "🇷🇺"},
-	"hr":      {Code: "hr", Name: "Croatian", NativeName: "Hrvatski", Region: "Europe", Direction: "ltr", Emoji: "🇭🇷"},
+	// Apple App Store Connect languages (41 languages)
+	"ar-SA":   {Code: "ar-SA", Name: "Arabic", NativeName: "العربية", Region: "Middle East", Direction: "rtl", Emoji: "🇸🇦"},
 	"ca":      {Code: "ca", Name: "Catalan", NativeName: "Català", Region: "Europe", Direction: "ltr", Emoji: "🇪🇸"},
-	"hu":      {Code: "hu", Name: "Hungarian", NativeName: "Magyar", Region: "Europe", Direction: "ltr", Emoji: "🇭🇺"},
-	"hi":      {Code: "hi", Name: "Hindi", NativeName: "हिन्दी", Region: "Asia", Direction: "ltr", Emoji: "🇮🇳"},
-	"id":      {Code: "id", Name: "Indonesian", NativeName: "Bahasa Indonesia", Region: "Asia", Direction: "ltr", Emoji: "🇮🇩"},
-	"tr":      {Code: "tr", Name: "Turkish", NativeName: "Türkçe", Region: "Asia", Direction: "ltr", Emoji: "🇹🇷"},
-	"he":      {Code: "he", Name: "Hebrew", NativeName: "עברית", Region: "Middle East", Direction: "rtl", Emoji: "🇮🇱"},
-	"el":      {Code: "el", Name: "Greek", NativeName: "Ελληνικά", Region: "Europe", Direction: "ltr", Emoji: "🇬🇷"},
-	"de":      {Code: "de", Name: "German", NativeName: "Deutsch", Region: "Europe", Direction: "ltr", Emoji: "🇩🇪"},
-	"it":      {Code: "it", Name: "Italian", NativeName: "Italiano", Region: "Europe", Direction: "ltr", Emoji: "🇮🇹"},
-	"no":      {Code: "no", Name: "Norwegian", NativeName: "Norsk", Region: "Europe", Direction: "ltr", Emoji: "🇳🇴"},
-	"cs":      {Code: "cs", Name: "Czech", NativeName: "Čeština", Region: "Europe", Direction: "ltr", Emoji: "🇨🇿"},
-	"sk":      {Code: "sk", Name: "Slovak", NativeName: "Slovenčina", Region: "Europe", Direction: "ltr", Emoji: "🇸🇰"},
-	"ja":      {Code: "ja", Name: "Japanese", NativeName: "日本語", Region: "Asia", Direction: "ltr", Emoji: "🇯🇵"},
-	"fr":      {Code: "fr", Name: "French", NativeName: "Français", Region: "Europe", Direction: "ltr", Emoji: "🇫🇷"},
-	"fr-CA":   {Code: "fr-CA", Name: "French (Canada)", NativeName: "Français (Canada)", Region: "Americas", Direction: "ltr", Emoji: "🇨🇦"},
-	"pl":      {Code: "pl", Name: "Polish", NativeName: "Polski", Region: "Europe", Direction: "ltr", Emoji: "🇵🇱"},
-	"th":      {Code: "th", Name: "Thai", NativeName: "ไทย", Region: "Asia", Direction: "ltr", Emoji: "🇹🇭"},
-	"sv":      {Code: "sv", Name: "Swedish", NativeName: "Svenska", Region: "Europe", Direction: "ltr", Emoji: "🇸🇪"},
 	"zh-Hans": {Code: "zh-Hans", Name: "Chinese (Simplified)", NativeName: "简体中文", Region: "Asia", Direction: "ltr", Emoji: "🇨🇳"},
 	"zh-Hant": {Code: "zh-Hant", Name: "Chinese (Traditional)", NativeName: "繁體中文", Region: "Asia", Direction: "ltr", Emoji: "🇹🇼"},
-	"ro":      {Code: "ro", Name: "Romanian", NativeName: "Română", Region: "Europe", Direction: "ltr", Emoji: "🇷🇴"},
-	"fi":      {Code: "fi", Name: "Finnish", NativeName: "Suomi", Region: "Europe", Direction: "ltr", Emoji: "🇫🇮"},
-	"en-US":   {Code: "en-US", Name: "English (America)", NativeName: "English (America)", Region: "Americas", Direction: "ltr", Emoji: "🇺🇸"},
-	"en-CA":   {Code: "en-CA", Name: "English (Canada)", NativeName: "English (Canada)", Region: "Americas", Direction: "ltr", Emoji: "🇨🇦"},
+	"hr":      {Code: "hr", Name: "Croatian", NativeName: "Hrvatski", Region: "Europe", Direction: "ltr", Emoji: "🇭🇷"},
+	"cs":      {Code: "cs", Name: "Czech", NativeName: "Čeština", Region: "Europe", Direction: "ltr", Emoji: "🇨🇿"},
+	"da":      {Code: "da", Name: "Danish", NativeName: "Dansk", Region: "Europe", Direction: "ltr", Emoji: "🇩🇰"},
+	"nl-NL":   {Code: "nl-NL", Name: "Dutch", NativeName: "Nederlands", Region: "Europe", Direction: "ltr", Emoji: "🇳🇱"},
 	"en-AU":   {Code: "en-AU", Name: "English (Australia)", NativeName: "English (Australia)", Region: "Oceania", Direction: "ltr", Emoji: "🇦🇺"},
-	"en-GB":   {Code: "en-GB", Name: "English (United Kingdom)", NativeName: "English (United Kingdom)", Region: "Europe", Direction: "ltr", Emoji: "🇬🇧"},
-	"nl":      {Code: "nl", Name: "Dutch", NativeName: "Nederlands", Region: "Europe", Direction: "ltr", Emoji: "🇳🇱"},
-	"pt-BR":   {Code: "pt-BR", Name: "Portuguese (Brazil)", NativeName: "Português (Brasil)", Region: "Americas", Direction: "ltr", Emoji: "🇧🇷"},
-	"pt-PT":   {Code: "pt-PT", Name: "Portuguese (Portugal)", NativeName: "Português (Portugal)", Region: "Europe", Direction: "ltr", Emoji: "🇵🇹"},
-	"es-MX":   {Code: "es-MX", Name: "Spanish (Mexico)", NativeName: "Español (México)", Region: "Americas", Direction: "ltr", Emoji: "🇲🇽"},
-	"es-ES":   {Code: "es-ES", Name: "Spanish (Spain)", NativeName: "Español (España)", Region: "Europe", Direction: "ltr", Emoji: "🇪🇸"},
-	"vi":      {Code: "vi", Name: "Vietnamese", NativeName: "Tiếng Việt", Region: "Asia", Direction: "ltr", Emoji: "🇻🇳"},
-	"ar":      {Code: "ar", Name: "Arabic", NativeName: "العربية", Region: "Middle East", Direction: "rtl", Emoji: "🇸🇦"},
+	"en-CA":   {Code: "en-CA", Name: "English (Canada)", NativeName: "English (Canada)", Region: "Americas", Direction: "ltr", Emoji: "🇨🇦"},
+	"en-GB":   {Code: "en-GB", Name: "English (U.K.)", NativeName: "English (U.K.)", Region: "Europe", Direction: "ltr", Emoji: "🇬🇧"},
+	"en-US":   {Code: "en-US", Name: "English (U.S.)", NativeName: "English (U.S.)", Region: "Americas", Direction: "ltr", Emoji: "🇺🇸"},
+	"fi":      {Code: "fi", Name: "Finnish", NativeName: "Suomi", Region: "Europe", Direction: "ltr", Emoji: "🇫🇮"},
+	"fr-CA":   {Code: "fr-CA", Name: "French (Canada)", NativeName: "Français (Canada)", Region: "Americas", Direction: "ltr", Emoji: "🇨🇦"},
+	"fr-FR":   {Code: "fr-FR", Name: "French (France)", NativeName: "Français (France)", Region: "Europe", Direction: "ltr", Emoji: "🇫🇷"},
+	"de-DE":   {Code: "de-DE", Name: "German", NativeName: "Deutsch", Region: "Europe", Direction: "ltr", Emoji: "🇩🇪"},
+	"el":      {Code: "el", Name: "Greek", NativeName: "Ελληνικά", Region: "Europe", Direction: "ltr", Emoji: "🇬🇷"},
+	"he":      {Code: "he", Name: "Hebrew", NativeName: "עברית", Region: "Middle East", Direction: "rtl", Emoji: "🇮🇱"},
+	"hi":      {Code: "hi", Name: "Hindi", NativeName: "हिन्दी", Region: "Asia", Direction: "ltr", Emoji: "🇮🇳"},
+	"hu":      {Code: "hu", Name: "Hungarian", NativeName: "Magyar", Region: "Europe", Direction: "ltr", Emoji: "🇭🇺"},
+	"id":      {Code: "id", Name: "Indonesian", NativeName: "Bahasa Indonesia", Region: "Asia", Direction: "ltr", Emoji: "🇮🇩"},
+	"it":      {Code: "it", Name: "Italian", NativeName: "Italiano", Region: "Europe", Direction: "ltr", Emoji: "🇮🇹"},
+	"ja":      {Code: "ja", Name: "Japanese", NativeName: "日本語", Region: "Asia", Direction: "ltr", Emoji: "🇯🇵"},
 	"ko":      {Code: "ko", Name: "Korean", NativeName: "한국어", Region: "Asia", Direction: "ltr", Emoji: "🇰🇷"},
 	"ms":      {Code: "ms", Name: "Malay", NativeName: "Bahasa Melayu", Region: "Asia", Direction: "ltr", Emoji: "🇲🇾"},
+	"no":      {Code: "no", Name: "Norwegian", NativeName: "Norsk", Region: "Europe", Direction: "ltr", Emoji: "🇳🇴"},
+	"pl":      {Code: "pl", Name: "Polish", NativeName: "Polski", Region: "Europe", Direction: "ltr", Emoji: "🇵🇱"},
+	"pt-BR":   {Code: "pt-BR", Name: "Portuguese (Brazil)", NativeName: "Português (Brasil)", Region: "Americas", Direction: "ltr", Emoji: "🇧🇷"},
+	"pt-PT":   {Code: "pt-PT", Name: "Portuguese (Portugal)", NativeName: "Português (Portugal)", Region: "Europe", Direction: "ltr", Emoji: "🇵🇹"},
+	"ro":      {Code: "ro", Name: "Romanian", NativeName: "Română", Region: "Europe", Direction: "ltr", Emoji: "🇷🇴"},
+	"ru":      {Code: "ru", Name: "Russian", NativeName: "Русский", Region: "Europe", Direction: "ltr", Emoji: "🇷🇺"},
+	"sk":      {Code: "sk", Name: "Slovak", NativeName: "Slovenčina", Region: "Europe", Direction: "ltr", Emoji: "🇸🇰"},
+	"es-MX":   {Code: "es-MX", Name: "Spanish (Mexico)", NativeName: "Español (México)", Region: "Americas", Direction: "ltr", Emoji: "🇲🇽"},
+	"es-ES":   {Code: "es-ES", Name: "Spanish (Spain)", NativeName: "Español (España)", Region: "Europe", Direction: "ltr", Emoji: "🇪🇸"},
+	"sv":      {Code: "sv", Name: "Swedish", NativeName: "Svenska", Region: "Europe", Direction: "ltr", Emoji: "🇸🇪"},
+	"th":      {Code: "th", Name: "Thai", NativeName: "ไทย", Region: "Asia", Direction: "ltr", Emoji: "🇹🇭"},
+	"tr":      {Code: "tr", Name: "Turkish", NativeName: "Türkçe", Region: "Asia", Direction: "ltr", Emoji: "🇹🇷"},
+	"uk":      {Code: "uk", Name: "Ukrainian", NativeName: "Українська", Region: "Europe", Direction: "ltr", Emoji: "🇺🇦"},
+	"vi":      {Code: "vi", Name: "Vietnamese", NativeName: "Tiếng Việt", Region: "Asia", Direction: "ltr", Emoji: "🇻🇳"},
 }
 
 // IsSupportedLanguage checks if a language code is allowed
