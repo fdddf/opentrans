@@ -1,45 +1,124 @@
 <template>
   <div class="min-h-screen bg-midnight text-slate-100">
     <div class="flex min-h-screen">
-      <aside class="w-64 border-r border-white/10 bg-midnight/80 backdrop-blur-lg hidden lg:flex flex-col">
-        <div class="p-6 border-b border-white/5">
-          <div class="text-sm uppercase tracking-[0.25em] text-slate-500">XCStrings</div>
-          <div class="mt-1 text-xl font-semibold">{{ t('common.brand') }}</div>
+      <!-- Mobile overlay -->
+      <div
+        v-if="isMobileMenuOpen"
+        class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        @click="isMobileMenuOpen = false"
+      ></div>
+
+      <!-- Sidebar -->
+      <aside
+        class="fixed lg:relative z-50 h-screen border-r border-white/10 bg-midnight/80 backdrop-blur-lg flex flex-col transition-all duration-300 ease-in-out overflow-hidden"
+        :class="[
+          isCollapsed ? 'lg:w-16' : 'lg:w-64',
+          isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
+        ]"
+      >
+        <!-- Header with toggle button -->
+        <div class="p-4 border-b border-white/5 flex items-center justify-between min-h-[72px]">
+          <div v-if="!isCollapsed" class="overflow-hidden">
+            <div class="text-sm uppercase tracking-[0.25em] text-slate-500">XCStrings</div>
+            <div class="mt-1 text-xl font-semibold whitespace-nowrap">{{ t('common.brand') }}</div>
+          </div>
+          <button
+            @click="isCollapsed = !isCollapsed"
+            class="hidden lg:flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 transition-colors shrink-0"
+            :class="isCollapsed ? 'mx-auto' : ''"
+          >
+            <svg
+              class="w-4 h-4 text-slate-400 transition-transform duration-300"
+              :class="isCollapsed ? 'rotate-180' : ''"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </button>
+          <!-- Mobile close button -->
+          <button
+            @click="isMobileMenuOpen = false"
+            class="lg:hidden h-8 w-8 items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+          >
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <nav class="flex-1 p-4 space-y-2">
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-2 space-y-1 overflow-y-auto overflow-x-hidden">
           <RouterLink
             v-for="item in navItems"
             :key="item.to"
             :to="item.to"
-            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition"
-            :class="isActive(item.to) ? 'bg-mint/10 text-mint border border-mint/40' : 'text-slate-300 hover:text-white hover:bg-white/5'"
+            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition group relative"
+            :class="[
+              isActive(item.to) ? 'bg-mint/10 text-mint border border-mint/40' : 'text-slate-300 hover:text-white hover:bg-white/5',
+              isCollapsed ? 'justify-center' : ''
+            ]"
+            @click="isMobileMenuOpen = false"
           >
-            <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/5 text-xs">{{ item.icon }}</span>
-            <span>{{ typeof item.label === 'function' ? item.label() : item.label }}</span>
+            <span
+              class="inline-flex shrink-0 items-center justify-center rounded-lg bg-white/5 group-hover:scale-110 transition-transform"
+              :class="isCollapsed ? 'h-8 w-8 text-lg' : 'h-6 w-6 text-xs'"
+            >{{ item.icon }}</span>
+            <span v-if="!isCollapsed" class="whitespace-nowrap overflow-hidden">{{ typeof item.label === 'function' ? item.label() : item.label }}</span>
+            <!-- Tooltip for collapsed state -->
+            <div
+              v-if="isCollapsed"
+              class="absolute left-full ml-2 px-2 py-1 bg-midnight/95 border border-white/10 rounded-lg text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50"
+            >
+              {{ typeof item.label === 'function' ? item.label() : item.label }}
+            </div>
           </RouterLink>
         </nav>
-        <div class="p-4 border-t border-white/5">
-          <div class="flex items-center gap-2 mb-2">
-            <div class="h-8 w-8 rounded-full bg-mint/20 flex items-center justify-center">
-              <span class="text-sm font-semibold text-mint">{{ currentUserInitials }}</span>
+
+        <!-- User section -->
+        <div class="p-2 border-t border-white/5">
+          <div
+            class="flex items-center gap-2 p-2 rounded-xl hover:bg-white/5 transition-colors"
+            :class="isCollapsed ? 'justify-center' : ''"
+          >
+            <div
+              class="shrink-0 rounded-full bg-mint/20 flex items-center justify-center transition-all"
+              :class="isCollapsed ? 'h-10 w-10' : 'h-8 w-8'"
+            >
+              <span
+                class="font-semibold text-mint transition-all"
+                :class="isCollapsed ? 'text-base' : 'text-sm'"
+              >{{ currentUserInitials }}</span>
             </div>
-            <div class="flex-1 min-w-0">
+            <div v-if="!isCollapsed" class="flex-1 min-w-0 overflow-hidden">
               <p class="text-sm font-medium truncate">{{ currentUser?.username || 'User' }}</p>
               <p class="text-xs text-slate-500 truncate">{{ currentUser?.email || '' }}</p>
             </div>
           </div>
-          <div class="text-xs text-slate-500">
+          <div v-if="!isCollapsed" class="text-xs text-slate-500 px-2 mt-1">
             {{ t('users.' + (currentUser?.role || 'userRegular')) }}
           </div>
         </div>
       </aside>
 
-      <div class="flex-1 flex flex-col">
+      <div class="flex-1 flex flex-col min-w-0">
         <header class="sticky top-0 z-10 bg-midnight/90 backdrop-blur-xl border-b border-white/10">
-          <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
-            <div>
-              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Admin Console</div>
-              <div class="text-lg font-semibold">Localization Ops</div>
+          <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <!-- Mobile menu toggle -->
+              <button
+                @click="isMobileMenuOpen = !isMobileMenuOpen"
+                class="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <div>
+                <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Admin Console</div>
+                <div class="text-lg font-semibold">Localization Ops</div>
+              </div>
             </div>
             <div class="flex items-center gap-3">
               <div class="hidden sm:flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs">
@@ -95,6 +174,8 @@ const { api } = useApi()
 
 const currentUser = ref<User | null>(null)
 const showProfileMenu = ref(false)
+const isCollapsed = ref(false)
+const isMobileMenuOpen = ref(false)
 
 const navItems = [
   { to: '/dashboard', label: () => t('nav.dashboard'), icon: '🏠' },
