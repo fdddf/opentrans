@@ -36,7 +36,7 @@ RUN yzma lib get || true
 RUN mkdir -p /app/lib
 
 # Copy built UI assets from ui-builder stage
-COPY --from=ui-builder /app/webui/dist ./webui/dist
+COPY --from=ui-builder /app/backend/webui/dist ./webui/dist
 
 # Build the application using Makefile
 RUN make

@@ -20,7 +20,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../webui/dist',
+    outDir: '../backend/webui/dist',
     sourcemap: true,
     emptyOutDir: true
   }
