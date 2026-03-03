@@ -3,18 +3,21 @@
 # UI builder stage
 FROM node:20-alpine AS ui-builder
 
-# Install git for cloning
-RUN apk add --no-cache git
-
 # Set working directory
 WORKDIR /app
 
-# Clone the repository
-RUN git clone https://github.com/fdddf/opentrans.git . && \
-    cd web && npm install && npm run build
+# Copy web directory for building
+COPY web/ ./web/
+
+# Create backend/webui/dist directory for build output
+RUN mkdir -p backend/webui/dist
+
+# Install dependencies and build
+# Vite config outputs to ../backend/webui/dist
+RUN cd web && npm install && npm run build
 
 # Builder stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 RUN apk update && apk add --no-cache make gcc musl-dev git
 
