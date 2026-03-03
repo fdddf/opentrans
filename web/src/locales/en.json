@@ -3,7 +3,6 @@
     "dashboard": "Dashboard",
     "apps": "Apps",
     "projects": "Projects",
-    "translator": "Translator",
     "applocalizations": "App Localizations",
     "languages": "Languages",
     "users": "Users",
@@ -214,26 +213,7 @@
     "appsCount": "Apps: {count}",
     "confirmDelete": "Are you sure you want to delete this project?"
   },
-  "translator": {
-          "title": "OpenTrans",    "subtitle": "Upload xcstrings and translate with OpenAI or Hunyuan.",
-    "file": "XCStrings file",
-    "noFile": "No file selected",
-    "sourceLanguage": "Source language",
-    "targetLanguages": "Target languages",
-    "targetPlaceholder": "zh-Hans,ja,ko",
-    "provider": "Provider",
-    "concurrency": "Concurrency",
-    "timeout": "Timeout (seconds)",
-    "apiKey": "API key",
-    "model": "Model",
-    "translate": "Translate",
-    "translating": "Translating...",
-    "export": "Export",
-    "uploading": "Uploading file...",
-    "translateSubmitted": "Translation job submitted.",
-    "translateError": "Translation failed.",
-    "jobId": "Job"
-  },
+
   "applocalizations": {
     "title": "App Localizations",
     "sync": "Sync localizations",

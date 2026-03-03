@@ -7,7 +7,6 @@ import Apps from '../views/Apps.vue'
 import AppWorkspace from '../views/AppWorkspace.vue'
 import AppLocalizations from '../views/AppLocalizations.vue'
 import Projects from '../views/Projects.vue'
-import Translator from '../views/Translator.vue'
 import Users from '../views/Users.vue'
 import Subscriptions from '../views/Subscriptions.vue'
 import Languages from '../views/Languages.vue'
@@ -50,11 +49,6 @@ const routes: RouteRecordRaw[] = [
         path: 'projects',
         name: 'Projects',
         component: Projects
-      },
-      {
-        path: 'translator',
-        name: 'Translator',
-        component: Translator
       },
       {
         path: 'apps/:id',

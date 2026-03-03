@@ -181,7 +181,6 @@ const navItems = [
   { to: '/dashboard', label: () => t('nav.dashboard'), icon: '🏠' },
   { to: '/apps', label: () => t('nav.apps'), icon: '📱' },
   { to: '/projects', label: () => t('nav.projects'), icon: '🗂️' },
-  { to: '/translator', label: () => t('nav.translator'), icon: '📝' },
   { to: '/languages', label: () => t('nav.languages'), icon: '🌐' },
   { to: '/users', label: () => t('nav.users'), icon: '👥' },
   { to: '/subscriptions', label: () => t('nav.subscriptions'), icon: '💳' },
