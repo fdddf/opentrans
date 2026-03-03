@@ -154,16 +154,16 @@ func (s *AppLocalizationService) UpdateAppLocalization(appID uint, languageCode 
 
 // UpdateAppLocalizationWithValidation updates an existing localization with validation
 func (s *AppLocalizationService) UpdateAppLocalizationWithValidation(appID uint, languageCode string, updates map[string]interface{}) error {
-	// Extract fields for validation (using lowercase keys to match updates map)
+	// Extract fields for validation (using snake_case keys to match updates map)
 	name := getStringFromMap(updates, "name")
 	subtitle := getStringFromMap(updates, "subtitle")
-	shortDescription := getStringFromMap(updates, "shortDescription")
+	shortDescription := getStringFromMap(updates, "short_description")
 	keywords := getStringFromMap(updates, "keywords")
-	privacyURL := getStringFromMap(updates, "privacyUrl")
-	marketingURL := getStringFromMap(updates, "marketingUrl")
-	supportURL := getStringFromMap(updates, "supportUrl")
-	promotionalText := getStringFromMap(updates, "promotionalText")
-	whatsNew := getStringFromMap(updates, "whatsNew")
+	privacyURL := getStringFromMap(updates, "privacy_url")
+	marketingURL := getStringFromMap(updates, "marketing_url")
+	supportURL := getStringFromMap(updates, "support_url")
+	promotionalText := getStringFromMap(updates, "promotional_text")
+	whatsNew := getStringFromMap(updates, "whats_new")
 
 	// Validate localization data
 	validationResult := ValidateAppLocalization(languageCode, name, subtitle, shortDescription, keywords, privacyURL, marketingURL, supportURL, promotionalText, whatsNew)

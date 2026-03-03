@@ -6,6 +6,7 @@ import Dashboard from '../views/Dashboard.vue'
 import Apps from '../views/Apps.vue'
 import AppWorkspace from '../views/AppWorkspace.vue'
 import AppLocalizations from '../views/AppLocalizations.vue'
+import WhatsNew from '../views/WhatsNew.vue'
 import Projects from '../views/Projects.vue'
 import Users from '../views/Users.vue'
 import Subscriptions from '../views/Subscriptions.vue'
@@ -60,6 +61,12 @@ const routes: RouteRecordRaw[] = [
         path: 'apps/:id/localizations',
         name: 'AppLocalizations',
         component: AppLocalizations,
+        props: true
+      },
+      {
+        path: 'apps/:id/whatsnew',
+        name: 'WhatsNew',
+        component: WhatsNew,
         props: true
       },
       {

@@ -8,6 +8,13 @@
       <div class="flex items-center gap-2">
         <button
           class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
+          @click="showBatchTranslateModal = false; showUpdateContentModal = true"
+          :disabled="batchTranslating"
+        >
+          {{ t('applocalizations.syncUpdateContent') }}
+        </button>
+        <button
+          class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
           @click="showBatchTranslateModal = true"
           :disabled="batchTranslating"
         >
@@ -199,6 +206,20 @@
             </div>
           </div>
 
+          <!-- Overwrite option -->
+          <div class="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
+            <input
+              type="checkbox"
+              id="overwriteExisting"
+              v-model="overwriteExisting"
+              class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+            />
+            <label for="overwriteExisting" class="text-sm cursor-pointer">
+              <span class="text-slate-300">{{ t('applocalizations.overwriteExisting') }}</span>
+              <p class="text-xs text-slate-500 mt-0.5">{{ t('applocalizations.overwriteExistingDesc') }}</p>
+            </label>
+          </div>
+
           <div>
             <div class="flex items-center justify-between mb-3">
               <p class="text-sm text-slate-400">{{ t('applocalizations.selectTargetLanguages') }}</p>
@@ -225,19 +246,6 @@
               </label>
             </div>
             <p class="text-xs text-slate-500 mt-1">{{ t('applocalizations.selectTargetLanguagesDesc') }}</p>
-          </div>
-
-          <!-- Only Translate What's New Option -->
-          <div class="p-3 rounded-lg bg-white/5 border border-white/10">
-            <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-mint text-slate-300">
-              <input
-                type="checkbox"
-                v-model="onlyTranslateWhatsNew"
-                class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
-              />
-              <span>{{ t('applocalizations.onlyTranslateWhatsNew') || '仅翻译 What\'s New' }}</span>
-            </label>
-            <p class="text-xs text-slate-500 mt-1 ml-6">{{ t('applocalizations.onlyTranslateWhatsNewDesc') || '只翻译更新日志字段，跳过其他字段' }}</p>
           </div>
 
           <div v-if="batchTranslateResult" class="p-3 rounded-lg bg-white/5 border border-white/10">
@@ -274,6 +282,92 @@
               <span v-else class="flex items-center gap-1">
                 <span class="h-3 w-3 rounded-full bg-midnight animate-pulse"></span>
                 {{ t('applocalizations.translateAllProgress', { progress: batchTranslateProgress }) }}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sync Update Content Modal (What's New + Promotional Text only) -->
+    <div v-if="showUpdateContentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-midnight p-6 shadow-xl">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">{{ t('applocalizations.syncUpdateContent') }}</h2>
+          <button class="text-slate-400 hover:text-white" @click="closeUpdateContentModal">×</button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <div class="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <span class="text-lg">📝</span>
+            <div>
+              <p class="text-sm font-medium text-blue-400">{{ t('applocalizations.updateContentDesc') }}</p>
+              <p class="text-xs text-slate-400">{{ t('applocalizations.updateContentFields') }}</p>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm text-slate-400">{{ t('applocalizations.selectTargetLanguages') }}</p>
+              <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-mint text-slate-400">
+                <input
+                  type="checkbox"
+                  :checked="selectAllUpdateLanguages"
+                  @change="toggleSelectAllUpdateLanguages"
+                  class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+                />
+                <span>{{ t('applocalizations.selectAll') || '全选' }}</span>
+              </label>
+            </div>
+            <div class="max-h-60 overflow-y-auto rounded-lg bg-white/5 border border-white/10 p-2 space-y-1">
+              <label v-for="lang in availableLanguages" :key="lang.code" class="flex items-center gap-2 text-sm cursor-pointer hover:bg-white/5 p-1 rounded">
+                <input
+                  type="checkbox"
+                  :value="lang.code"
+                  v-model="selectedUpdateContentLanguages"
+                  :disabled="app?.primaryLocale === lang.code"
+                  class="rounded bg-white/10 border-white/20 text-mint focus:ring-mint"
+                />
+                <span>{{ lang.name }} ({{ lang.code }})</span>
+              </label>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">{{ t('applocalizations.selectTargetLanguagesDesc') }}</p>
+          </div>
+
+          <div v-if="updateContentResult" class="p-3 rounded-lg bg-white/5 border border-white/10">
+            <p class="text-sm">{{ updateContentResult.message }}</p>
+            <div v-if="updateContentResult.progress !== undefined" class="mt-2">
+              <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div class="h-full bg-mint transition-all duration-300" :style="{ width: updateContentResult.progress + '%' }"></div>
+              </div>
+              <div class="flex justify-between text-xs text-slate-400 mt-1">
+                <span>{{ t('applocalizations.translateAllProgress', { progress: updateContentResult.progress }) }}</span>
+                <span v-if="updateContentResult.done !== undefined && updateContentResult.total !== undefined">
+                  {{ updateContentResult.done }} / {{ updateContentResult.total }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4">
+            <button
+              type="button"
+              class="rounded-lg border border-white/20 px-3 py-2 text-sm hover:border-mint/60 hover:text-mint"
+              @click="closeUpdateContentModal"
+              :disabled="updateContentTranslating"
+            >
+              {{ t('common.cancel') || 'Cancel' }}
+            </button>
+            <button
+              type="button"
+              class="rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-midnight shadow"
+              @click="submitUpdateContentTranslate"
+              :disabled="selectedUpdateContentLanguages.length === 0 || updateContentTranslating"
+            >
+              <span v-if="!updateContentTranslating">{{ t('applocalizations.translateAll') }}</span>
+              <span v-else class="flex items-center gap-1">
+                <span class="h-3 w-3 rounded-full bg-midnight animate-pulse"></span>
+                {{ t('applocalizations.translateAllProgress', { progress: updateContentProgress }) }}
               </span>
             </button>
           </div>
@@ -440,7 +534,14 @@ const selectedBatchTranslateLanguages = ref<string[]>([])
 const batchTranslating = ref(false)
 const batchTranslateProgress = ref(0)
 const batchTranslateResult = ref<{ message: string; progress?: number; done?: number; total?: number } | null>(null)
-const onlyTranslateWhatsNew = ref(false)
+const overwriteExisting = ref(false) // Whether to overwrite existing translations
+
+// Update Content (What's New + Promotional Text) translate state
+const showUpdateContentModal = ref(false)
+const selectedUpdateContentLanguages = ref<string[]>([])
+const updateContentTranslating = ref(false)
+const updateContentProgress = ref(0)
+const updateContentResult = ref<{ message: string; progress?: number; done?: number; total?: number } | null>(null)
 
 // Computed property for selected localization
 const selectedLocalization = computed(() => {
@@ -1008,6 +1109,16 @@ const selectAllLanguages = computed(() => {
     selectableLanguages.every(lang => selectedBatchTranslateLanguages.value.includes(lang.code))
 })
 
+// Computed property for select all update content languages
+const selectAllUpdateLanguages = computed(() => {
+  if (!app.value || availableLanguages.value.length === 0) {
+    return false
+  }
+  const selectableLanguages = availableLanguages.value.filter(lang => lang.code !== app.value?.primaryLocale)
+  return selectableLanguages.length > 0 &&
+    selectableLanguages.every(lang => selectedUpdateContentLanguages.value.includes(lang.code))
+})
+
 // Toggle select all languages
 function toggleSelectAllLanguages() {
   if (!app.value) {
@@ -1026,12 +1137,143 @@ function toggleSelectAllLanguages() {
   }
 }
 
+// Toggle select all update content languages
+function toggleSelectAllUpdateLanguages() {
+  if (!app.value) {
+    return
+  }
+
+  const selectableLanguages = availableLanguages.value.filter(lang => lang.code !== app.value?.primaryLocale)
+  const allSelected = selectAllUpdateLanguages.value
+
+  if (allSelected) {
+    // Deselect all
+    selectedUpdateContentLanguages.value = []
+  } else {
+    // Select all
+    selectedUpdateContentLanguages.value = selectableLanguages.map(lang => lang.code)
+  }
+}
+
 function closeBatchTranslateModal() {
   showBatchTranslateModal.value = false
   selectedBatchTranslateLanguages.value = []
   batchTranslateResult.value = null
   batchTranslateProgress.value = 0
-  onlyTranslateWhatsNew.value = false
+  overwriteExisting.value = false
+}
+
+function closeUpdateContentModal() {
+  showUpdateContentModal.value = false
+  selectedUpdateContentLanguages.value = []
+  updateContentResult.value = null
+  updateContentProgress.value = 0
+}
+
+async function submitUpdateContentTranslate() {
+  if (!hasValidAppId.value) {
+    toast.warning('Invalid app ID')
+    return
+  }
+
+  if (selectedUpdateContentLanguages.value.length === 0) {
+    toast.warning('Please select at least one target language.')
+    return
+  }
+
+  updateContentTranslating.value = true
+  updateContentProgress.value = 0
+  updateContentResult.value = { message: t('applocalizations.translateAllSubmitted'), progress: 0 }
+
+  try {
+    // Get source language (primary locale or en-US)
+    const sourceLanguage = app.value?.primaryLocale || 'en-US'
+
+    // Submit translation job with onlyTranslateWhatsNew=true (includes PromotionalText too)
+    const response = await api.translateAppLocalizations(appId.value, {
+      providerType: 'llama',
+      sourceLanguage: sourceLanguage,
+      targetLanguages: selectedUpdateContentLanguages.value,
+      onlyTranslateWhatsNew: true, // This now includes both What's New and Promotional Text
+      configData: {
+        threads: 4,
+        temperature: 0.7,
+        topP: 0.6,
+        topK: 20,
+        tokens: 4096
+      }
+    })
+
+    if (response.success) {
+      updateContentResult.value = {
+        message: t('applocalizations.translateAllSuccess'),
+        progress: 0
+      }
+
+      // Start polling for progress
+      pollUpdateContentProgress(response.job.id)
+
+      toast.success(t('applocalizations.translateAllSuccess'))
+    } else {
+      throw new Error(response.message || t('applocalizations.translateAllFailed'))
+    }
+  } catch (error) {
+    console.error('Failed to submit update content translation:', error)
+    updateContentResult.value = {
+      message: t('applocalizations.translateAllError', { error: error instanceof Error ? error.message : 'Unknown error' })
+    }
+    toast.error(t('applocalizations.translateAllFailed'))
+    updateContentTranslating.value = false
+  }
+}
+
+async function pollUpdateContentProgress(jobId: number) {
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await api.getQueueJob(jobId)
+      if (response.success) {
+        const job = response.job
+
+        // Update progress
+        updateContentProgress.value = job.progress || 0
+        updateContentResult.value = {
+          message: t('applocalizations.translateAllSubmitted'),
+          progress: updateContentProgress.value,
+          done: job.done,
+          total: job.total
+        }
+
+        // Check if job is completed
+        if (job.status === 'completed') {
+          clearInterval(pollInterval)
+          updateContentTranslating.value = false
+          updateContentResult.value = {
+            message: t('applocalizations.translateAllCompleted'),
+            progress: 100,
+            done: job.done,
+            total: job.total
+          }
+
+          // Refresh localizations
+          await fetchLocalizations()
+          toast.success(t('applocalizations.translateAllCompleted'))
+        } else if (job.status === 'failed') {
+          clearInterval(pollInterval)
+          updateContentTranslating.value = false
+          updateContentResult.value = {
+            message: t('applocalizations.translateAllError', { error: job.error || 'Unknown error' }),
+            done: job.done,
+            total: job.total
+          }
+          toast.error(t('applocalizations.translateAllError', { error: job.error || 'Unknown error' }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to poll translation progress:', error)
+      clearInterval(pollInterval)
+      updateContentTranslating.value = false
+    }
+  }, 2000) // Poll every 2 seconds
 }
 
 async function submitBatchTranslate() {
@@ -1056,18 +1298,20 @@ async function submitBatchTranslate() {
     // Submit translation job using llama/hunyuan
     // Note: The backend will use default llama configuration from backend/config.yaml
     // modelPath and libPath are not required to be sent from frontend
+    // skipExisting: if not overwriting, skip fields that already have content
     const response = await api.translateAppLocalizations(appId.value, {
       providerType: 'llama',
       sourceLanguage: sourceLanguage,
       targetLanguages: selectedBatchTranslateLanguages.value,
-      onlyTranslateWhatsNew: onlyTranslateWhatsNew.value,
       configData: {
         // Hunyuan model generation parameters
         threads: 4,
         temperature: 0.7,
         topP: 0.6,
         topK: 20,
-        tokens: 4096
+        tokens: 4096,
+        // Skip existing translations if overwrite is false
+        skipExisting: !overwriteExisting.value
       }
     })
 

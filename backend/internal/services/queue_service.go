@@ -542,9 +542,10 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 	}
 
 	// Check if onlyTranslateWhatsNew option is set
+	// This option translates both What's New and Promotional Text (update-related content)
 	if onlyWhatsNew, ok := job.ConfigData["onlyTranslateWhatsNew"].(bool); ok && onlyWhatsNew {
-		fmt.Printf("Only translating What's New field as requested\n")
-		// Filter to only include WhatsNew field
+		fmt.Printf("Only translating What's New and Promotional Text fields as requested\n")
+		// Filter to only include WhatsNew and PromotionalText fields
 		filteredFields := make([]struct {
 			name       string
 			maxLength  int
@@ -552,9 +553,8 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 			targetFunc func(*database.AppLocalization, string)
 		}, 0)
 		for _, f := range fieldsToTranslate {
-			if f.name == "WhatsNew" {
+			if f.name == "WhatsNew" || f.name == "PromotionalText" {
 				filteredFields = append(filteredFields, f)
-				break
 			}
 		}
 		fieldsToTranslate = filteredFields
@@ -654,6 +654,12 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 				}
 			}
 
+			// Check if skipExisting option is set (skip fields that already have translated content)
+			skipExisting := false
+			if skip, ok := job.ConfigData["skipExisting"].(bool); ok && skip {
+				skipExisting = true
+			}
+
 			// Translate each field (serial within a language to avoid context conflicts)
 			for _, fieldDef := range fieldsToTranslate {
 				sourceText := fieldDef.sourceFunc(sourceLoc)
@@ -661,6 +667,21 @@ func (qs *QueueService) processAppLocalizationJob(job *database.TranslationQueue
 				// Skip empty fields
 				if sourceText == "" {
 					fmt.Printf("  Field %s is empty, skipping\n", fieldDef.name)
+					mu.Lock()
+					doneCount++
+					progress := int(float64(doneCount) / float64(totalFields) * 100)
+					qs.UpdateQueueJob(job.ID, map[string]interface{}{
+						"Done":     doneCount,
+						"Progress": progress,
+					})
+					mu.Unlock()
+					continue
+				}
+
+				// Skip if field already has content and skipExisting is true
+				existingText := fieldDef.sourceFunc(targetLoc)
+				if skipExisting && exists && existingText != "" {
+					fmt.Printf("  Field %s already has content, skipping (skipExisting=true)\n", fieldDef.name)
 					mu.Lock()
 					doneCount++
 					progress := int(float64(doneCount) / float64(totalFields) * 100)

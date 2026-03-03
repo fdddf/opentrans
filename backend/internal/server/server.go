@@ -157,6 +157,7 @@ func NewApp(db *database.Database) (*fiber.App, error) {
 	protected.Post("/appleconnections/test", appleConnectController.TestAppleConnectCredentials)
 	protected.Post("/apple-connect/sync-apps", appleConnectController.SyncAppleApps)
 	protected.Post("/apple-connect/:appId/sync-localizations", appleConnectController.SyncAppleAppLocalizations)
+	protected.Post("/apple-connect/:appId/push-update-content", appleConnectController.PushUpdateContentToApple)
 
 	// Subscription management routes
 	protected.Get("/subscription", subscriptionController.GetUserSubscription)

@@ -801,6 +801,13 @@ class ApiClient {
     });
   }
 
+  async pushUpdateContentToApple(appId: number, payload: { configId: number; languageCodes?: string[] }): Promise<any> {
+    return this.request(`/protected/apple-connect/${appId}/push-update-content`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   }
 
 const apiClient = new ApiClient();

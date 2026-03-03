@@ -618,6 +618,81 @@ func (c *AppleConnectClient) UpdateAppLocalization(localizationID, marketingURL,
 	return &updated.Data, nil
 }
 
+// UpdateAppLocalizationContent updates only whatsNew and promotionalText in App Store Connect
+// This is a simplified version for the What's New page
+func (c *AppleConnectClient) UpdateAppLocalizationContent(localizationID, whatsNew, promotionalText string) (*AppLocalization, error) {
+	jwtToken, err := c.GenerateJWT()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate JWT: %w", err)
+	}
+
+	// Clean text fields to remove invalid characters
+	whatsNew = cleanAppleText(whatsNew)
+	promotionalText = cleanAppleText(promotionalText)
+
+	// Debug logging
+	fmt.Printf("[DEBUG] UpdateAppLocalizationContent: localizationID=%s, whatsNew=%d chars, promotionalText=%d chars\n", localizationID, len(whatsNew), len(promotionalText))
+
+	// Truncate promotionalText to Apple's limit
+	promotionalText = truncateString(promotionalText, 170)
+
+	// Build attributes map with only whatsNew and promotionalText
+	attributes := map[string]interface{}{}
+	if whatsNew != "" {
+		attributes["whatsNew"] = whatsNew
+	}
+	if promotionalText != "" {
+		attributes["promotionalText"] = promotionalText
+	}
+
+	if len(attributes) == 0 {
+		return nil, fmt.Errorf("no content to update")
+	}
+
+	payload := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type":       "appStoreVersionLocalizations",
+			"id":         localizationID,
+			"attributes": attributes,
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest("PATCH", fmt.Sprintf("%s/v1/appStoreVersionLocalizations/%s", c.baseURL, localizationID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+jwtToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = io.NopCloser(bytes.NewReader(payloadBytes))
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var updated AppLocalizationResponse
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if err := json.Unmarshal(body, &updated); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	return &updated.Data, nil
+}
+
 // DeleteAppLocalization deletes an existing localization in App Store Connect
 func (c *AppleConnectClient) DeleteAppLocalization(localizationID string) error {
 	jwtToken, err := c.GenerateJWT()

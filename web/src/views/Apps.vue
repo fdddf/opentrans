@@ -167,6 +167,7 @@
         <div class="mt-3 flex gap-2 text-xs">
       <RouterLink :to="`/apps/${app.id}`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.manage') }}</RouterLink>
       <RouterLink :to="`/apps/${app.id}/localizations`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.localizations') }}</RouterLink>
+      <RouterLink :to="`/apps/${app.id}/whatsnew`" class="rounded border border-white/20 px-2 py-1 hover:border-mint/60 hover:text-mint">{{ t('apps.whatsNew') }}</RouterLink>
       <button v-if="app.origin === 'manual'" class="rounded border border-white/20 px-2 py-1 hover:border-rose-600/60 hover:text-rose-500" @click="deleteApp(app.id)">{{ t('common.delete') }}</button>
         </div>
       </div>

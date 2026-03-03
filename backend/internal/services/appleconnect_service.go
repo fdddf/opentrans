@@ -639,3 +639,80 @@ func (s *AppleConnectService) SyncWithDirectionAndStrategy(appID uint, direction
 
 	return syncedLocalizations, conflicts, nil
 }
+
+// PushUpdateContentToApple pushes only whatsNew and promotionalText to Apple Connect for all localizations
+func (s *AppleConnectService) PushUpdateContentToApple(appID uint, languageCodes []string, issuerID, keyID, privateKeyPath, privateKey string) ([]database.AppLocalization, error) {
+	app, err := s.AppService.GetApp(appID)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := appleconnect.NewAppleConnectClient(issuerID, keyID, privateKeyPath, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Apple Connect client: %v", err)
+	}
+
+	var syncedLocalizations []database.AppLocalization
+
+	// Get local localizations
+	localLocalizations, err := s.AppLocalizationService.GetAppLocalizations(appID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get local localizations: %v", err)
+	}
+
+	// Create a map for quick lookup
+	localLocMap := make(map[string]database.AppLocalization)
+	for _, loc := range localLocalizations {
+		localLocMap[loc.LanguageCode] = loc
+	}
+
+	// If no specific languages provided, push all
+	if len(languageCodes) == 0 {
+		for _, loc := range localLocalizations {
+			languageCodes = append(languageCodes, loc.LanguageCode)
+		}
+	}
+
+	for _, langCode := range languageCodes {
+		localLoc, exists := localLocMap[langCode]
+		if !exists {
+			fmt.Printf("Skipping %s: no local localization found\n", langCode)
+			continue
+		}
+
+		// Skip if both fields are empty
+		if localLoc.WhatsNew == "" && localLoc.PromotionalText == "" {
+			fmt.Printf("Skipping %s: both whatsNew and promotionalText are empty\n", langCode)
+			continue
+		}
+
+		// Get Apple localization to get the localization ID
+		appleLoc, err := client.GetAppLocalization(app.AppleID, langCode)
+		if err != nil {
+			fmt.Printf("Warning: failed to get Apple localization for %s: %v, skipping\n", langCode, err)
+			continue
+		}
+
+		// Update only whatsNew and promotionalText
+		_, err = client.UpdateAppLocalizationContent(
+			appleLoc.ID,
+			localLoc.WhatsNew,
+			localLoc.PromotionalText,
+		)
+		if err != nil {
+			fmt.Printf("Warning: failed to update content for %s: %v\n", langCode, err)
+			continue
+		}
+
+		// Update local record
+		_ = s.AppLocalizationService.UpdateAppLocalization(appID, langCode, map[string]interface{}{
+			"SyncStatus": "synced",
+			"SyncedAt":   time.Now(),
+		})
+
+		syncedLocalizations = append(syncedLocalizations, localLoc)
+		fmt.Printf("Successfully pushed update content for %s\n", langCode)
+	}
+
+	return syncedLocalizations, nil
+}

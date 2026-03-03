@@ -520,3 +520,79 @@ func (ctrl *AppleConnectController) SyncAppleAppLocalizations(c *fiber.Ctx) erro
 		"conflicts": conflicts,
 	})
 }
+
+// PushUpdateContentRequest represents the push update content request
+type PushUpdateContentRequest struct {
+	ConfigID      uint     `json:"configId"`
+	LanguageCodes []string `json:"languageCodes"`
+}
+
+// PushUpdateContentToApple pushes only whatsNew and promotionalText to Apple Connect
+func (ctrl *AppleConnectController) PushUpdateContentToApple(c *fiber.Ctx) error {
+	appID, err := c.ParamsInt("appId")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid app ID")
+	}
+
+	userID, ok := context.GetUserIDFromContext(c)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "User not authenticated")
+	}
+
+	var req PushUpdateContentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+	}
+	if req.ConfigID == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "configId is required")
+	}
+
+	// Check if user has access to this app
+	hasAccess, _, err := services.CheckUserAccessToApp(uint(appID), userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	if !hasAccess {
+		return fiber.NewError(fiber.StatusForbidden, "Access denied to this app")
+	}
+
+	config, err := services.GetProviderConfig(req.ConfigID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "Provider configuration not found")
+	}
+	if config.UserID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "Access denied to this configuration")
+	}
+	if config.ProviderType != "appleconnect" {
+		return fiber.NewError(fiber.StatusBadRequest, "Provider configuration is not Apple Connect")
+	}
+
+	queueService := services.GetQueueService()
+	if queueService.AppService == nil || queueService.AppLocalizationService == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Apple Connect service unavailable")
+	}
+
+	syncService := services.NewAppleConnectService(services.AppleConnectServiceDeps{
+		AppService:             queueService.AppService,
+		AppLocalizationService: queueService.AppLocalizationService,
+	})
+
+	localizations, err := syncService.PushUpdateContentToApple(
+		uint(appID),
+		req.LanguageCodes,
+		config.ConfigData["issuerID"].(string),
+		config.ConfigData["keyID"].(string),
+		"",
+		config.ConfigData["privateKey"].(string),
+	)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": fmt.Sprintf("Pushed update content for %d localizations to Apple Connect", len(localizations)),
+		"count":   len(localizations),
+	})
+}
