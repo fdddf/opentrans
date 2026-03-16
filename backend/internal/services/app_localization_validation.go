@@ -43,6 +43,7 @@ const (
 // ValidateAppLocalization validates an app localization based on Apple App Store Connect requirements
 // Note: This function now only adds warnings for length violations, allowing database storage
 // The actual truncation happens during sync with Apple
+// Note: name is no longer required during validation as it can be inherited from primary locale
 func (v *AppLocalizationValidator) ValidateAppLocalization(languageCode, name, subtitle, shortDescription, keywords, privacyURL, marketingURL, supportURL, promotionalText, releaseNotes string) *LocalizationValidationResult {
 	result := &LocalizationValidationResult{
 		IsValid:  true,
@@ -50,14 +51,8 @@ func (v *AppLocalizationValidator) ValidateAppLocalization(languageCode, name, s
 		Warnings: []LocalizationValidationError{},
 	}
 
-	// Validate name (required for all languages except primary locale might be optional)
-	if strings.TrimSpace(name) == "" {
-		result.Errors = append(result.Errors, LocalizationValidationError{
-			Field:   "name",
-			Message: "App name is required",
-		})
-		result.IsValid = false
-	} else if len(name) > MaxAppNameLength {
+	// Validate name length (name is optional, can be inherited from primary locale)
+	if len(name) > MaxAppNameLength {
 		warning := fmt.Sprintf("App name exceeds %d characters (current: %d), will be truncated when syncing to Apple", MaxAppNameLength, len(name))
 		result.Warnings = append(result.Warnings, LocalizationValidationError{
 			Field:   "name",
