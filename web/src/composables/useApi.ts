@@ -239,6 +239,17 @@ export interface QueueJobsResponse {
   jobs: TranslationQueue[];
 }
 
+export interface QueueJobCreateRequest {
+  jobType: string;
+  projectId?: number;
+  appId?: number;
+  providerType: string;
+  sourceLanguage: string;
+  targetLanguages: string[];
+  onlyTranslateWhatsNew?: boolean;
+  configData?: Record<string, any>;
+}
+
 export interface LanguageMetadata {
   code: string;
   name: string;
@@ -294,8 +305,9 @@ class ApiClient {
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    const isFormData = options.body instanceof FormData
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     } as Record<string, string>;
 
@@ -669,7 +681,7 @@ class ApiClient {
   }
 
   // Queue methods
-  async createQueueJob(jobData: Partial<TranslationQueue>): Promise<QueueJobResponse> {
+  async createQueueJob(jobData: QueueJobCreateRequest): Promise<QueueJobResponse> {
     return this.request<QueueJobResponse>('/protected/queue/translate', {
       method: 'POST',
       body: JSON.stringify(jobData),
