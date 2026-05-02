@@ -306,8 +306,9 @@ func (o *OpenAITranslator) translateOnce(ctx context.Context, req model.Translat
 		Stream:      stream,
 	}
 
-	// Some providers require stream_options to be present whenever stream is set (even false).
-	requestBody.StreamOptions = &OpenAIStreamOptions{IncludeUsage: false}
+	if stream {
+		requestBody.StreamOptions = &OpenAIStreamOptions{IncludeUsage: false}
+	}
 
 	resp, err := o.Client.R().
 		SetContext(ctx).
@@ -420,7 +421,7 @@ func parseStreamedContent(body []byte) (string, error) {
 // Translate translates a string using OpenAI Chat API
 func (o *OpenAITranslator) Translate(ctx context.Context, req model.TranslationRequest) (model.TranslationResponse, error) {
 	translatedText, err := o.translateOnce(ctx, req, false)
-	if err != nil && strings.Contains(err.Error(), "'stream' and 'stream_options' must be set together") {
+	if err != nil && strings.Contains(err.Error(), "stream_options") {
 		translatedText, err = o.translateOnce(ctx, req, true)
 		if err != nil {
 			err = fmt.Errorf("streaming retry failed: %w", err)
